@@ -48,3 +48,6 @@
 
 # 開發截圖
 截圖*.png
+
+# 覆蓋率量測 build
+build-cov/
