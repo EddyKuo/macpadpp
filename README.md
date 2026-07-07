@@ -20,8 +20,9 @@
   全螢幕、Distraction Free、Post-It、瀏覽器預覽。
 - **自動化** — 巨集錄製/播放/具名儲存、外部命令執行(可存具名命令)、Style Configurator、Shortcut Mapper。
 - **原生 macOS** — 選單列原生整合(Preferences/About/Quit 自動歸入應用程式選單)、跟隨系統深/淺色、
-  單一實例、命令列 `file:line` 跳轉。
-- **可擴充** — 內建 in-process extension protocol;附 **Markdown 即時預覽** 外掛作為示範。
+  單一實例、命令列 `file:line` 跳轉;**Notepad++ 風格圖示工具列**(隨主題自動變色)。
+- **多國語系** — 繁體中文 / 简体中文 / 日本語 / English,選單與對話框全數在地化(`Settings ▸ Interface Language` 切換)。
+- **可擴充** — 內建 in-process extension protocol;附 **Markdown 即時預覽** 外掛作為示範(離線渲染,支援 Mermaid 流程圖)。
 
 ---
 
@@ -51,7 +52,7 @@ open build/src/macpad++.app
 ## 測試與效能基準
 
 ```bash
-ctest --test-dir build --output-on-failure                    # 15 個 QtTest 套件
+ctest --test-dir build --output-on-failure                    # 17 個 QtTest 套件
 QT_QPA_PLATFORM=offscreen ./build/tests/bench_largefile 100    # 大檔案基準
 ```
 
