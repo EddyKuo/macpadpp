@@ -1,0 +1,171 @@
+#pragma once
+
+// MainWindow — 主視窗（app 層）
+// v1 起始：分頁式編輯（FR-001 部分）、選單列（Mac 慣例 keymap，FR-024/025）、
+// 檔案開啟/儲存/另存（FR-014）、狀態列行/列（FR-022 部分）。
+// 完整分頁拖曳/標色/鎖定、分割視窗、session 等後續加入。
+
+#include <QMainWindow>
+
+#include "extension/IExtension.h"
+#include "features/udl/UdlManager.h"
+
+#include <memory>
+#include <QStringList>
+#include <QSet>
+
+class QTabWidget;
+class QLabel;
+class QMenu;
+class QToolBar;
+class QFileSystemWatcher;
+class QsciMacro;
+class QAction;
+class QLineEdit;
+class QDockWidget;
+
+namespace macpad::core { class EditorWidget; }
+namespace macpad::features { class FindReplaceDialog; }
+namespace macpad::ui { class EditorPane; class DocumentListDock;
+    class FunctionListDock; class ClipboardHistoryDock; class DocumentMapDock; class WorkspaceDock;
+    class CharacterPanel; }
+namespace macpad::extension { class ExtensionRegistry; }
+namespace macpad::features { class FindInFilesDock; class RunDock; }
+namespace macpad::persistence { struct SessionState; }
+
+class MainWindow : public QMainWindow, public macpad::extension::IHostServices {
+    Q_OBJECT
+public:
+    explicit MainWindow(QWidget *parent = nullptr);
+    ~MainWindow() override;
+
+    // IHostServices（extension protocol，FR-035）
+    macpad::core::EditorWidget *activeEditor() override;
+    void addMenuAction(const QString &menuTitle, const QString &text,
+                       std::function<void()> callback) override;
+    void showStatusMessage(const QString &message, int timeoutMs = 3000) override;
+    QWidget *hostWindow() override { return this; }
+
+public slots:
+    // 開啟指定檔案（已開啟則聚焦既有分頁——FR-001 邊界）
+    void openFile(const QString &path);
+    // 開啟並跳至指定行/欄（1-based）——供 Find in Files 跳轉
+    void openFileAtLine(const QString &path, int line, int column);
+
+protected:
+    void closeEvent(QCloseEvent *event) override;
+
+private slots:
+    void newFile();
+    void openFileDialog();
+    bool saveCurrent();
+    bool saveCurrentAs();
+    void closeTab(int index);
+    void createStatusCells();
+    void updateStatusBar();
+    void updateTabTitle();
+    void showFind();
+    void showReplace();
+    void toggleSplit();
+    void applyTheme();
+    void themeEditor(macpad::core::EditorWidget *editor);  // 依設定為單一編輯器上主題色
+    void applyViewPrefs(macpad::core::EditorWidget *editor);
+    void onFileChangedOnDisk(const QString &path);
+    void startMacroRecording();
+    void stopMacroRecording();
+    void playMacro();
+
+    // === Notepad++ 對等：檔案操作 ===
+    void reloadFromDisk();
+    void saveAll();
+    void saveCopyAs();
+    void renameCurrentFile();
+    void closeAllTabs();
+    void closeAllButCurrent();
+    void moveCurrentToTrash();
+    void restoreClosedTab();
+    void revealInFinder();
+    void openInDefaultApp();
+    // === Notepad++ 對等：搜尋 ===
+    void findNextDir(bool forward);
+    void selectAndFind(bool forward);
+    void markSelectionOccurrences();
+    void clearAllMarks();
+    // === Notepad++ 對等：檢視 / 分頁 / 視窗 ===
+    void toggleAlwaysOnTop(bool on);
+    void activateTabRelative(int delta);
+    void moveCurrentTab(int delta);
+    void toggleMonitoring();
+    void buildWindowMenu();
+    void setDistractionFree(bool on);
+    void setPostIt(bool on);
+    void showIncrementalSearch();
+    void viewCurrentFileInBrowser(const QString &appName);
+
+private:
+    void createMenus();
+    void createSearchMenu(QMenu *searchMenu);  // Notepad++ Search 選單（填入預建的選單）
+    void createEditMenuOps(QMenu *editMenu);   // Notepad++ 對等文字操作
+    void applyTextOp(const std::function<QString(const QString &)> &op);
+    void moveCurrentLines(bool up);
+    void saveSession();
+    void restoreSession();
+    macpad::persistence::SessionState buildCurrentSession() const;
+    void openSessionState(const macpad::persistence::SessionState &state);
+    void rebuildRecentMenu();
+    void refreshDocList();
+    void refreshPanels();
+    void watchPath(const QString &path);
+    macpad::ui::EditorPane *currentPane() const;
+    macpad::ui::EditorPane *paneAt(int index) const;
+    macpad::core::EditorWidget *currentEditor() const;
+    macpad::core::EditorWidget *editorAt(int index) const;
+    macpad::core::EditorWidget *addEditorTab();
+    // 若分頁有未存變更，詢問存/不存/取消；回傳 false 表示使用者取消（FR-001 AC2）
+    bool maybeSave(macpad::core::EditorWidget *editor);
+    int indexOfPath(const QString &absPath) const;
+
+    QTabWidget *m_tabs = nullptr;
+    // 狀態列六格（複刻 Notepad++）：文件類型 / 長度·行數 / 游標·選取 / EOL / 編碼 / INS·OVR
+    QLabel *m_stDoc = nullptr;
+    QLabel *m_stLenLines = nullptr;
+    QLabel *m_stCaret = nullptr;
+    QLabel *m_stEol = nullptr;
+    QLabel *m_stEnc = nullptr;
+    QLabel *m_stMode = nullptr;
+    QToolBar *m_toolbar = nullptr;
+    macpad::features::FindReplaceDialog *m_findDialog = nullptr;
+    QMenu *m_recentMenu = nullptr;
+    QFileSystemWatcher *m_watcher = nullptr;
+    std::unique_ptr<macpad::extension::ExtensionRegistry> m_extensions;
+    macpad::features::FindInFilesDock *m_findInFiles = nullptr;
+    macpad::features::RunDock *m_runDock = nullptr;
+    macpad::ui::DocumentListDock *m_docList = nullptr;
+    macpad::ui::FunctionListDock *m_funcList = nullptr;
+    macpad::ui::ClipboardHistoryDock *m_clipHistory = nullptr;
+    macpad::ui::DocumentMapDock *m_docMap = nullptr;
+    macpad::ui::WorkspaceDock *m_workspace = nullptr;
+    macpad::ui::CharacterPanel *m_charPanel = nullptr;
+    QsciMacro *m_recordingMacro = nullptr;
+    QMenu *m_windowMenu = nullptr;
+    QStringList m_closedFiles;          // 最近關閉分頁堆疊（Restore Recent Closed File）
+    QSet<QString> m_monitored;          // tail -f 監控中的檔案（絕對路徑）
+    QString m_lastFindText;             // Find Next/Previous 的最後查詢
+    QToolBar *m_incBar = nullptr;       // 漸進式搜尋工具列
+    QLineEdit *m_incSearch = nullptr;
+    QList<QDockWidget *> m_dfHidden;    // Distraction Free 時暫時隱藏的面板
+    QList<QDockWidget *> m_postItHidden;
+    bool m_distractionFree = false;
+    bool m_postIt = false;
+    bool m_alwaysOnTop = false;
+    bool m_showIndentGuide = true;
+    bool m_showWrapSymbol = false;
+    bool m_wordWrap = false;
+    bool m_showWhitespace = false;
+    bool m_showEol = false;
+    macpad::features::UdlManager m_udl;
+    QString m_savedMacro;
+    QAction *m_recordAction = nullptr;
+    QAction *m_stopAction = nullptr;
+    QAction *m_playAction = nullptr;
+};

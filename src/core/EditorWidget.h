@@ -1,0 +1,149 @@
+#pragma once
+
+// EditorWidget — QsciScintilla 的封裝（core 層）
+// v1 起始：行號邊欄、折疊邊欄、括號配對、多游標、依副檔名語法高亮、載入/儲存。
+// 對應 FR-003/004/005/007/008/014（部分）。後續拆分 buffer/view 模型見 Architecture §3。
+
+#include <Qsci/qsciscintilla.h>
+#include <QString>
+#include <QList>
+
+#include "core/FileEncoding.h"
+
+namespace macpad::core {
+
+class EditorWidget : public QsciScintilla {
+    Q_OBJECT
+public:
+    explicit EditorWidget(QWidget *parent = nullptr);
+
+    // 從磁碟載入檔案內容（UTF-8）；成功回傳 true。失敗時 errorMessage 帶原因（FR-014 邊界）。
+    bool loadFile(const QString &path, QString *errorMessage = nullptr);
+
+    // 儲存至指定路徑（UTF-8）；成功回傳 true 並更新 filePath/dirty。
+    bool saveFile(const QString &path, QString *errorMessage = nullptr);
+
+    QString filePath() const { return m_filePath; }
+    bool isUntitled() const { return m_filePath.isEmpty(); }
+    bool isDirty() const { return isModified(); }
+
+    // 顯示用標題：檔名或 "Untitled"，dirty 時前綴 ●
+    QString displayName() const;
+
+    Encoding encoding() const { return m_encoding; }
+    Eol eol() const { return m_eol; }
+
+    // 狀態列統計（複刻 Notepad++ 狀態列各欄位）——一次算齊避免多次 IPC。
+    // 長度/位置以「字元數」計（非位元組），與 Notepad++ 顯示一致。
+    struct DocStats {
+        long length = 0;      // 全文字元數
+        int  lines = 1;       // 行數
+        int  line = 1;        // 游標行（1-based）
+        int  col = 1;         // 游標欄（1-based）
+        long pos = 1;         // 游標字元位置（1-based）
+        long selChars = 0;    // 選取字元數（0 = 無選取）
+        int  selLines = 0;    // 選取涵蓋行數
+        bool overtype = false;// 覆寫模式（OVR）
+    };
+    DocStats stats();
+
+    // 變更目標編碼（下次儲存生效；標記 dirty）——FR-019
+    void setEncoding(Encoding enc);
+
+    // 狀態列顯示用編碼名稱（具名 codec 優先，否則 enum 名稱）
+    QString encodingLabel() const;
+
+    // 以具名 codec（Big5/Shift-JIS…）重新解讀磁碟上的檔案內容（複刻 NP++ Character sets）。
+    // 有檔路徑時：重讀原始位元組並以該 codec 解碼取代內容；無檔時：僅設為存檔 codec。
+    bool reinterpretWithCodec(const QString &codecName, QString *errorMessage = nullptr);
+    // 僅設定存檔用 codec（不重讀），標記 dirty
+    void setSaveCodec(const QString &codecName);
+    QString saveCodec() const { return m_codecName; }
+    // 轉換 EOL（立即套用到內容 + 編輯器模式；標記 dirty）——FR-020
+    void convertEol(Eol eol);
+
+    // 全域取代（FR-010/011）——以 Scintilla target API 批次執行，單次 undo。
+    // 效能路徑（NFR-004）：避免逐一 findNext/replace 的高階呼叫開銷。
+    // 回傳取代次數。
+    int replaceAll(const QString &find, const QString &replaceStr,
+                   bool regex, bool caseSensitive, bool wholeWord);
+
+    // Mark：高亮所有匹配（FR-012），回傳匹配數；clearMarks 清除。
+    int markAll(const QString &find, bool regex, bool caseSensitive, bool wholeWord);
+    void clearMarks();
+    static constexpr int kMarkIndicator = 0;
+
+    // 書籤（FR-008）
+    void toggleBookmark();               // 切換目前行書籤
+    void nextBookmark();                 // 跳至下一書籤（循環）
+    void prevBookmark();                 // 跳至上一書籤（循環）
+
+    // 書籤 marker 編號（margin 1 符號邊欄）
+    static constexpr int kBookmarkMarker = 1;
+
+    // 以目前檔名重新套用內建 lexer（產生全新預設色的 lexer，供主題重新上色，避免疊加降飽和）
+    void reapplyLexer() { applyLexerForPath(m_filePath); }
+
+    // 手動指定 lexer（Language 選單）；設等寬字型並發 lexerChanged 供重新上主題色。nullptr = 純文字。
+    void setLanguageLexer(QsciLexer *lexer);
+
+    // === 折疊（View ▸ Fold）===
+    void foldAllBlocks(bool contract);   // true=全部收合；false=全部展開（避免與 QsciScintilla::foldAll 衝突）
+    void foldCurrent(bool contract);     // 收合/展開目前區塊
+    void foldToLevel(int level);         // 收合到第 level 層（1..8）
+
+    // === 縮排（Edit ▸ Indent）===
+    void indentSelection();
+    void unindentSelection();
+
+    // === 行操作補充（Edit ▸ Line Operations）===
+    void joinSelectedLines();
+    void splitSelectedLines();
+
+    // === 區塊註解（Edit ▸ Comment）===
+    // 依目前 lexer 的語言用對應區塊符號（/* */、<!-- -->、# 等）包住選取；無選取則作用於當前行。
+    void toggleBlockComment();
+
+    // === 書籤進階（Search ▸ Bookmark）===
+    QList<int> bookmarkedLines() const;
+    void clearAllBookmarks();
+    void removeBookmarkedLines();        // 刪除所有書籤行
+    void removeNonBookmarkedLines();     // 刪除所有未加書籤的行
+    void inverseBookmarks();             // 反轉書籤（有↔無）
+    QString bookmarkedText() const;      // 所有書籤行文字（供複製）
+
+    // === 選取（Search ▸ Select All In-between braces）===
+    void selectBetweenBraces();
+
+    // === 唯讀 ===
+    // 直接用 QsciScintilla::setReadOnly/isReadOnly
+
+    // === Call tip（函式參數提示）===
+    void showCallTip(const QString &text);   // 於游標處顯示 call tip
+    void cancelCallTip();
+
+signals:
+    void dirtyChanged(bool dirty);
+    void metaChanged();     // 編碼/EOL 變更（狀態列更新）
+    void lexerChanged();    // lexer 重建（供 MainWindow 重新套主題/降飽和）
+    void callTipRequested(const QString &functionName);  // 鍵入 '(' 時發出，供上層查簽名
+
+protected:
+    void keyPressEvent(QKeyEvent *event) override;
+
+private slots:
+    void onMarginClicked(int margin, int line, Qt::KeyboardModifiers state);
+
+private:
+    void applyDefaultConfig();
+    void applyLexerForPath(const QString &path);
+    void applyEolMode(Eol eol);
+    void toggleBookmarkAtLine(int line);
+
+    QString m_filePath;
+    Encoding m_encoding = Encoding::Utf8;
+    QString m_codecName;   // 非空 = 用具名 codec 存檔（Character sets 選的傳統編碼）
+    Eol m_eol = Eol::Lf;
+};
+
+}  // namespace macpad::core

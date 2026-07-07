@@ -1,0 +1,43 @@
+# Build output
+/build/
+/cmake-build-*/
+*.o
+*.obj
+
+# macOS
+.DS_Store
+
+# IDE
+/.vscode/
+/.idea/
+*.user
+
+# App bundle output
+*.app
+*.dmg
+
+# ============================================================
+# team-claude 框架 / 開發鷹架（非 macpad++ app 產出，不上傳）
+# 本專案是在 team-claude AI 開發框架的範本內開發,以下為框架本身與
+# 開發過程產物;要發佈的只有 app 原始碼(src/ tests/ resources/ docs/
+# CMakeLists.txt BUILD.md)。
+# ============================================================
+
+# 框架核心與角色/技能定義
+/agents/
+/skills/
+/profiles/
+/CLAUDE.md
+# 最初的需求規劃草稿
+/plan.md
+# 注意：框架使用指南已移到 .claude/README.md（隨 .claude/ 一併被忽略）；
+# 根目錄的 README.md 現在是 macpad++ 的 app 說明,會被追蹤上傳。
+
+# 框架執行期產物
+/sprint/
+/exceptions/
+/.claude/
+
+# 團隊流程產生的設計契約與 ADR（如需保留為 app 設計文件,刪掉下面兩行即可）
+/specs/
+/.decisions/
