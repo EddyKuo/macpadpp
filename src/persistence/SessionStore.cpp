@@ -3,6 +3,7 @@
 #include "persistence/AppPaths.h"
 #include "persistence/JsonFile.h"
 
+#include <QCryptographicHash>
 #include <QDir>
 #include <QFileInfo>
 #include <QJsonArray>
@@ -18,6 +19,18 @@ static QString sessionsDir()
     const QString d = AppPaths::filePath(QStringLiteral("sessions"));
     QDir().mkpath(d);
     return d;
+}
+
+// 由 session 名稱推導檔名：sanitize 後再附加原始名稱的雜湊，
+// 避免僅在非法字元上不同的名稱（如 "a/b" 與 "a?b"）映射到同一檔名而互相覆蓋。
+// 相同名稱恆得相同檔名（可正常覆蓋 / 讀回）。
+static QString sessionFileName(const QString &name)
+{
+    QString safe = name;
+    safe.replace(QRegularExpression(QStringLiteral("[^\\w.-]")), QStringLiteral("_"));
+    const QString hash = QString::fromLatin1(
+        QCryptographicHash::hash(name.toUtf8(), QCryptographicHash::Sha1).toHex().left(8));
+    return safe + QLatin1Char('-') + hash + QStringLiteral(".json");
 }
 
 static QJsonObject stateToJson(const SessionState &state)
@@ -43,13 +56,17 @@ static SessionState jsonToState(const QJsonObject &root)
     SessionState state;
     if (root.isEmpty())
         return state;
-    state.activeIndex = root.value(QStringLiteral("active_index")).toInt(0);
+    const int rawActive = root.value(QStringLiteral("active_index")).toInt(0);
     const QJsonArray tabs = root.value(QStringLiteral("tabs")).toArray();
-    for (const QJsonValue &v : tabs) {
-        const QJsonObject o = v.toObject();
+    int skippedBeforeActive = 0;  // 記錄作用分頁之前被略過的空 path 項目數，用於重新映射 activeIndex
+    for (int i = 0; i < tabs.size(); ++i) {
+        const QJsonObject o = tabs.at(i).toObject();
         const QString path = o.value(QStringLiteral("path")).toString();
-        if (path.isEmpty())
+        if (path.isEmpty()) {
+            if (i < rawActive)
+                ++skippedBeforeActive;
             continue;
+        }
         TabState t;
         t.path = path;
         t.line = o.value(QStringLiteral("line")).toInt(0);
@@ -57,6 +74,7 @@ static SessionState jsonToState(const QJsonObject &root)
         t.firstVisibleLine = o.value(QStringLiteral("first_visible_line")).toInt(0);
         state.tabs.push_back(t);
     }
+    state.activeIndex = rawActive - skippedBeforeActive;  // 依過濾後的陣列重新映射
     if (state.activeIndex < 0 || state.activeIndex >= state.tabs.size())
         state.activeIndex = 0;
     return state;
@@ -76,18 +94,14 @@ bool SessionStore::saveNamed(const QString &name, const SessionState &state)
 {
     if (name.isEmpty())
         return false;
-    QString safe = name;
-    safe.replace(QRegularExpression(QStringLiteral("[^\\w.-]")), QStringLiteral("_"));
     QJsonObject root = stateToJson(state);
-    root.insert(QStringLiteral("name"), name);  // 保留原始顯示名（檔名經 sanitize）
-    return JsonFile::save(sessionsDir() + QLatin1Char('/') + safe + QStringLiteral(".json"), root);
+    root.insert(QStringLiteral("name"), name);  // 保留原始顯示名（檔名經 sanitize + 雜湊）
+    return JsonFile::save(sessionsDir() + QLatin1Char('/') + sessionFileName(name), root);
 }
 
 SessionState SessionStore::loadNamed(const QString &name)
 {
-    QString safe = name;
-    safe.replace(QRegularExpression(QStringLiteral("[^\\w.-]")), QStringLiteral("_"));
-    return jsonToState(JsonFile::load(sessionsDir() + QLatin1Char('/') + safe + QStringLiteral(".json")));
+    return jsonToState(JsonFile::load(sessionsDir() + QLatin1Char('/') + sessionFileName(name)));
 }
 
 QStringList SessionStore::listNames()

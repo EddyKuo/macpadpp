@@ -1,0 +1,8 @@
+<RCC>
+  <qresource prefix="/i18n">
+    <file>macpad_zh_TW.qm</file>
+    <file>macpad_zh_CN.qm</file>
+    <file>macpad_ja.qm</file>
+    <file>macpad_en.qm</file>
+  </qresource>
+</RCC>

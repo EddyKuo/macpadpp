@@ -26,7 +26,8 @@ option(STRICT_WARNINGS "Treat warnings as errors" ON)
 # --- 相依：Qt6 -----------------------------------------------------------
 # QScintilla 依賴 PrintSupport；Widgets 為主體；Test 供單元測試（NFR-008）
 # Core5Compat 提供 QTextCodec（傳統/區域編碼：Big5/GBK/Shift-JIS…，複刻 NP++ Character sets）
-find_package(Qt6 REQUIRED COMPONENTS Widgets PrintSupport Core Gui Test Concurrent Network Core5Compat)
+# WebEngineWidgets 供 Markdown 預覽外掛渲染（marked.js + mermaid.js 流程圖）
+find_package(Qt6 REQUIRED COMPONENTS Widgets PrintSupport Core Gui Test Concurrent Network Core5Compat WebEngineWidgets Svg)
 
 # --- 相依：QScintilla (Homebrew 無 CMake config，手動定位) ---------------
 # 允許使用者以 -DQSCINTILLA_ROOT=... 覆寫；預設探測 Homebrew 前綴

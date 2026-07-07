@@ -22,7 +22,6 @@
 #include <Qsci/qscilexermakefile.h>
 #include <Qsci/qscilexermarkdown.h>
 #include <Qsci/qscilexermatlab.h>
-#include <Qsci/qscilexermatlab.h>
 #include <Qsci/qscilexerpascal.h>
 #include <Qsci/qscilexerperl.h>
 #include <Qsci/qscilexerpostscript.h>

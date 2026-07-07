@@ -13,6 +13,7 @@
 #include <QSaveFile>
 #include <QStringList>
 #include <QStringConverter>
+#include <QTextCodec>
 #include <QTextStream>
 
 #include <Qsci/qscilexer.h>
@@ -93,9 +94,12 @@ void EditorWidget::applyDefaultConfig()
 
 void EditorWidget::applyLexerForPath(const QString &path)
 {
-    // 舊 lexer 由 setLexer 接管刪除；設 nullptr 為純文字
+    // setLexer 只切換內部指標、不刪舊 lexer；舊 lexer 掛在 this 下會累積，故手動刪除。設 nullptr 為純文字。
+    QsciLexer *old = QsciScintilla::lexer();
     QsciLexer *lexer = LexerFactory::createForFileName(path, this);
     setLexer(lexer);
+    if (old && old != lexer)
+        delete old;
     if (lexer) {
         // lexer 會覆寫字型，統一回等寬
         QFont font(QStringLiteral("Menlo"), 13);
@@ -108,7 +112,11 @@ void EditorWidget::applyLexerForPath(const QString &path)
 
 void EditorWidget::setLanguageLexer(QsciLexer *lexer)
 {
+    // setLexer 不刪舊 lexer；手動刪除以免掛在 this 下累積
+    QsciLexer *old = QsciScintilla::lexer();
     setLexer(lexer);
+    if (old && old != lexer)
+        delete old;
     if (lexer) {
         QFont font(QStringLiteral("Menlo"), 13);
         font.setStyleHint(QFont::Monospace);
@@ -222,6 +230,12 @@ void EditorWidget::setSaveCodec(const QString &codecName)
 
 bool EditorWidget::reinterpretWithCodec(const QString &codecName, QString *errorMessage)
 {
+    // codec 不存在則明確失敗（IL-4 失敗快失敗明），避免靜默回退 UTF-8 卻回報成功
+    if (!QTextCodec::codecForName(codecName.toLatin1())) {
+        if (errorMessage)
+            *errorMessage = QStringLiteral("不支援的編碼：") + codecName;
+        return false;
+    }
     if (m_filePath.isEmpty()) {
         // 未存檔：無原始位元組可重讀 → 僅設為存檔 codec
         setSaveCodec(codecName);
@@ -290,6 +304,8 @@ int EditorWidget::replaceAll(const QString &find, const QString &replaceStr,
     }
 
     if (count > 0) {
+        // 整份 target 取代會刪除全域範圍、連帶清掉行標記；先記錄書籤行號，取代後還原（FR-008）
+        const QList<int> marks = bookmarkedLines();
         const QByteArray bytes = content.toUtf8();
         beginUndoAction();
         SendScintilla(SCI_SETTARGETSTART, 0UL);
@@ -297,6 +313,11 @@ int EditorWidget::replaceAll(const QString &find, const QString &replaceStr,
         SendScintilla(SCI_REPLACETARGET,
                       static_cast<unsigned long>(bytes.size()), bytes.constData());
         endUndoAction();
+        const int total = static_cast<int>(lines());
+        for (int ln : marks) {
+            if (ln < total)  // 取代可能改變行數，跳過已不存在的行
+                markerAdd(ln, kBookmarkMarker);
+        }
     }
     return count;
 }
@@ -611,10 +632,13 @@ void EditorWidget::keyPressEvent(QKeyEvent *event)
                                       static_cast<unsigned long>(paren), 1L);
         if (ws >= paren)
             return;
-        QString name;
+        // setUtf8(true) → 位置為位元組偏移；先收集原始位元組再以 UTF-8 解碼，
+        // 避免把多位元組字元逐位元組當成 Latin-1 而破壞國際化識別字
+        QByteArray nameBytes;
         for (long p = ws; p < paren; ++p)
-            name += QChar(static_cast<char>(
-                SendScintilla(SCI_GETCHARAT, static_cast<unsigned long>(p))));
+            nameBytes += static_cast<char>(
+                SendScintilla(SCI_GETCHARAT, static_cast<unsigned long>(p)));
+        const QString name = QString::fromUtf8(nameBytes);
         if (!name.trimmed().isEmpty())
             emit callTipRequested(name);
     }

@@ -35,6 +35,7 @@ private slots:
     void cancelSearch();
     void onSearchDone();
     void replaceInFiles();
+    void onReplaceDone();
 
 private:
     FindInFilesOptions currentOptions() const;
@@ -47,10 +48,12 @@ private:
     QCheckBox *m_wholeWord = nullptr;
     QTreeWidget *m_results = nullptr;
     QPushButton *m_searchBtn = nullptr;
+    QPushButton *m_replaceBtn = nullptr;
     QPushButton *m_cancelBtn = nullptr;
     QLabel *m_status = nullptr;
 
     QFutureWatcher<QVector<FindMatch>> m_watcher;
+    QFutureWatcher<FindInFilesEngine::ReplaceResult> m_replaceWatcher;
     std::shared_ptr<std::atomic<bool>> m_cancel;
 };
 

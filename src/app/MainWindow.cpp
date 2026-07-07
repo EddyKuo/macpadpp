@@ -52,6 +52,11 @@
 #include <QLineEdit>
 #include <QRegularExpression>
 #include <QToolBar>
+#include <QIcon>
+#include <QPainter>
+#include <QPalette>
+#include <QPixmap>
+#include <QSvgRenderer>
 
 #include <Qsci/qscimacro.h>
 
@@ -185,18 +190,8 @@ MainWindow::MainWindow(QWidget *parent)
         }
     });
 
-    // 工具列（常用動作）——於 createMenus 前建立，讓 View 選單可加入其開關
-    m_toolbar = addToolBar(tr("Main"));
-    m_toolbar->setMovable(false);
-    m_toolbar->addAction(tr("New"), this, &MainWindow::newFile);
-    m_toolbar->addAction(tr("Open"), this, &MainWindow::openFileDialog);
-    m_toolbar->addAction(tr("Save"), this, [this] { saveCurrent(); });
-    m_toolbar->addSeparator();
-    m_toolbar->addAction(tr("Find"), this, &MainWindow::showFind);
-    m_toolbar->addAction(tr("Replace"), this, &MainWindow::showReplace);
-    // Mac 慣例：預設隱藏工具列（這些動作已在頂端選單列 File/Edit 中）；
-    // 需要的人可從 View ▸ Show Toolbar 開啟。
-    m_toolbar->hide();
+    // Notepad++ 風格的圖示工具列——於 createMenus 前建立，讓 View 選單可加入其開關
+    buildToolbar();
 
     createMenus();
 
@@ -235,7 +230,9 @@ MainWindow::MainWindow(QWidget *parent)
     // 自動儲存（FR-015）：預設關閉；啟用時定期存已命名之未存分頁
     if (settings.autosaveEnabled) {
         auto *timer = new QTimer(this);
-        timer->setInterval(settings.autosaveIntervalSec * 1000);
+        // 夾限區間（同 PreferencesDialog 的 [5,3600]），防止手改/損毀設定檔導致 0/負值 QTimer 空轉
+        const int intervalSec = qBound(5, settings.autosaveIntervalSec, 3600);
+        timer->setInterval(intervalSec * 1000);
         connect(timer, &QTimer::timeout, this, [this] {
             for (int i = 0; i < m_tabs->count(); ++i) {
                 EditorWidget *e = editorAt(i);
@@ -260,23 +257,108 @@ EditorWidget *MainWindow::activeEditor()
 void MainWindow::addMenuAction(const QString &menuTitle, const QString &text,
                                std::function<void()> callback)
 {
-    // 依標題找既有選單（去除 & 助記符）；找不到則新建
+    // 先以 objectName(英文鍵)比對——翻譯後 title 會變,故不能用 title；再退回 title 比對
     QMenu *target = nullptr;
     const auto menus = menuBar()->findChildren<QMenu *>();
     for (QMenu *m : menus) {
-        if (QString(m->title()).remove(QLatin1Char('&')) == menuTitle) {
-            target = m;
-            break;
+        if (m->objectName() == menuTitle) { target = m; break; }
+    }
+    if (!target) {
+        for (QMenu *m : menus) {
+            if (QString(m->title()).remove(QLatin1Char('&')) == menuTitle) { target = m; break; }
         }
     }
-    if (!target)
+    if (!target) {
         target = menuBar()->addMenu(menuTitle);
+        target->setObjectName(menuTitle);
+    }
     target->addAction(text, this, [cb = std::move(callback)] { cb(); });
 }
 
 void MainWindow::showStatusMessage(const QString &message, int timeoutMs)
 {
     statusBar()->showMessage(message, timeoutMs);
+}
+
+// 把 SVG 圖示渲染並整體 tint 成指定顏色（讓單色線圖能隨主題明暗自動變色）。
+static QIcon tintedSvgIcon(const QString &path, const QColor &color)
+{
+    QSvgRenderer renderer(path);
+    const int px = 40;   // 內部高解析，QIcon 會依需要縮放
+    QPixmap pm(px, px);
+    pm.fill(Qt::transparent);
+    QPainter p(&pm);
+    renderer.render(&p);
+    // SourceIn：保留 alpha、把顏色換成主題色
+    p.setCompositionMode(QPainter::CompositionMode_SourceIn);
+    p.fillRect(pm.rect(), color);
+    p.end();
+    return QIcon(pm);
+}
+
+void MainWindow::buildToolbar()
+{
+    Q_INIT_RESOURCE(icons);   // 圖示 qrc 編在靜態庫,須顯式初始化
+    m_toolbar = addToolBar(tr("Main"));
+    m_toolbar->setObjectName(QStringLiteral("MainToolbar"));
+    m_toolbar->setMovable(false);
+    m_toolbar->setIconSize(QSize(18, 18));
+    m_toolbar->setToolButtonStyle(Qt::ToolButtonIconOnly);  // 只顯示圖示,文字作為 tooltip
+
+    // (圖示名, 顯示/提示文字, 觸發)。以分隔線分組,對齊 Notepad++ 工具列。
+    auto add = [this](const char *icon, const QString &tip, auto slot) {
+        QAction *a = m_toolbar->addAction(tip);   // 文字→tooltip
+        a->setToolTip(tip);
+        connect(a, &QAction::triggered, this, slot);
+        m_tbIcons.append({a, QString::fromLatin1(icon)});
+    };
+    add("new", tr("New"), [this] { newFile(); });
+    add("open", tr("Open…"), [this] { openFileDialog(); });
+    add("save", tr("Save"), [this] { saveCurrent(); });
+    add("saveall", tr("Save All"), [this] { saveAll(); });
+    add("close", tr("Close Tab"), [this] { if (m_tabs->count()) closeTab(m_tabs->currentIndex()); });
+    add("closeall", tr("Close All"), [this] { closeAllTabs(); });
+    add("print", tr("Print…"), [this] {
+        if (EditorWidget *e = currentEditor()) {
+            QsciPrinter printer; QPrintDialog dlg(&printer, this);
+            if (dlg.exec() == QDialog::Accepted) printer.printRange(e);
+        }
+    });
+    m_toolbar->addSeparator();
+    add("cut", tr("Cut"), [this] { if (auto *e = currentEditor()) e->cut(); });
+    add("copy", tr("Copy"), [this] { if (auto *e = currentEditor()) e->copy(); });
+    add("paste", tr("Paste"), [this] { if (auto *e = currentEditor()) e->paste(); });
+    m_toolbar->addSeparator();
+    add("undo", tr("Undo"), [this] { if (auto *e = currentEditor()) e->undo(); });
+    add("redo", tr("Redo"), [this] { if (auto *e = currentEditor()) e->redo(); });
+    m_toolbar->addSeparator();
+    add("find", tr("Find…"), [this] { showFind(); });
+    add("replace", tr("Replace…"), [this] { showReplace(); });
+    m_toolbar->addSeparator();
+    add("zoomin", tr("Zoom In"), [this] { if (auto *e = currentEditor()) e->zoomIn(); });
+    add("zoomout", tr("Zoom Out"), [this] { if (auto *e = currentEditor()) e->zoomOut(); });
+    m_toolbar->addSeparator();
+    // 透過 View 選單同名的可勾選 QAction 切換，避免工具列與選單狀態不同步
+    add("wordwrap", tr("Word Wrap"), [this] {
+        if (m_wrapAct) m_wrapAct->toggle();
+    });
+    add("showall", tr("Show All Characters"), [this] {
+        // 一鍵開/關空白＋EOL 顯示；setChecked 會觸發各自的 toggled 更新狀態與畫面
+        const bool on = !(m_showWhitespace && m_showEol);
+        if (m_wsAct) m_wsAct->setChecked(on);
+        if (m_eolAct) m_eolAct->setChecked(on);
+    });
+
+    retintToolbar();   // 依目前主題上色
+}
+
+void MainWindow::retintToolbar()
+{
+    if (!m_toolbar)
+        return;
+    const QColor c = palette().color(QPalette::WindowText);
+    for (const auto &pair : m_tbIcons)
+        pair.first->setIcon(tintedSvgIcon(QStringLiteral(":/icons/%1.svg").arg(pair.second), c));
 }
 
 void MainWindow::createMenus()
@@ -296,6 +378,19 @@ void MainWindow::createMenus()
     QMenu *runMenu      = menuBar()->addMenu(tr("&Run"));
     QMenu *pluginMenu   = menuBar()->addMenu(tr("&Plugins"));
     m_windowMenu        = menuBar()->addMenu(tr("&Window"));
+    // 以 objectName 記錄「英文選單鍵」——供 addMenuAction 穩定比對(翻譯後 title 會變,不能用 title 比)
+    fileMenu->setObjectName(QStringLiteral("File"));
+    editMenu->setObjectName(QStringLiteral("Edit"));
+    searchMenu->setObjectName(QStringLiteral("Search"));
+    viewMenu->setObjectName(QStringLiteral("View"));
+    formatMenu->setObjectName(QStringLiteral("Encoding"));
+    langMenu->setObjectName(QStringLiteral("Language"));
+    settingsMenu->setObjectName(QStringLiteral("Settings"));
+    toolsMenu->setObjectName(QStringLiteral("Tools"));
+    macroMenu->setObjectName(QStringLiteral("Macro"));
+    runMenu->setObjectName(QStringLiteral("Run"));
+    pluginMenu->setObjectName(QStringLiteral("Plugins"));
+    m_windowMenu->setObjectName(QStringLiteral("Window"));
 
     // File 選單（Mac 慣例快捷鍵——QKeySequence 標準鍵在 macOS 自動對映 Cmd，FR-024）
     fileMenu->addAction(tr("New"), QKeySequence::New, this, &MainWindow::newFile);
@@ -459,7 +554,16 @@ void MainWindow::createMenus()
     };
     for (const auto &e : encs) {
         const Encoding enc = e.enc;
-        encMenu->addAction(tr(e.name), this, [this, enc] {
+        // 以字面量 tr() 標示名稱，lupdate 才能靜態擷取翻譯（不可傳執行期 const char*）
+        QString label;
+        switch (enc) {
+        case Encoding::Utf8:    label = tr("UTF-8"); break;
+        case Encoding::Utf8Bom: label = tr("UTF-8 with BOM"); break;
+        case Encoding::Utf16LE: label = tr("UTF-16 LE"); break;
+        case Encoding::Utf16BE: label = tr("UTF-16 BE"); break;
+        case Encoding::Latin1:  label = tr("ANSI (Latin-1)"); break;
+        }
+        encMenu->addAction(label, this, [this, enc] {
             if (auto *ed = currentEditor()) ed->setEncoding(enc);
         });
     }
@@ -490,7 +594,14 @@ void MainWindow::createMenus()
     };
     for (const auto &e : eols) {
         const Eol eol = e.eol;
-        eolMenu->addAction(tr(e.name), this, [this, eol] {
+        // 以字面量 tr() 標示名稱，lupdate 才能靜態擷取翻譯（不可傳執行期 const char*）
+        QString label;
+        switch (eol) {
+        case Eol::Lf:   label = tr("Unix (LF)"); break;
+        case Eol::CrLf: label = tr("Windows (CRLF)"); break;
+        case Eol::Cr:   label = tr("Classic Mac (CR)"); break;
+        }
+        eolMenu->addAction(label, this, [this, eol] {
             if (auto *ed = currentEditor()) ed->convertEol(eol);
         });
     }
@@ -561,6 +672,31 @@ void MainWindow::createMenus()
         macpad::ui::ShortcutMapperDialog dlg(acts, this);
         dlg.exec();
     });
+
+    // 介面語言(i18n)——切換後重啟套用。語言名(endonym)固定不翻譯。
+    settingsMenu->addSeparator();
+    QMenu *uiLangMenu = settingsMenu->addMenu(tr("Interface Language"));
+    const struct { const char *label; const char *code; bool endonym; } uiLangs[] = {
+        {"System Default", "", false},
+        {"繁體中文", "zh_TW", true},
+        {"English", "en", true},
+        {"日本語", "ja", true},
+        {"简体中文", "zh_CN", true},
+    };
+    const QString curLang = macpad::persistence::SettingsStore::load().language;
+    for (const auto &l : uiLangs) {
+        const QString code = QString::fromLatin1(l.code);
+        const QString label = l.endonym ? QString::fromUtf8(l.label) : tr("System Default");
+        QAction *act = uiLangMenu->addAction(label, this, [this, code] {
+            auto s = macpad::persistence::SettingsStore::load();
+            s.language = code;
+            macpad::persistence::SettingsStore::save(s);
+            QMessageBox::information(this, tr("Interface Language"),
+                tr("Language changed. Restart macpad++ to apply."));
+        });
+        act->setCheckable(true);
+        act->setChecked(code == curLang);
+    }
 
     // Preferences（Cmd+,）
     // 重要：不可用 menuBar()->addAction（bare action）——macOS 原生選單列只接受子選單，
@@ -657,7 +793,14 @@ void MainWindow::createMenus()
             vars.currentDirectory = fi.absolutePath();
             vars.fileName = fi.fileName();
             vars.nameNoExt = fi.completeBaseName();
-            vars.currentWord = e->hasSelectedText() ? e->selectedText() : e->wordAtLineIndex(0, 0);
+            if (e->hasSelectedText()) {
+                vars.currentWord = e->selectedText();
+            } else {
+                // 無選取時取游標實際所在位置的單字（非固定 0,0）
+                int line = 0, col = 0;
+                e->getCursorPosition(&line, &col);
+                vars.currentWord = e->wordAtLineIndex(line, col);
+            }
         }
         m_runDock->setVars(vars);
         m_runDock->show();
@@ -707,7 +850,14 @@ void MainWindow::createMenus()
                     vars.currentDirectory = fi.absolutePath();
                     vars.fileName = fi.fileName();
                     vars.nameNoExt = fi.completeBaseName();
-                    vars.currentWord = e->hasSelectedText() ? e->selectedText() : QString();
+                    if (e->hasSelectedText()) {
+                        vars.currentWord = e->selectedText();
+                    } else {
+                        // 與 Run… 一致：無選取時取游標實際所在位置的單字
+                        int line = 0, col = 0;
+                        e->getCursorPosition(&line, &col);
+                        vars.currentWord = e->wordAtLineIndex(line, col);
+                    }
                 }
                 m_runDock->setVars(vars);
                 m_runDock->show();
@@ -803,18 +953,21 @@ void MainWindow::createMenus()
     }
     viewMenu->addSeparator();
     QAction *wrapAct = viewMenu->addAction(tr("Word Wrap"));
+    m_wrapAct = wrapAct;  // 供工具列同名按鈕切換
     wrapAct->setCheckable(true);
     connect(wrapAct, &QAction::toggled, this, [this](bool on) {
         m_wordWrap = on;
         for (int i = 0; i < m_tabs->count(); ++i) applyViewPrefs(editorAt(i));
     });
     QAction *wsAct = viewMenu->addAction(tr("Show Whitespace"));
+    m_wsAct = wsAct;  // 供工具列 Show All Characters 按鈕切換
     wsAct->setCheckable(true);
     connect(wsAct, &QAction::toggled, this, [this](bool on) {
         m_showWhitespace = on;
         for (int i = 0; i < m_tabs->count(); ++i) applyViewPrefs(editorAt(i));
     });
     QAction *eolAct = viewMenu->addAction(tr("Show End of Line"));
+    m_eolAct = eolAct;  // 供工具列 Show All Characters 按鈕切換
     eolAct->setCheckable(true);
     connect(eolAct, &QAction::toggled, this, [this](bool on) {
         m_showEol = on;
@@ -1159,6 +1312,7 @@ void MainWindow::applyTheme()
         if (EditorWidget *e = editorAt(i))
             e->reapplyLexer();
     }
+    retintToolbar();  // 圖示跟隨主題明暗重新上色
 }
 
 void MainWindow::watchPath(const QString &path)

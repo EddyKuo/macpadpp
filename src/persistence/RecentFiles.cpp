@@ -37,21 +37,21 @@ static bool writeList(const QStringList &list)
     return JsonFile::save(recentPath(), root);
 }
 
-void RecentFiles::add(const QString &path)
+bool RecentFiles::add(const QString &path)
 {
     if (path.isEmpty())
-        return;
+        return true;           // 無事可做，視為成功
     QStringList list = load();
     list.removeAll(path);      // 去重
     list.prepend(path);        // 置頂（時間倒序）
     while (list.size() > kMaxItems)
         list.removeLast();     // 裁切
-    writeList(list);
+    return writeList(list);    // 傳遞寫檔結果（IL-4 失敗快失敗明）
 }
 
-void RecentFiles::clear()
+bool RecentFiles::clear()
 {
-    writeList({});
+    return writeList({});
 }
 
 }  // namespace macpad::persistence

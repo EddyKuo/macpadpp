@@ -21,6 +21,7 @@ public:
     macpad::persistence::Settings result() const;
 
 private:
+    macpad::persistence::Settings m_original;  // 保留傳入設定，result() 以此為底避免遺失未暴露欄位（如 language）
     QComboBox *m_theme = nullptr;
     QSpinBox *m_tabWidth = nullptr;
     QCheckBox *m_restore = nullptr;

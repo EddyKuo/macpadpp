@@ -81,6 +81,9 @@ set(MACPAD_LIB_SOURCES
     extension/builtin/WordCountExtension.h
     extension/builtin/MarkdownPreviewExtension.cpp
     extension/builtin/MarkdownPreviewExtension.h
+    ${CMAKE_SOURCE_DIR}/resources/webview/webview.qrc
+    ${CMAKE_SOURCE_DIR}/resources/i18n/i18n.qrc
+    ${CMAKE_SOURCE_DIR}/resources/icons/icons.qrc
 )
 
 add_library(macpad_lib STATIC ${MACPAD_LIB_SOURCES})
@@ -97,6 +100,8 @@ target_link_libraries(macpad_lib PUBLIC
     Qt6::Concurrent
     Qt6::Network
     Qt6::Core5Compat
+    Qt6::WebEngineWidgets
+    Qt6::Svg
     ${QSCINTILLA_LIBRARY})
 
 if(STRICT_WARNINGS)

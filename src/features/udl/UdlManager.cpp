@@ -39,7 +39,11 @@ bool UdlManager::save(const UdlDefinition &def)
     if (!def.isValid())
         return false;
     QString safe = def.name;
-    safe.replace(QRegularExpression(QStringLiteral("[^\\w.-]")), QStringLiteral("_"));
+    // 啟用 Unicode 屬性，使 \w 匹配非 ASCII 文字（如中日韓語言名），
+    // 避免全非 ASCII 名稱塌縮成相同底線字串而互相覆蓋。
+    safe.replace(QRegularExpression(QStringLiteral("[^\\w.-]"),
+                                    QRegularExpression::UseUnicodePropertiesOption),
+                 QStringLiteral("_"));
     QFile file(udlDir() + QLatin1Char('/') + safe + QStringLiteral(".json"));
     if (!file.open(QIODevice::WriteOnly))
         return false;

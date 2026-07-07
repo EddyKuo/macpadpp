@@ -17,6 +17,8 @@ set(MACPAD_TESTS
     test_htmlexport
     test_textops
     test_columneditor
+    test_resources
+    test_i18n
 )
 
 foreach(t ${MACPAD_TESTS})

@@ -10,8 +10,8 @@ namespace macpad::persistence {
 class RecentFiles {
 public:
     static QStringList load();
-    static void add(const QString &path);   // 去重、置頂、裁切至上限後存檔
-    static void clear();
+    static bool add(const QString &path);   // 去重、置頂、裁切至上限後存檔；回傳寫檔是否成功
+    static bool clear();                     // 回傳寫檔是否成功
 
     static constexpr int kMaxItems = 20;
     static constexpr int kSchemaVersion = 1;

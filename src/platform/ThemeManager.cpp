@@ -91,10 +91,19 @@ void ThemeManager::applyToEditor(macpad::core::EditorWidget *editor, bool dark)
         const auto it = styleCfg.byLang.constFind(key);
         if (it != styleCfg.byLang.constEnd()) {
             for (const auto &ov : it.value()) {
-                if (!ov.fg.isEmpty())
-                    lex->setColor(QColor(ov.fg), ov.style);
-                if (!ov.bg.isEmpty())
-                    lex->setPaper(QColor(ov.bg), ov.style);
+                // 顏色字串可能來自手動編輯或損毀的 StyleStore；
+                // 非空但無法解析（QColor 無效）會被 Qt 渲染成黑色而看不見，
+                // 故驗證 isValid() 後才套用，無效者略過並沿用降飽和後的預設色。
+                if (!ov.fg.isEmpty()) {
+                    const QColor fg(ov.fg);
+                    if (fg.isValid())
+                        lex->setColor(fg, ov.style);
+                }
+                if (!ov.bg.isEmpty()) {
+                    const QColor bg(ov.bg);
+                    if (bg.isValid())
+                        lex->setPaper(bg, ov.style);
+                }
                 QFont f = lex->font(ov.style);
                 f.setBold(ov.bold);
                 f.setItalic(ov.italic);

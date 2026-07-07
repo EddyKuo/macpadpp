@@ -41,8 +41,12 @@ void UdlLexer::styleText(int start, int end)
         return;
 
     QString text = editor()->text();
-    // 取 start..end 的子字串直接處理（以位元組計 QScintilla；此處以 UTF-8 索引近似）
+    // 以位元組計 QScintilla；此處以 UTF-8 索引近似。
+    // 區塊註解等具有跨行狀態，QScintilla 傳入的 start..end 僅涵蓋編輯處，
+    // 無法得知 start 之前是否仍處於未結束的區塊註解中，故一律自文件開頭重新掃描。
     const QByteArray utf8 = text.toUtf8();
+    start = 0;
+    end = utf8.size();
     int i = start;
     startStyling(start);
 
@@ -79,7 +83,11 @@ void UdlLexer::styleText(int start, int end)
         if (c == '"' || c == '\'') {
             const char q = c;
             int j = i + 1;
-            while (j < end && j < utf8.size() && utf8.at(j) != q) ++j;
+            while (j < end && j < utf8.size() && utf8.at(j) != q) {
+                // 跳脫字元：\" 等不視為字串結尾
+                if (utf8.at(j) == '\\' && j + 1 < utf8.size()) ++j;
+                ++j;
+            }
             j = qMin(end, j + 1);
             setStyling(j - i, String);
             i = j;

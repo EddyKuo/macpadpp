@@ -24,7 +24,10 @@ EditorPane::EditorPane(QWidget *parent)
 void EditorPane::toggleSplit()
 {
     if (m_secondary) {
-        // 關閉分割
+        // 關閉分割：先斷開同步捲動連線，避免 lambda 事後對已銷毀的次檢視捲軸 setValue（use-after-free）
+        for (const QMetaObject::Connection &c : m_syncConns)
+            disconnect(c);
+        m_syncConns.clear();
         m_secondary->deleteLater();
         m_secondary = nullptr;
         return;
@@ -53,16 +56,16 @@ void EditorPane::wireSyncScroll()
     QScrollBar *ph = m_primary->horizontalScrollBar();
     QScrollBar *sh = m_secondary->horizontalScrollBar();
 
-    connect(pv, &QScrollBar::valueChanged, this, [this, sv](int v) {
+    m_syncConns << connect(pv, &QScrollBar::valueChanged, this, [this, sv](int v) {
         if (m_syncV && !m_syncing) { m_syncing = true; sv->setValue(v); m_syncing = false; }
     });
-    connect(sv, &QScrollBar::valueChanged, this, [this, pv](int v) {
+    m_syncConns << connect(sv, &QScrollBar::valueChanged, this, [this, pv](int v) {
         if (m_syncV && !m_syncing) { m_syncing = true; pv->setValue(v); m_syncing = false; }
     });
-    connect(ph, &QScrollBar::valueChanged, this, [this, sh](int v) {
+    m_syncConns << connect(ph, &QScrollBar::valueChanged, this, [this, sh](int v) {
         if (m_syncH && !m_syncing) { m_syncing = true; sh->setValue(v); m_syncing = false; }
     });
-    connect(sh, &QScrollBar::valueChanged, this, [this, ph](int v) {
+    m_syncConns << connect(sh, &QScrollBar::valueChanged, this, [this, ph](int v) {
         if (m_syncH && !m_syncing) { m_syncing = true; ph->setValue(v); m_syncing = false; }
     });
 }

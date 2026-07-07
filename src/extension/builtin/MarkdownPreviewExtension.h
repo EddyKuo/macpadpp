@@ -9,8 +9,9 @@
 #include <QDockWidget>
 #include <QMetaObject>
 #include <QPointer>
+#include <QString>
 
-class QTextBrowser;
+class QWebEngineView;
 class QTimer;
 
 namespace macpad::core { class EditorWidget; }
@@ -31,12 +32,16 @@ private slots:
 
 private:
     void rewire(macpad::core::EditorWidget *editor);
+    void renderToPage(const QString &markdown);
 
     IHostServices *m_host = nullptr;
-    QTextBrowser *m_view = nullptr;
+    QWebEngineView *m_view = nullptr;
     QTimer *m_timer = nullptr;
     QPointer<macpad::core::EditorWidget> m_current;
     QMetaObject::Connection m_conn;
+    bool m_pageReady = false;      // preview.html 是否載入完成
+    QString m_pending;             // 頁面就緒前暫存最新內容
+    bool m_hasPending = false;
 };
 
 class MarkdownPreviewExtension : public IExtension {

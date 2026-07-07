@@ -12,7 +12,7 @@ using macpad::persistence::ThemeMode;
 namespace macpad::ui {
 
 PreferencesDialog::PreferencesDialog(const Settings &current, QWidget *parent)
-    : QDialog(parent)
+    : QDialog(parent), m_original(current)
 {
     setWindowTitle(tr("Preferences"));
 
@@ -54,7 +54,7 @@ PreferencesDialog::PreferencesDialog(const Settings &current, QWidget *parent)
 
 Settings PreferencesDialog::result() const
 {
-    Settings s;
+    Settings s = m_original;  // 以原設定為底，僅覆寫對話框實際編輯的欄位（保留 language/schemaVersion 等）
     s.theme = ThemeMode(m_theme->currentIndex());
     s.tabWidth = m_tabWidth->value();
     s.restoreOnLaunch = m_restore->isChecked();

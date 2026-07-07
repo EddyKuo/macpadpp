@@ -82,7 +82,9 @@ src/
 
 macpad++ 以內建的 **extension protocol**(`src/extension/IExtension.h`)取代 Notepad++ 的原生
 DLL 外掛(後者為 Windows 專屬二進位,macOS 無法載入)。外掛可加入選單動作、掛載自己的停靠面板。
-內附 **Markdown Preview** 外掛示範:`View ▸ Markdown Preview` 開啟即時預覽。
+內附 **Markdown Preview** 外掛示範(支援 Mermaid 圖表):`View ▸ Markdown Preview` 開啟即時預覽。
+
+想自己寫外掛?完整教學(含如何掛載進來)見 **[`docs/plugin-development.md`](docs/plugin-development.md)**。
 
 ## 授權
 

@@ -1,0 +1,7 @@
+<RCC>
+  <qresource prefix="/webview">
+    <file>preview.html</file>
+    <file>marked.min.js</file>
+    <file>mermaid.min.js</file>
+  </qresource>
+</RCC>

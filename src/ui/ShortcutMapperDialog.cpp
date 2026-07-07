@@ -21,13 +21,20 @@ static QString shortcutsPath()
     return macpad::persistence::AppPaths::filePath(QStringLiteral("shortcuts.json"));
 }
 
+// 持久化鍵：優先用穩定且唯一的 objectName，避免不同命令共用相同顯示文字時互相覆蓋；無 objectName 時退回文字
+static QString actionKey(const QAction *a)
+{
+    const QString name = a->objectName();
+    return name.isEmpty() ? QString(a->text()).remove(QChar('&')) : name;
+}
+
 void ShortcutMapperDialog::applySavedOverrides(const QList<QAction *> &actions)
 {
     const QJsonObject o = macpad::persistence::JsonFile::load(shortcutsPath());
     if (o.isEmpty())
         return;
     for (QAction *a : actions) {
-        const QString key = a->text().remove(QChar('&'));
+        const QString key = actionKey(a);
         if (o.contains(key))
             a->setShortcut(QKeySequence(o.value(key).toString()));
     }
@@ -96,7 +103,7 @@ void ShortcutMapperDialog::save()
     for (QAction *a : m_actions) {
         const QString sc = a->shortcut().toString();
         if (!sc.isEmpty())
-            o.insert(a->text().remove(QChar('&')), sc);
+            o.insert(actionKey(a), sc);
     }
     macpad::persistence::JsonFile::save(shortcutsPath(), o);
 }

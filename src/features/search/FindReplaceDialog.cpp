@@ -92,11 +92,14 @@ bool FindReplaceDialog::doFind(bool forward, bool fromStart)
     const bool wrap = m_wrap->isChecked();
 
     // cxx11=re：正則採 C++11 std::regex（支援 \d \w 與 \1 群組回填）——FR-011
-    if (fromStart)
-        return m_editor->findFirst(m_findEdit->text(), re, cs, wo, wrap,
-                                   forward, 0, 0, true, false, re);
-    return m_editor->findFirst(m_findEdit->text(), re, cs, wo, wrap,
-                               forward, -1, -1, true, false, re);
+    const bool found =
+        fromStart ? m_editor->findFirst(m_findEdit->text(), re, cs, wo, wrap,
+                                        forward, 0, 0, true, false, re)
+                  : m_editor->findFirst(m_findEdit->text(), re, cs, wo, wrap,
+                                        forward, -1, -1, true, false, re);
+    if (found)
+        rememberMatch();
+    return found;
 }
 
 void FindReplaceDialog::findNext()
@@ -113,8 +116,8 @@ void FindReplaceDialog::replaceOne()
 {
     if (!m_editor)
         return;
-    // 若目前已選取到匹配則取代之，再找下一個；否則先找
-    if (m_editor->hasSelectedText())
+    // 僅在目前選取正是最近一次尋找命中的匹配時才取代，避免誤刪手動選取內容；再找下一個
+    if (m_editor->hasSelectedText() && selectionIsRememberedMatch())
         m_editor->replace(m_replaceEdit->text());
     findNext();
 }
@@ -148,9 +151,33 @@ void FindReplaceDialog::incrementalFind(const QString &text)
     // 從目前選取起點開始找，不改變錨點體驗（FR-012）
     int line = 0, index = 0;
     m_editor->getCursorPosition(&line, &index);
-    m_editor->findFirst(text, m_regex->isChecked(), m_caseSensitive->isChecked(),
-                        m_wholeWord->isChecked(), true, true, line, index, true,
-                        false, m_regex->isChecked());
+    const bool found =
+        m_editor->findFirst(text, m_regex->isChecked(), m_caseSensitive->isChecked(),
+                            m_wholeWord->isChecked(), m_wrap->isChecked(), true, line, index, true,
+                            false, m_regex->isChecked());
+    if (found)
+        rememberMatch();
+}
+
+void FindReplaceDialog::rememberMatch()
+{
+    if (!m_editor)
+        return;
+    m_editor->getSelection(&m_matchLineFrom, &m_matchIndexFrom,
+                           &m_matchLineTo, &m_matchIndexTo);
+}
+
+bool FindReplaceDialog::selectionIsRememberedMatch() const
+{
+    if (!m_editor)
+        return false;
+    int lf = -1, if_ = -1, lt = -1, it = -1;
+    m_editor->getSelection(&lf, &if_, &lt, &it);
+    // 需為非空選取，且與最近一次尋找命中的範圍完全一致
+    if (lf == lt && if_ == it)
+        return false;
+    return lf == m_matchLineFrom && if_ == m_matchIndexFrom &&
+           lt == m_matchLineTo && it == m_matchIndexTo;
 }
 
 void FindReplaceDialog::report(const QString &msg)

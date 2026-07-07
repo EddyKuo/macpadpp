@@ -1,5 +1,7 @@
 #include "features/findinfiles/FindInFilesEngine.h"
 
+#include "core/FileEncoding.h"
+
 #include <QDirIterator>
 #include <QFile>
 #include <QFileInfo>
@@ -21,16 +23,11 @@ static QRegularExpression buildRegex(const FindInFilesOptions &o, bool *ok)
     return re;
 }
 
-QVector<FindMatch> FindInFilesEngine::searchInText(const QString &filePath,
-                                                   const QString &content,
-                                                   const FindInFilesOptions &opts)
+// 以「預先編譯好的 regex」逐檔比對（NFR-005：全程只編譯一次）
+static QVector<FindMatch> searchInTextWithRe(const QString &filePath, const QString &content,
+                                             const QRegularExpression &re)
 {
     QVector<FindMatch> out;
-    bool ok = false;
-    const QRegularExpression re = buildRegex(opts, &ok);
-    if (!ok || opts.pattern.isEmpty())
-        return out;
-
     const QStringList lines = content.split(QLatin1Char('\n'));
     for (int i = 0; i < lines.size(); ++i) {
         QString line = lines.at(i);
@@ -45,15 +42,10 @@ QVector<FindMatch> FindInFilesEngine::searchInText(const QString &filePath,
     return out;
 }
 
-QString FindInFilesEngine::replaceInText(const QString &content, const FindInFilesOptions &opts,
-                                         const QString &replacement, int *count)
+// 以「預先編譯好的 regex」取代單一內容（NFR-005：全程只編譯一次）
+static QString replaceInTextWithRe(const QString &content, const QRegularExpression &re,
+                                   const QString &replacement, int *count)
 {
-    bool ok = false;
-    const QRegularExpression re = buildRegex(opts, &ok);
-    if (!ok || opts.pattern.isEmpty()) {
-        if (count) *count = 0;
-        return content;
-    }
     int n = 0;
     auto it = re.globalMatch(content);
     while (it.hasNext()) { it.next(); ++n; }
@@ -64,13 +56,37 @@ QString FindInFilesEngine::replaceInText(const QString &content, const FindInFil
     return out;
 }
 
+QVector<FindMatch> FindInFilesEngine::searchInText(const QString &filePath,
+                                                   const QString &content,
+                                                   const FindInFilesOptions &opts)
+{
+    QVector<FindMatch> out;
+    bool ok = false;
+    const QRegularExpression re = buildRegex(opts, &ok);
+    if (!ok || opts.pattern.isEmpty())
+        return out;
+    return searchInTextWithRe(filePath, content, re);
+}
+
+QString FindInFilesEngine::replaceInText(const QString &content, const FindInFilesOptions &opts,
+                                         const QString &replacement, int *count)
+{
+    bool ok = false;
+    const QRegularExpression re = buildRegex(opts, &ok);
+    if (!ok || opts.pattern.isEmpty()) {
+        if (count) *count = 0;
+        return content;
+    }
+    return replaceInTextWithRe(content, re, replacement, count);
+}
+
 FindInFilesEngine::ReplaceResult FindInFilesEngine::replaceInFiles(
     const QString &rootDir, const FindInFilesOptions &opts,
     const QString &replacement, std::atomic<bool> *cancel)
 {
     ReplaceResult result;
     bool ok = false;
-    buildRegex(opts, &ok);
+    const QRegularExpression re = buildRegex(opts, &ok);  // 全程只編譯一次（NFR-005）
     if (!ok || opts.pattern.isEmpty())
         return result;
 
@@ -92,12 +108,16 @@ FindInFilesEngine::ReplaceResult FindInFilesEngine::replaceInFiles(
         if (raw.contains('\0'))
             continue;
 
+        // 依偵測編碼解碼，取代後以「同一編碼」寫回，避免非 UTF-8 檔被 mojibake 破壞（IL-4）
+        const core::DetectResult det = core::FileEncoding::detect(raw.left(65536));
         int n = 0;
-        const QString newContent = replaceInText(QString::fromUtf8(raw), opts, replacement, &n);
+        const QString newContent =
+            replaceInTextWithRe(core::FileEncoding::decode(raw, det.encoding), re, replacement, &n);
         if (n > 0) {
             QSaveFile out(path);
             if (out.open(QIODevice::WriteOnly)) {
-                out.write(newContent.toUtf8());
+                const QByteArray bytes = core::FileEncoding::encode(newContent, det.encoding);
+                out.write(bytes);
                 if (out.commit()) {
                     result.filesChanged++;
                     result.replacements += n;
@@ -114,7 +134,7 @@ QVector<FindMatch> FindInFilesEngine::search(const QString &rootDir,
 {
     QVector<FindMatch> out;
     bool ok = false;
-    buildRegex(opts, &ok);
+    const QRegularExpression re = buildRegex(opts, &ok);  // 全程只編譯一次（NFR-005）
     if (!ok || opts.pattern.isEmpty())
         return out;
 
@@ -142,7 +162,9 @@ QVector<FindMatch> FindInFilesEngine::search(const QString &rootDir,
         if (raw.contains('\0'))
             continue;
 
-        out += searchInText(path, QString::fromUtf8(raw), opts);
+        // 依偵測編碼解碼，避免非 UTF-8 檔在預覽出現 mojibake
+        const core::DetectResult det = core::FileEncoding::detect(raw.left(65536));
+        out += searchInTextWithRe(path, core::FileEncoding::decode(raw, det.encoding), re);
     }
     return out;
 }

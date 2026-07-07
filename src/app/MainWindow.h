@@ -13,6 +13,8 @@
 #include <memory>
 #include <QStringList>
 #include <QSet>
+#include <QVector>
+#include <QPair>
 
 class QTabWidget;
 class QLabel;
@@ -104,6 +106,8 @@ private slots:
 
 private:
     void createMenus();
+    void buildToolbar();                       // Notepad++ 風格的圖示工具列
+    void retintToolbar();                      // 依主題重新上色圖示
     void createSearchMenu(QMenu *searchMenu);  // Notepad++ Search 選單（填入預建的選單）
     void createEditMenuOps(QMenu *editMenu);   // Notepad++ 對等文字操作
     void applyTextOp(const std::function<QString(const QString &)> &op);
@@ -134,6 +138,7 @@ private:
     QLabel *m_stEnc = nullptr;
     QLabel *m_stMode = nullptr;
     QToolBar *m_toolbar = nullptr;
+    QVector<QPair<QAction *, QString>> m_tbIcons;  // 工具列動作→圖示名(供主題變色重上色)
     macpad::features::FindReplaceDialog *m_findDialog = nullptr;
     QMenu *m_recentMenu = nullptr;
     QFileSystemWatcher *m_watcher = nullptr;
@@ -168,4 +173,8 @@ private:
     QAction *m_recordAction = nullptr;
     QAction *m_stopAction = nullptr;
     QAction *m_playAction = nullptr;
+    // View 選單中的可勾選檢視動作——工具列同名按鈕透過它們切換，兩處 UI 狀態保持一致
+    QAction *m_wrapAct = nullptr;
+    QAction *m_wsAct = nullptr;
+    QAction *m_eolAct = nullptr;
 };

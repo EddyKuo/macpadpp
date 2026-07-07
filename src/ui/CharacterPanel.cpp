@@ -22,8 +22,9 @@ CharacterPanel::CharacterPanel(QWidget *parent)
 
     for (int i = 0; i < 256; ++i) {
         auto *dec = new QTableWidgetItem(QString::number(i));
+        // 僅將十六進位數字轉大寫，保留小寫 "0x" 前綴（避免變成 "0X"）
         auto *hex = new QTableWidgetItem(QStringLiteral("0x%1")
-                                             .arg(i, 2, 16, QChar('0')).toUpper());
+                                             .arg(QString::number(i, 16).rightJustified(2, QChar('0')).toUpper()));
         // 0..31 為控制字元，顯示佔位符；32+ 顯示實際字元
         QString glyph = (i >= 32 && i != 127) ? QString(QChar(i)) : QStringLiteral("·");
         auto *chr = new QTableWidgetItem(glyph);

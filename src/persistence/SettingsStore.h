@@ -17,6 +17,7 @@ struct Settings {
     int autosaveIntervalSec = 60;        // FR-015
     int tabWidth = 4;                    // FR-009
     bool singleInstance = true;          // FR-034
+    QString language;                    // 介面語言:""=系統;"zh_TW"/"zh_CN"/"ja"/"en"
 };
 
 class SettingsStore {

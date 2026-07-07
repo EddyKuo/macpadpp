@@ -4,6 +4,7 @@
 // 主檢視（primary）持有檔案狀態；分割時新增次檢視共享同一 QsciDocument（同源、游標獨立）。
 // 檔案操作（載入/儲存/編碼/書籤）一律走 primary；次檢視僅供閱讀對照。
 
+#include <QList>
 #include <QWidget>
 
 class QSplitter;
@@ -36,6 +37,7 @@ private:
     QSplitter *m_splitter = nullptr;
     macpad::core::EditorWidget *m_primary = nullptr;
     QsciScintilla *m_secondary = nullptr;
+    QList<QMetaObject::Connection> m_syncConns;  // 同步捲動連線；關閉分割時逐一斷開，避免懸空 QScrollBar 指標
     bool m_syncV = false;
     bool m_syncH = false;
     bool m_syncing = false;  // 防止相互 setValue 遞迴

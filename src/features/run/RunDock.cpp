@@ -46,12 +46,17 @@ void RunDock::run()
     if (m_process && m_process->state() != QProcess::NotRunning)
         return;  // 已有指令執行中
 
-    const QString expanded = RunCommand::expand(m_command->text(), m_vars);
-    const QStringList tokens = RunCommand::tokenize(expanded);
+    // 先對原始樣板 tokenize（尊重使用者在樣板中的引號），再逐 token 展開變數：
+    // 已展開的值不會再被重新切割，含空白或引號的值可安全保留為單一 argv。
+    const QStringList rawTokens = RunCommand::tokenize(m_command->text());
+    QStringList tokens;
+    tokens.reserve(rawTokens.size());
+    for (const QString &t : rawTokens)
+        tokens << RunCommand::expand(t, m_vars);
     if (tokens.isEmpty())
         return;
 
-    m_output->appendPlainText(QStringLiteral("$ ") + expanded);
+    m_output->appendPlainText(QStringLiteral("$ ") + tokens.join(QLatin1Char(' ')));
 
     if (!m_process) {
         m_process = new QProcess(this);
@@ -60,11 +65,10 @@ void RunDock::run()
             m_output->appendPlainText(QString::fromUtf8(m_process->readAll()).trimmed());
         });
         connect(m_process, &QProcess::finished, this, [this](int code, QProcess::ExitStatus) {
-            m_output->appendPlainText(QStringLiteral("[exit %1]").arg(code));
+            m_output->appendPlainText(tr("[exit %1]").arg(code));
         });
         connect(m_process, &QProcess::errorOccurred, this, [this](QProcess::ProcessError) {
-            m_output->appendPlainText(QStringLiteral("[error: ") + m_process->errorString()
-                                      + QStringLiteral("]"));
+            m_output->appendPlainText(tr("[error: %1]").arg(m_process->errorString()));
         });
     }
 

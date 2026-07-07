@@ -35,6 +35,9 @@ private slots:
 private:
     bool doFind(bool forward, bool fromStart);
     void report(const QString &msg);
+    // 記錄最近一次成功尋找所選取的匹配範圍，供 replaceOne 驗證（避免誤取代手動選取）
+    void rememberMatch();
+    bool selectionIsRememberedMatch() const;
 
     macpad::core::EditorWidget *m_editor = nullptr;
     QLineEdit *m_findEdit = nullptr;
@@ -44,6 +47,12 @@ private:
     QCheckBox *m_regex = nullptr;
     QCheckBox *m_wrap = nullptr;
     QLabel *m_status = nullptr;
+
+    // 最近一次成功尋找的選取範圍（-1 表示尚無）
+    int m_matchLineFrom = -1;
+    int m_matchIndexFrom = -1;
+    int m_matchLineTo = -1;
+    int m_matchIndexTo = -1;
 };
 
 }  // namespace macpad::features

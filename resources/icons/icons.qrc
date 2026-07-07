@@ -1,0 +1,22 @@
+<RCC>
+  <qresource prefix="/icons">
+    <file>new.svg</file>
+    <file>open.svg</file>
+    <file>save.svg</file>
+    <file>saveall.svg</file>
+    <file>close.svg</file>
+    <file>closeall.svg</file>
+    <file>print.svg</file>
+    <file>cut.svg</file>
+    <file>copy.svg</file>
+    <file>paste.svg</file>
+    <file>undo.svg</file>
+    <file>redo.svg</file>
+    <file>find.svg</file>
+    <file>replace.svg</file>
+    <file>zoomin.svg</file>
+    <file>zoomout.svg</file>
+    <file>wordwrap.svg</file>
+    <file>showall.svg</file>
+  </qresource>
+</RCC>

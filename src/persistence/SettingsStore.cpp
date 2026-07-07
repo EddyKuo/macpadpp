@@ -39,6 +39,7 @@ Settings SettingsStore::load()
     s.autosaveIntervalSec = o.value(QStringLiteral("autosave_interval_sec")).toInt(s.autosaveIntervalSec);
     s.tabWidth = o.value(QStringLiteral("tab_width")).toInt(s.tabWidth);
     s.singleInstance = o.value(QStringLiteral("single_instance")).toBool(s.singleInstance);
+    s.language = o.value(QStringLiteral("language")).toString(s.language);
     return s;
 }
 
@@ -52,6 +53,7 @@ bool SettingsStore::save(const Settings &s)
     o.insert(QStringLiteral("autosave_interval_sec"), s.autosaveIntervalSec);
     o.insert(QStringLiteral("tab_width"), s.tabWidth);
     o.insert(QStringLiteral("single_instance"), s.singleInstance);
+    o.insert(QStringLiteral("language"), s.language);
     return JsonFile::save(settingsPath(), o);
 }
 

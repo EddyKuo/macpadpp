@@ -20,6 +20,7 @@ public:
         callbacks.push_back(std::move(cb));
     }
     void showStatusMessage(const QString &msg, int) override { lastStatus = msg; }
+    QWidget *hostWindow() override { return nullptr; }
 
     QStringList menus;
     QStringList texts;

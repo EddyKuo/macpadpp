@@ -32,7 +32,7 @@ FindInFilesDock::FindInFilesDock(QWidget *parent)
     m_caseSensitive = new QCheckBox(tr("Match case"), root);
     m_wholeWord = new QCheckBox(tr("Whole word"), root);
     m_searchBtn = new QPushButton(tr("Search"), root);
-    auto *replaceBtn = new QPushButton(tr("Replace in Files"), root);
+    m_replaceBtn = new QPushButton(tr("Replace in Files"), root);
     m_cancelBtn = new QPushButton(tr("Cancel"), root);
     m_cancelBtn->setEnabled(false);
     auto *browse = new QPushButton(tr("…"), root);
@@ -46,7 +46,7 @@ FindInFilesDock::FindInFilesDock(QWidget *parent)
     grid->addWidget(m_searchBtn, 0, 4);
     grid->addWidget(new QLabel(tr("Replace:"), root), 1, 0);
     grid->addWidget(m_replace, 1, 1, 1, 3);
-    grid->addWidget(replaceBtn, 1, 4);
+    grid->addWidget(m_replaceBtn, 1, 4);
     grid->addWidget(new QLabel(tr("Dir:"), root), 2, 0);
     grid->addWidget(m_dir, 2, 1, 1, 2);
     grid->addWidget(browse, 2, 3);
@@ -62,7 +62,7 @@ FindInFilesDock::FindInFilesDock(QWidget *parent)
 
     connect(m_searchBtn, &QPushButton::clicked, this, &FindInFilesDock::startSearch);
     connect(m_pattern, &QLineEdit::returnPressed, this, &FindInFilesDock::startSearch);
-    connect(replaceBtn, &QPushButton::clicked, this, &FindInFilesDock::replaceInFiles);
+    connect(m_replaceBtn, &QPushButton::clicked, this, &FindInFilesDock::replaceInFiles);
     connect(m_cancelBtn, &QPushButton::clicked, this, &FindInFilesDock::cancelSearch);
     connect(browse, &QPushButton::clicked, this, [this] {
         const QString d = QFileDialog::getExistingDirectory(this, tr("Choose Folder"), m_dir->text());
@@ -70,6 +70,8 @@ FindInFilesDock::FindInFilesDock(QWidget *parent)
     });
     connect(&m_watcher, &QFutureWatcher<QVector<FindMatch>>::finished,
             this, &FindInFilesDock::onSearchDone);
+    connect(&m_replaceWatcher, &QFutureWatcher<FindInFilesEngine::ReplaceResult>::finished,
+            this, &FindInFilesDock::onReplaceDone);
     connect(m_results, &QTreeWidget::itemDoubleClicked, this, [this](QTreeWidgetItem *item, int) {
         if (!item) return;
         const QString path = item->data(0, Qt::UserRole).toString();
@@ -83,6 +85,7 @@ FindInFilesDock::~FindInFilesDock()
 {
     cancelSearch();
     m_watcher.waitForFinished();
+    m_replaceWatcher.waitForFinished();
 }
 
 void FindInFilesDock::setSearchRoot(const QString &dir)
@@ -106,6 +109,8 @@ FindInFilesOptions FindInFilesDock::currentOptions() const
 
 void FindInFilesDock::replaceInFiles()
 {
+    if (m_watcher.isRunning() || m_replaceWatcher.isRunning())
+        return;
     if (m_pattern->text().isEmpty() || m_dir->text().isEmpty())
         return;
     const auto ret = QMessageBox::question(
@@ -115,14 +120,37 @@ void FindInFilesDock::replaceInFiles()
         QMessageBox::Yes | QMessageBox::No);
     if (ret != QMessageBox::Yes)
         return;
-    const auto r = FindInFilesEngine::replaceInFiles(m_dir->text(), currentOptions(),
-                                                     m_replace->text());
+
+    m_status->setText(tr("取代中…"));
+    m_searchBtn->setEnabled(false);
+    m_replaceBtn->setEnabled(false);
+    m_cancelBtn->setEnabled(true);
+
+    const FindInFilesOptions opts = currentOptions();
+    const QString dir = m_dir->text();
+    const QString replacement = m_replace->text();
+
+    m_cancel = std::make_shared<std::atomic<bool>>(false);
+    auto cancel = m_cancel;
+    // 背景執行（NFR-005，不阻塞 GUI；可取消）
+    m_replaceWatcher.setFuture(QtConcurrent::run([dir, opts, replacement, cancel] {
+        return FindInFilesEngine::replaceInFiles(dir, opts, replacement, cancel.get());
+    }));
+}
+
+void FindInFilesDock::onReplaceDone()
+{
+    const FindInFilesEngine::ReplaceResult r = m_replaceWatcher.result();
     m_status->setText(tr("已於 %1 個檔案取代 %2 處").arg(r.filesChanged).arg(r.replacements));
+    m_searchBtn->setEnabled(true);
+    m_replaceBtn->setEnabled(true);
+    m_cancelBtn->setEnabled(false);
 }
 
 void FindInFilesDock::startSearch()
 {
-    if (m_watcher.isRunning() || m_pattern->text().isEmpty() || m_dir->text().isEmpty())
+    if (m_watcher.isRunning() || m_replaceWatcher.isRunning() ||
+        m_pattern->text().isEmpty() || m_dir->text().isEmpty())
         return;
 
     m_results->clear();
