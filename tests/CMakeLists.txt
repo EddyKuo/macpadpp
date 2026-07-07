@@ -19,6 +19,14 @@ set(MACPAD_TESTS
     test_columneditor
     test_resources
     test_i18n
+    test_editor_ops
+    test_udllexer
+    test_thememanager
+    test_stylestore
+    test_lexerfactory_ext
+    test_wordcount
+    test_udlmanager
+    test_singleinstance
 )
 
 foreach(t ${MACPAD_TESTS})

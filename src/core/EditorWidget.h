@@ -25,7 +25,7 @@ public:
 
     QString filePath() const { return m_filePath; }
     bool isUntitled() const { return m_filePath.isEmpty(); }
-    bool isDirty() const { return isModified(); }
+    bool isDirty() const { return isModified() || m_metaDirty; }
 
     // 顯示用標題：檔名或 "Untitled"，dirty 時前綴 ●
     QString displayName() const;
@@ -140,10 +140,17 @@ private:
     void applyEolMode(Eol eol);
     void toggleBookmarkAtLine(int line);
 
+    // 標記/清除「純中繼資料（編碼/EOL/codec）」造成的 dirty。
+    // QScintilla 的 setModified(true) 在 save-point 為 no-op，無法反映這類變更，
+    // 故以 m_metaDirty 補足，並確保 dirtyChanged 不重複發送（FR-019/020）。
+    void markMetaDirty();
+    void clearDirty();
+
     QString m_filePath;
     Encoding m_encoding = Encoding::Utf8;
     QString m_codecName;   // 非空 = 用具名 codec 存檔（Character sets 選的傳統編碼）
     Eol m_eol = Eol::Lf;
+    bool m_metaDirty = false;  // 編碼/EOL/codec 變更造成的 dirty（文字內容未變）
 };
 
 }  // namespace macpad::core

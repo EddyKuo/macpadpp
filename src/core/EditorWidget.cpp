@@ -150,7 +150,7 @@ bool EditorWidget::loadFile(const QString &path, QString *errorMessage)
 
     m_filePath = QFileInfo(path).absoluteFilePath();
     applyLexerForPath(m_filePath);
-    setModified(false);
+    clearDirty();
     emit metaChanged();
     return true;
 }
@@ -184,7 +184,7 @@ bool EditorWidget::saveFile(const QString &path, QString *errorMessage)
 
     m_filePath = QFileInfo(path).absoluteFilePath();
     applyLexerForPath(m_filePath);
-    setModified(false);
+    clearDirty();
     return true;
 }
 
@@ -205,6 +205,29 @@ void EditorWidget::applyEolMode(Eol eol)
     }
 }
 
+void EditorWidget::markMetaDirty()
+{
+    // setModified(true) 在 save-point 為 no-op，無法反映純中繼資料變更，
+    // 故以 m_metaDirty 補足。僅在由乾淨轉髒時補發 dirtyChanged(true)，避免重複。
+    const bool wasDirty = isDirty();
+    m_metaDirty = true;
+    if (!wasDirty)
+        emit dirtyChanged(true);
+}
+
+void EditorWidget::clearDirty()
+{
+    // 文件轉為乾淨（載入/儲存/重讀）。setModified(false) 會在文字曾被修改時
+    // 透過 modificationChanged→dirtyChanged 自動發送 false；此處僅補發
+    // 「只有 m_metaDirty 為髒、文字未修改」的情況，避免與自動訊號重複發送。
+    const bool metaWasDirty = m_metaDirty;
+    const bool wasModified = isModified();
+    m_metaDirty = false;
+    setModified(false);
+    if (metaWasDirty && !wasModified)
+        emit dirtyChanged(false);
+}
+
 void EditorWidget::setEncoding(Encoding enc)
 {
     // 選 Unicode 編碼會覆蓋先前手選的傳統 codec
@@ -212,7 +235,7 @@ void EditorWidget::setEncoding(Encoding enc)
         return;
     m_encoding = enc;
     m_codecName.clear();
-    setModified(true);
+    markMetaDirty();   // 標記 dirty（FR-019）
     emit metaChanged();
 }
 
@@ -224,7 +247,7 @@ QString EditorWidget::encodingLabel() const
 void EditorWidget::setSaveCodec(const QString &codecName)
 {
     m_codecName = codecName;
-    setModified(true);
+    markMetaDirty();   // 標記 dirty（FR-019）
     emit metaChanged();
 }
 
@@ -255,7 +278,7 @@ bool EditorWidget::reinterpretWithCodec(const QString &codecName, QString *error
     setText(FileEncoding::decodeWithCodec(raw, codecName));
     applyEolMode(m_eol);
     m_codecName = codecName;
-    setModified(false);   // 純重新解讀磁碟內容，視為未變更
+    clearDirty();   // 純重新解讀磁碟內容，視為未變更
     emit metaChanged();
     return true;
 }
@@ -265,7 +288,7 @@ void EditorWidget::convertEol(Eol eol)
     m_eol = eol;
     applyEolMode(eol);
     convertEols(eolMode());  // 立即轉換既有內容（FR-020）
-    setModified(true);
+    markMetaDirty();   // 標記 dirty（FR-020）
     emit metaChanged();
 }
 
@@ -596,8 +619,13 @@ void EditorWidget::selectBetweenBraces()
         if (c == '{' || c == '(' || c == '[') {
             const long match = SendScintilla(SCI_BRACEMATCH, static_cast<unsigned long>(open), 0L);
             if (match > caret - 1) {
-                SendScintilla(SCI_SETSELECTION, static_cast<unsigned long>(open + 1),
-                              static_cast<long>(match));
+                // 以高階 setSelection() 設定選取，才會同步更新 QsciScintilla 的
+                // 選取快取（hasSelectedText()/selectedText()）——低階 SCI_SETSELECTION
+                // 只改 Scintilla 內部選取，Copy/Cut 取不到內容。
+                int lineFrom = 0, indexFrom = 0, lineTo = 0, indexTo = 0;
+                lineIndexFromPosition(static_cast<int>(open + 1), &lineFrom, &indexFrom);
+                lineIndexFromPosition(static_cast<int>(match), &lineTo, &indexTo);
+                setSelection(lineFrom, indexFrom, lineTo, indexTo);
                 return;
             }
         }
