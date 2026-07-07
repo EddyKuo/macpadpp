@@ -51,3 +51,6 @@
 
 # 覆蓋率量測 build
 build-cov/
+
+# coverage 原始檔
+*.profraw
