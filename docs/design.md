@@ -668,7 +668,7 @@ sequenceDiagram
         EW->>EW: setText() + applyEolMode()
         EW->>LF: createForFileName(path, this)
         LF-->>EW: QsciLexer*
-        EW->>EW: delete old lexer; setLexer(new)
+        EW->>EW: delete old lexer、setLexer(new)
         EW-->>EW: emit lexerChanged / metaChanged
         MW->>MW: themeEditor(editor)（收 lexerChanged）
         MW->>MW: 若 UDL 副檔名 → m_udl.findForExtension → UdlLexer
@@ -856,13 +856,13 @@ sequenceDiagram
     participant EW as EditorWidget
 
     User->>MW: startMacroRecording()
-    MW->>Macro: new QsciMacro(editor); startRecording()
+    MW->>Macro: new QsciMacro(editor)、startRecording()
     User->>EW: 一連串編輯動作（被錄製）
     User->>MW: stopMacroRecording()
     MW->>Macro: endRecording()
     MW->>MW: m_savedMacro = macro.save()（字串）
     User->>MW: playMacro()
-    MW->>Macro: load(m_savedMacro); play()
+    MW->>Macro: load(m_savedMacro)、play()
     Macro->>EW: 重放動作
 ```
 
