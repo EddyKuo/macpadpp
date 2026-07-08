@@ -2313,7 +2313,11 @@ EditorWidget *MainWindow::addEditorTab()
 
 void MainWindow::newFile()
 {
-    addEditorTab();
+    EditorWidget *editor = addEditorTab();
+    // 套用偏好之新文件預設 EOL/編碼（FR-053），不標記 dirty
+    const auto s = macpad::persistence::SettingsStore::load();
+    if (editor)
+        editor->applyNewDocumentDefaults(s.defaultEol, s.defaultEncoding);
     updateStatusBar();
 }
 

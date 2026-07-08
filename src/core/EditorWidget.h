@@ -66,6 +66,9 @@ public:
     // 轉換 EOL（立即套用到內容 + 編輯器模式；標記 dirty）——FR-020
     void convertEol(Eol eol);
 
+    // 新建空白文件套用偏好之預設 EOL/編碼（不標記 dirty，因尚無使用者變更）——FR-053
+    void applyNewDocumentDefaults(Eol eol, Encoding enc);
+
     // 全域取代（FR-010/011）——以 Scintilla target API 批次執行，單次 undo。
     // 效能路徑（NFR-004）：避免逐一 findNext/replace 的高階呼叫開銷。
     // 回傳取代次數。

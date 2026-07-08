@@ -333,6 +333,17 @@ private slots:
         QVERIFY(e2.isDirty());
     }
 
+    void applyNewDocumentDefaultsSetsWithoutDirty()
+    {
+        // FR-053：新文件套用偏好之預設 EOL/編碼，但不得標記 dirty（尚無使用者變更）
+        EditorWidget e;
+        QVERIFY(!e.isDirty());
+        e.applyNewDocumentDefaults(macpad::core::Eol::CrLf, Encoding::Utf8Bom);
+        QCOMPARE(e.eol(), macpad::core::Eol::CrLf);
+        QCOMPARE(e.encoding(), Encoding::Utf8Bom);
+        QVERIFY(!e.isDirty());   // 關鍵：預設套用不視為變更
+    }
+
     void cutAndPasteReplaceBookmarkedLines()
     {
         // FR-049：cutBookmarkedLines 複製書籤行到剪貼簿後刪除；

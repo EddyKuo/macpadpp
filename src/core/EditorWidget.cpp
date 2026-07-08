@@ -357,6 +357,16 @@ void EditorWidget::convertEol(Eol eol)
     emit metaChanged();
 }
 
+void EditorWidget::applyNewDocumentDefaults(Eol eol, Encoding enc)
+{
+    // 新建空白文件：套用偏好預設但不標記 dirty（尚無使用者變更，不應顯示 ●）
+    m_eol = eol;
+    m_encoding = enc;
+    m_codecName.clear();
+    applyEolMode(eol);
+    emit metaChanged();
+}
+
 int EditorWidget::replaceAll(const QString &find, const QString &replaceStr,
                              bool regex, bool caseSensitive, bool wholeWord)
 {
