@@ -44,9 +44,11 @@
 
 ## 下載安裝(發佈版)
 
-到 [Releases](https://github.com/EddyKuo/macpadpp/releases) 下載對應架構的 DMG
-(`macpad++-x.y.z-arm64.dmg` 為 Apple Silicon、`-x86_64.dmg` 為 Intel),開啟後把
-`macpad++.app` 拖進 **Applications**。
+到 [Releases](https://github.com/EddyKuo/macpadpp/releases) 下載 DMG
+(`macpad++-x.y.z-arm64.dmg`,**Apple Silicon**),開啟後把 `macpad++.app` 拖進 **Applications**。
+
+> Intel Mac:GitHub 免費的 Intel(macos-13)執行器供應已退場,故發佈版僅提供 Apple Silicon。
+> Intel 使用者請依下方「自行建置」步驟從原始碼編譯(相同指令即可)。
 
 > ⚠️ **未簽名 App 首次開啟**:因未購買 Apple Developer 憑證,macOS Gatekeeper 會攔阻。
 > 首次啟動請任一方式:
@@ -131,8 +133,11 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-CI 會在 macOS 執行器(arm64 + Intel 各一)上:`brew install` 相依 → CMake Release 建置 →
-`macdeployqt` 同梱 Qt/QScintilla → ad-hoc 簽名 → 產生 DMG → 建立 GitHub Release 並附上兩個架構的 DMG。
+CI 會在 macOS(Apple Silicon)執行器上:`brew install` 相依 → CMake Release 建置 →
+`macdeployqt` 同梱 Qt/QScintilla → ad-hoc 簽名 → 產生 DMG → 建立 GitHub Release 並附上 arm64 DMG。
+
+> 目前僅產出 arm64 DMG:GitHub-hosted 的 Intel(macos-13)執行器供應極稀缺,工作常卡在 queued。
+> 日後可用 self-hosted / 付費執行器把 x86_64 矩陣加回 `.github/workflows/release.yml`。
 
 本機打包(除錯用):
 

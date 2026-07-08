@@ -2,6 +2,10 @@ name: Release
 
 # 打 tag（v* 例：v0.1.0）並 push 即自動建置、同梱 Qt、打包 DMG 並發佈 GitHub Release。
 # 也可在 Actions 頁面手動觸發（workflow_dispatch）做測試建置，只上傳 artifact 不發佈。
+#
+# 註：GitHub-hosted 的 Intel（macos-13）執行器供應已極稀缺/退場中，工作常卡在 queued，
+# 故此工作流僅產出 Apple Silicon（arm64）DMG。Intel 使用者請自行建置（見 README），
+# 或日後改用 self-hosted / 付費執行器再加回 x86_64 矩陣。
 on:
   push:
     tags:
@@ -17,16 +21,11 @@ permissions:
 
 jobs:
   build:
-    name: Build ${{ matrix.arch }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - runner: macos-14      # Apple Silicon
-            arch: arm64
-          - runner: macos-13      # Intel
-            arch: x86_64
-    runs-on: ${{ matrix.runner }}
+    name: Build arm64
+    runs-on: macos-14      # Apple Silicon
+    timeout-minutes: 60
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
     steps:
       - uses: actions/checkout@v4
 
@@ -45,12 +44,12 @@ jobs:
           echo "解析到版本：$V"
 
       - name: 建置 + 同梱 + 打包 DMG
-        run: bash scripts/package_macos.sh "${{ steps.ver.outputs.version }}" "${{ matrix.arch }}"
+        run: bash scripts/package_macos.sh "${{ steps.ver.outputs.version }}" "arm64"
 
       - name: 上傳 DMG artifact
         uses: actions/upload-artifact@v4
         with:
-          name: macpad-${{ matrix.arch }}
+          name: macpad-arm64
           path: dist/*.dmg
           if-no-files-found: error
 
@@ -60,7 +59,7 @@ jobs:
     if: github.ref_type == 'tag'   # 只有打 tag 才真正發佈
     runs-on: ubuntu-latest
     steps:
-      - name: 下載所有架構的 DMG
+      - name: 下載 DMG
         uses: actions/download-artifact@v4
         with:
           path: artifacts
