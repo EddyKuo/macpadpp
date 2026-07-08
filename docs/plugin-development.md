@@ -367,7 +367,9 @@ void OutlineExtension::onUnload()
 3. **註冊**:在 `src/app/MainWindow.cpp` 建構子裡
    `m_extensions->load(std::make_unique<你的Extension>());`,並 `#include` 你的標頭。
 
-完成後外掛即隨 App 啟動時 `onLoad`,並出現在 **Plugins ▸ Plugins Admin** 清單。
+完成後外掛即隨 App 啟動時 `onLoad`,並出現在 **Plugins ▸ Plugins Admin** 清單
+(格式:`名稱 (id) v版本`,逐一列出 `ExtensionRegistry::capabilitiesList()` 內容;
+對話框同時附上「為何不是 `.dll` 外掛」的誠實說明,見 `MainWindow.cpp` 對應 lambda)。
 
 > 目前**沒有動態(執行期)載入** —— 外掛與主程式一起編譯。這是刻意的取捨(型別安全、
 > 可測試、跨平台)。若未來要支援執行期載入 `.dylib`,協定 `IExtension` 已是凍結基準,可據此擴充。

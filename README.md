@@ -3,26 +3,42 @@
 **Notepad++ 對等的原生 macOS 文字/程式碼編輯器。** 以 C++17 + Qt6 + QScintilla 打造,
 單機、無後端、無網路、無資料庫 —— 一個乾淨、快速、貼近 Mac 慣例的日常編輯器。
 
-> 目標:把 Notepad++ 的功能在 macOS 上原生複刻。除了 Windows 專屬的 `.dll` 外掛(平台無法載入),
-> 其餘功能皆已對等實作。完整對照見 **[`docs/parity.md`](docs/parity.md)**。
+> 目標:把 Notepad++ 的功能在 macOS 上原生複刻。除了 Windows 專屬的 `.dll` 外掛 ABI、登錄檔關聯等
+> **平台不可能項目**(na_macos,macpad++ 改以自建 in-process extension protocol 取代)外,其餘所有
+> macOS 可實作的功能皆已補完,且**每一個新增偏好都有真實 runtime 效果(無死設定)**。目前僅剩兩項為
+> **平台本質限制**而未實作:`autoUpdater`(設計上不連網做自動更新)、`tabBarMultiLine`(Qt QTabBar
+> 無原生多列換行,已 best-effort 以捲動按鈕近似)。完整對照見 **[`docs/parity.md`](docs/parity.md)**。
 
 ---
 
 ## 特色一覽
 
-- **多分頁編輯** — 拖曳排序、關閉確認、分頁標色、唯讀鎖定;**水平分割視窗**含同步捲動。
-- **語法高亮** — 35+ 內建語言,可手動指定;支援 **自訂語言(UDL)** 匯入與圖形化建立。
-- **多游標 / 欄位編輯** — ⌘+Click 多游標、⌥+拖曳矩形選取、欄位插入遞增數列。
-- **強大搜尋** — 尋找/取代(正則)、**Find in Files**(背景可取消)、增量搜尋、標記全部、書籤進階操作。
+- **多分頁編輯** — 拖曳排序、關閉確認、分頁標色、唯讀鎖定;**雙 View 分割視窗**(水平/垂直、可旋轉方向、
+  Move/Clone to Other View)含同步捲動。
+- **語法高亮** — 35+ 內建語言,可手動指定;支援 **自訂語言(UDL)** 圖形化建立、Prefix Mode,以及與
+  Notepad++ 相容的 `userDefineLang.xml` 匯入/匯出。
+- **多游標 / 欄位編輯** — ⌘+Click 多游標、⌥+拖曳矩形選取、欄位插入遞增數列(重複次數 + Text 模式)、
+  Column→Multi-Edit 一鍵轉換。
+- **強大搜尋** — 尋找/取代(正則、Extended `\u\b\o\d`)、**Find in Files**(背景可取消)、
+  **Project Panel + Find in Projects**(多根專案樹狀管理、對專案內檔案清單搜尋)、增量搜尋、標記全部、
+  書籤進階操作。
 - **編碼完整** — UTF-8/16、BOM 偵測、EOL 轉換,以及 **Character sets**(Big5 / GBK / GB18030 /
-  Shift-JIS / EUC-KR 等 30+ 傳統編碼,靠 Qt Core5Compat)。
-- **檢視** — 折疊(至第 N 層)、Document Map / Function List / Document List 面板、Monitoring(tail -f)、
-  全螢幕、Distraction Free、Post-It、瀏覽器預覽。
-- **自動化** — 巨集錄製/播放/具名儲存、外部命令執行(可存具名命令)、Style Configurator、Shortcut Mapper。
+  Shift-JIS / EUC-KR 等 30+ 傳統編碼,靠 Qt Core5Compat);MIME 工具含 Base64 / URL 編解碼。
+- **檢視** — 折疊(至第 N 層,可選 Simple/Circle/Box/Arrow 折疊標記樣式)、Document Map / **可設定外部
+  解析規則的 Function List** / Document List 面板(含 hover 預覽)、Monitoring(tail -f)、全螢幕、
+  Distraction Free、Post-It、瀏覽器預覽。
+- **自動化** — 巨集錄製/播放/具名儲存 + **管理對話框**(Modify Shortcut/Delete/Rename)、外部命令執行
+  (可存具名命令並**各自綁定快捷鍵**)、Style Configurator(含主題下拉套用)、Shortcut Mapper(衝突偵測)。
 - **原生 macOS** — 選單列原生整合(Preferences/About/Quit 自動歸入應用程式選單)、跟隨系統深/淺色、
-  單一實例、命令列 `file:line` 跳轉;**Notepad++ 風格圖示工具列**(隨主題自動變色)。
-- **多國語系** — 繁體中文 / 简体中文 / 日本語 / English,選單與對話框全數在地化(`Settings ▸ Interface Language` 切換)。
-- **可擴充** — 內建 in-process extension protocol;附 **Markdown 即時預覽** 外掛作為示範(離線渲染,支援 Mermaid 流程圖)。
+  單一實例(可設定 multi-instance 模式)、命令列 `file:line` 跳轉、18+ CLI 旗標;**Notepad++ 風格圖示
+  工具列**(隨主題自動變色)。
+- **完整 Preferences** — 涵蓋 New Document / Editing / Tab Bar / Toolbar / Margins·Border·Edge /
+  Default Directory / Recent Files / 逐語言啟停與縮排 / MISC 等全部分類,每一項設定皆接上真實 runtime
+  行為(無「存而未用」的死偏好)。
+- **多國語系** — 繁體中文 / 简体中文 / 日本語 / English **4 語系全數翻譯完成、0 未完成字串**,選單與
+  對話框全數在地化(`Settings ▸ Interface Language` 切換)。
+- **可擴充** — 內建 in-process extension protocol(取代 Windows 專屬 `.dll` 外掛 ABI);附
+  **Markdown 即時預覽** 外掛作為示範(離線渲染,支援 Mermaid 流程圖)。
 
 ---
 

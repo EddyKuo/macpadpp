@@ -1120,4 +1120,150 @@ flowchart TB
 ### 15.2 殘餘（na_macos／設計取捨）
 Windows DLL 外掛與 Plugins Admin、登錄檔 File Association、legacy/彩蛋 CLI 旗標、UDL Nesting（複雜遞迴包含，評估後續）、functionList.xml 使用者可編輯 parser 定義檔（本專案以內建解析 + 樹狀/過濾替代，非 XML 設定檔）。
 
+---
+
+## 16. Sprint 6 — 稽核導向缺口清理
+
+> 對應 2026-07-08 更嚴格的 8 區塊逐項稽核（204 項：full 130／partial 41／missing 27／na_macos 6）。
+> 稽核結論：**未發現地基性功能整體空白**，殘餘皆為既有骨架上的加值選項與長尾旗標，延續 §12–§15
+> 之「純邏輯優先、加法相容、UI 接線集中於 app 層」原則逐一補上。
+
+### 16.1 各模組新增
+| 模組 | 新增 |
+|------|------|
+| ColumnEditor | 重複次數（repeat）+ Text 模式（非僅數字序列） |
+| CharacterPanel | 6 欄顯示（字元/HTML Name/Dec/Hex + 兩種擴充）+ 雙擊依各表示法插入 + 編碼感知碼頁標籤 |
+| Workspace | 檔案管理右鍵選單（New/Rename/Delete/Copy Path·Name/Terminal Here）+ 檔名過濾器 |
+| StyleConfigurator | underline 屬性 + Global Styles 補項 + 全域覆寫開關 + 副檔名對應欄 |
+| UDL | Prefix Mode（關鍵字前綴比對）+ 語言下拉切換 + Rename/Remove + 中鍵摺疊 |
+| CliArgs | 新增 18 個旗標（`-openSession`／`-openFoldersAsWorkspace`／`-x`・`-y`／`-notabbar`／`-fullReadOnly`／`-monitor`／`-settingsDir`／`-L`／`-udl`…） |
+| FindReplaceDialog | Extended 模式 `\u`・`\b`・`\o`・`\d` 逸出序列 + 選項跨 session 記憶（QSettings）+ Volatile（Ctrl+Alt+F3）Find Next/Prev |
+| EditorWidget | 手動自動完成觸發（Ctrl+Space／Ctrl+Return）+ 手動 call tip（Ctrl+Shift+Space）+ `undoLastMultiSelect` + `selectAllOccurrences` 4 種變體 |
+| Preferences | 快照週期改為可設定（取代硬編 30 秒）+ Editing/Searching 額外真實選項 + MISC 分頁 |
+
+### 16.2 關鍵設計決策
+- **CharacterPanel 多重表示法解耦**：字元→HTML 實體/十進位/十六進位的映射抽為純函式，雙擊插入依目前選取的欄位分派，不與 QTableWidget 呈現邏輯糾纏，維持可單元測試。
+- **CLI 旗標貪婪解析修正**：稽核中發現 `-x`/`-y`（視窗座標）的既有解析會貪婪吞掉後續檔名路徑參數，屬 Sprint 1 遺留真 bug；本次一併修正並補測試。
+- **Extended 逸出序列與既有引擎共用**：`\u`/`\b`/`\o`/`\d` 序列在既有 Extended 解析器（§15 引入）中以同一 dispatch 表擴充，不另開分支。
+- **偏好持久化與消費分離的誠實記錄**：稽核發現部分新偏好（如 Searching/New-Document 幾項）當時已持久化但 runtime 消費點尚未接線，於 `docs/parity-audit.md` 誠實標記為待補，實際接線遞延至 Sprint 7。
+
+### 16.3 完成後狀態
+建置 `-Werror` 零警告、CTest 31/31 通過。誠實延後至 Sprint 7 的項目：Find in Projects（需整個 Project Panel 架構）、codepoint 範圍搜尋、Preferences 全 13 分類完整補完、`userDefineLang.xml` 相容格式、Function List 外部 XML 解析規則、UDL Dock/透明度、Macro Modify/Delete 對話框、Run 命令綁快捷鍵。
+
+---
+
+## 17. Sprint 7 — 結構性缺口 + 全分類補完
+
+> 對應 §16.3 之誠實延後清單。Sprint 7 是三波中規模最大者：唯一剩餘的**結構性**缺口（Project Panel）
+> 加上大量**已埋樁但未完整**的分類與外部格式相容。8 個 file-disjoint agent 平行實作（含新檔）
+> + 1 個統一整合/接線/建置/測試回合。
+
+### 17.1 新模組
+| 子系統 | 新檔案 | 說明 |
+|--------|--------|------|
+| Project Panel（新結構性子系統） | `persistence/ProjectStore`（純資料：`ProjectWorkspace`/`Project`/`ProjectNode` 樹 + `load`/`save`）、`ui/ProjectPanelDock`（樹狀 UI，tabify 於 Workspace 旁） | 多專案、每專案多資料夾/檔案節點的樹狀管理，取代原本僅有 Workspace 單層資料夾瀏覽 |
+| Find in Projects | `features/findinfiles/FindInFilesEngine::searchInFiles`（對指定檔案清單做非阻塞搜尋，重用既有 `FindInFilesOptions`） | 讓既有 Find in Files 引擎可對 Project Panel 收集的檔案清單搜尋，而非僅限資料夾遞迴 |
+| UDL 匯入匯出 | `features/udl/UdlXmlIo` | 解析／輸出 Notepad++ 原生 `userDefineLang.xml` 格式，達成 UDL 跨編輯器相容 |
+| Function List 外部規則 | `features/functionlist/FunctionListConfig` | 外部 XML/JSON 解析規則 + `overrideMap`，內建預設語言規則向後相容（無外部設定檔時退回舊行為） |
+| Macro 管理 | `ui/MacroManagerDialog` | Modify Shortcut／Delete／Rename，持久化至 `macro_shortcuts.json` |
+| Run 命令快捷鍵 | `features/run/RunCommandStore`（與既有 `RunCommand`/`RunVars` 同檔） | 讓使用者定義的外部命令可綁定快捷鍵並持久化 |
+
+### 17.2 Project Panel + Find in Projects 資料流
+```mermaid
+flowchart LR
+    PS[ProjectStore] -->|load ProjectWorkspace| PPD[ProjectPanelDock]
+    PPD -->|使用者編輯樹：新增/移除 Project·Folder·File| PS
+    PS -->|save ProjectWorkspace| DISK[(projects.json)]
+    PPD -->|開啟檔案節點| MW[MainWindow]
+    PPD -->|Find in Projects：收集目前專案檔案清單| FIF[FindInFilesEngine.searchInFiles]
+    FIF -->|QVector FindMatch，非阻塞| DOCK[FindInFilesDock]
+    DOCK -->|雙擊結果定位| MW
+    MW -->|聚焦分頁 + 定位| EW[EditorWidget]
+```
+
+### 17.3 Preferences 全分類（真實 runtime 消費）
+延續 §16 誠實記錄的「偏好已持久化但消費點未接線」問題，Sprint 7 目標為**每一個新增偏好都必須有真實 runtime 效果**，逐項對應：
+
+| 分類 | 偏好 | 消費點 |
+|------|------|--------|
+| Recent Files | `recentFilesMax`/`FullPath`/`Submenu` | `RecentFiles` + File 選單子選單生成 |
+| Toolbar/Tab Bar/Status Bar | 可見性 + icon size | `MainWindow` 對應 widget `setVisible`/`setIconSize` |
+| Language | `disabledLanguages` | 語言選單/lexer 選取時過濾 |
+| Delimiter | `delimiterChars` | `SCI_SETWORDCHARS`（影響雙擊選字、Ctrl+方向鍵等） |
+| Indentation | `perLangTabWidth` | 依當前 lexer 覆寫 tab width |
+| New Document / Default Directory | `defaultDirPolicy` | 開檔/另存對話框初始路徑 |
+| MISC | `multiInstanceMode` | `main.cpp` 啟動路由（見 §17.4） |
+| Backup | `fileStatusAutoDetect` | 檔案外部變更輪詢 |
+| Session | `sessionFileExt` | Session 檔副檔名 |
+| Margins/Border/Edge | caret/edge/line-number margin | `EditorWidget` 對應 Scintilla 邊欄設定 |
+| MISC | `enableSound` | 操作音效開關 |
+
+### 17.4 關鍵設計決策
+- **Project Panel 與 Workspace 分工不重疊**：`Workspace` 保留單層資料夾即時瀏覽（檔案系統鏡像）；`ProjectPanelDock` 管理的是**使用者手動組織**的多專案樹（可跨資料夾任意加入節點），兩者資料模型獨立、UI 上以 tabify 並列。
+- **`searchInFiles` 重用而非另開引擎**：新函式只是把既有 `searchInFolder` 的檔案收集階段換成呼叫端傳入的清單，核心比對/選項（`FindInFilesOptions`）完全共用，避免搜尋邏輯分裂。
+- **外部格式相容以獨立 I/O 模組承載**：`UdlXmlIo`、`FunctionListConfig` 皆不修改既有 `UdlDefinition`/內建 parser 的資料結構，而是新增「外部格式 ↔ 內部結構」轉換層，內部預設行為對舊專案 100% 向後相容。
+- **`multiInstanceMode` 路由於 `main.cpp`**：依偏好決定新開檔案走「單一 instance 附加分頁」或「獨立進程」，與既有 `SingleInstance` IPC 機制整合而非取代。
+- **`-quickPrint` 真印**：以 `QsciPrinter` 實際送印，取代 Sprint 5 遺留的 TODO 佔位。
+
+### 17.5 完成後狀態
+建置 `-Werror` 零警告、CTest 34/34 通過（新增 `ProjectStore`/`UdlXmlIo`/`FunctionListConfig`/`searchInFiles`/TextOps trim+EOL 往返等測試）。修正 1 處遺留欄位堵死（`columnSelectionToMultiEdit` 缺 backing field）。至此僅剩兩個**平台本質限制**未實作，見 §18。
+
+---
+
+## 18. Sprint 7.1 — 收尾最後 5 個「存而未用」偏好 + ThemeManager 保留欄位接線
+
+> Sprint 7 完成後複核，發現仍有 5 個偏好欄位已持久化、UI 可設定，但 runtime 端從未讀取（「存而未用」）；
+> 以及 `ThemeManager` 的 Global Styles 有數個保留欄位（`badBrace`/`foldActive`/Change History
+> Modified·Saved·Reverted margin／`urlHovered`）從未套用到實際 Scintilla 訊息。本 Sprint 逐一接上真實效果，
+> 使**無死偏好**成立。
+
+### 18.1 5 個偏好接線
+| 偏好 | 接線位置 | 效果 |
+|------|---------|------|
+| `ctrlDoubleClickWholeWord` | `EditorWidget` viewport `eventFilter` | Ctrl（macOS ⌘）+ 雙擊時以 `SCI_POSITIONFROMPOINT` 展成整字選取，取代預設雙擊語意 |
+| `docPeekerEnabled` | `DocumentListDock`（`m_previews` + hover ToolTip） | 滑鼠停留於文件列表項目時，以 ToolTip 顯示該文件目前內容前 ~15 行（含尚未存檔/未命名文件，直接取自現行 editor buffer） |
+| `foldMarginStyle` | `EditorWidget::setFoldMarginStyle` | 映射 None/Simple/Circle/Box/Arrow 至對應 QScintilla 折疊標記符號組 |
+| `multiEdgeEnabled` | `applyEditorPrefs` | 以 `SCI_MULTIEDGEADDLINE` 疊加多重垂直邊界（`edgeColumn` 之外再加預設 72/80/120 三道參考線） |
+| `highlightMatchingTags` | `EditorWidget`（新 indicator `kTagMatchIndicator=8`，`onCursorPositionChanged` 觸發） | 游標所在 HTML/XML 標籤與其配對標籤同步高亮；核心比對邏輯抽為純函式 `matchingTagRanges`（跳過註解/PI/宣告、支援巢狀深度配對、辨識 self-closing 標籤），可獨立單元測試 |
+
+### 18.2 ThemeManager 保留欄位接線
+`StyleSettings::GlobalStyles` 原本預留的欄位（Sprint 4 §14.1 FR-064 引入時部分留白）全數接上真實 Scintilla 訊息：
+- `badBrace`：不匹配括號高亮色
+- `foldActive`：作用中折疊區塊指示色
+- `changeHistoryModifiedMargin` / `changeHistorySavedMargin` / `changeHistoryRevertedMargin`：Change History margin 三態色彩（對應 Sprint 2 FR-057 的 Change History 機制）
+- `urlHovered`：URL 懸停高亮色
+
+套用邏輯延續既有慣例：欄位為空字串即略過（不覆寫預設色），有值才 `QColor` 轉換後送對應 `SCI_*` 訊息，維持與既有 Global Styles 套用一致的「無效色略過」語意（§14.1）。至此 Style Configurator 內不再有任何隱式/無效的欄位。
+
+### 18.3 完成後狀態
+建置 `-Werror` 零警告、CTest 34/34 通過。**至此所有 macOS 可實作的 Notepad++ 功能均已補完且有真實 runtime 效果，無死偏好。** 唯二未實作項皆為**平台本質限制**，非疏漏：
+- **`autoUpdater`**：依產品設計不內建連網自動更新（macOS 應用分發慣例與隱私考量），非技術不可行。
+- **`tabBarMultiLine`**：Qt `QTabBar` 無原生多列自動換行能力，已 best-effort 以捲動按鈕方式近似 Notepad++ 的多列分頁列。
+
+「全部做完」（Parity 100% of what's implementable on macOS）於此達成。
+
+---
+
+## 19. 國際化與測試現況
+
+### 19.1 國際化（i18n）
+4 個語系全數翻譯完成、0 筆 unfinished：
+
+| 語系 | 已完成字串數 |
+|------|------------|
+| zh_TW（繁體中文） | 803 |
+| zh_CN（簡體中文） | 804 |
+| ja（日文） | 804 |
+| en（英文） | 794 |
+
+Sprint 5–7 新增的 UI 字串均已透過 `lupdate` → 翻譯 → `lrelease` 流程納入。過程中修正一處 `lupdate` 誤判：
+以 `xtr()` 呼叫的 Extensions context 字串被錯誤標記為 vanished（實際仍在使用），已排除誤判並重新產生 `.ts`/`.qm`。
+
+### 19.2 測試與覆蓋率
+- 單元測試套件：**34 個**（QtTest，`tests/unit/`），較 Sprint 5 當時的 25 個新增 9 個（涵蓋 Sprint 6/7/7.1 新模組：`FunctionListConfig`、`ProjectStore`、`UdlXmlIo`、`searchInFiles`、matchingTagRanges 等純邏輯）。
+- 功能範圍行覆蓋率（clang source-based，排除純 GUI：`src/ui`、`src/app`、對話框/Dock widget）：**90.0–90.1%**，達成並穩定維持 §10 通用門檻（≥80%）之上。
+- 建置狀態：`-Wall -Wextra -Werror` 全程零警告。
+
+---
+
 > Sprint 5 完成後應再跑一次逐項稽核量測最終百分率。
