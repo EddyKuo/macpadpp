@@ -1,17 +1,9 @@
 name: CI
 
-# 每次 push 到 main 或 PR 時，在 macOS 上建置（-Werror）並跑 CTest，作為「build passing」依據。
+# 僅「手動」執行：不會在每次 push / PR 時自動跑，避免消耗執行器時間與通知。
+# 要跑時到 GitHub「Actions ▸ CI ▸ Run workflow」按鈕手動觸發（或 gh workflow run ci.yml）。
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
   workflow_dispatch:
-
-# 同一分支的新 push 會取消尚在跑的舊 CI，省執行器時間。
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
 
 jobs:
   build-test:
