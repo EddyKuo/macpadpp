@@ -1,0 +1,77 @@
+name: Release
+
+# 打 tag（v* 例：v0.1.0）並 push 即自動建置、同梱 Qt、打包 DMG 並發佈 GitHub Release。
+# 也可在 Actions 頁面手動觸發（workflow_dispatch）做測試建置，只上傳 artifact 不發佈。
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '版本號（不含 v 前綴），供手動測試建置用'
+        default: '0.0.0-dev'
+
+permissions:
+  contents: write   # 發佈 Release 需要寫入權限
+
+jobs:
+  build:
+    name: Build ${{ matrix.arch }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-14      # Apple Silicon
+            arch: arm64
+          - runner: macos-13      # Intel
+            arch: x86_64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安裝相依（Homebrew）
+        run: brew install cmake qt qscintilla2
+
+      - name: 解析版本號
+        id: ver
+        run: |
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            V="${GITHUB_REF_NAME#v}"
+          else
+            V="${{ github.event.inputs.version }}"
+          fi
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "解析到版本：$V"
+
+      - name: 建置 + 同梱 + 打包 DMG
+        run: bash scripts/package_macos.sh "${{ steps.ver.outputs.version }}" "${{ matrix.arch }}"
+
+      - name: 上傳 DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macpad-${{ matrix.arch }}
+          path: dist/*.dmg
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    needs: build
+    if: github.ref_type == 'tag'   # 只有打 tag 才真正發佈
+    runs-on: ubuntu-latest
+    steps:
+      - name: 下載所有架構的 DMG
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: 建立 Release 並附上 DMG
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          DMGS=$(find artifacts -name '*.dmg')
+          echo "附加檔案："; echo "$DMGS"
+          gh release create "$GITHUB_REF_NAME" $DMGS \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "macpad++ $GITHUB_REF_NAME" \
+            --generate-notes

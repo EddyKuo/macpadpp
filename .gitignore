@@ -54,3 +54,7 @@ build-cov/
 
 # coverage 原始檔
 *.profraw
+
+# 發佈打包產物（DMG 於 CI 產生，不入庫）
+/dist/
+/build-release/
