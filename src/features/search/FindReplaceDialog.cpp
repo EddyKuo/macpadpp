@@ -8,6 +8,7 @@
 #include <QLineEdit>
 #include <QPushButton>
 #include <QRegularExpression>
+#include <QSlider>
 
 using macpad::core::EditorWidget;
 
@@ -28,7 +29,13 @@ FindReplaceDialog::FindReplaceDialog(QWidget *parent)
     m_wrap->setChecked(true);
     m_inSelection = new QCheckBox(tr("In selection"), this);
     m_dotMatchesNewline = new QCheckBox(tr("'.' matches newline"), this);
+    m_extended = new QCheckBox(tr("Extended (\\n \\r \\t \\0 \\xNN)"), this);
     m_status = new QLabel(this);
+
+    m_opacitySlider = new QSlider(Qt::Horizontal, this);
+    m_opacitySlider->setRange(30, 100);  // 對應 setWindowOpacity() 0.3..1.0
+    m_opacitySlider->setValue(100);
+    m_opacitySlider->setToolTip(tr("Window opacity"));
 
     auto *findBtn = new QPushButton(tr("Find Next"), this);
     auto *replaceBtn = new QPushButton(tr("Replace"), this);
@@ -36,6 +43,8 @@ FindReplaceDialog::FindReplaceDialog(QWidget *parent)
     auto *markAllBtn = new QPushButton(tr("Mark All"), this);
     auto *countBtn = new QPushButton(tr("Count"), this);
     auto *swapBtn = new QPushButton(tr("↕"), this);  // 交換 Find/Replace 欄位文字
+    auto *findVolNextBtn = new QPushButton(tr("Find (Volatile) Next"), this);
+    auto *findVolPrevBtn = new QPushButton(tr("Find (Volatile) Previous"), this);
     findBtn->setDefault(true);
 
     auto *grid = new QGridLayout(this);
@@ -55,7 +64,12 @@ FindReplaceDialog::FindReplaceDialog(QWidget *parent)
     grid->addWidget(markAllBtn, 2, 5);
     grid->addWidget(m_inSelection, 3, 0);
     grid->addWidget(m_dotMatchesNewline, 3, 1, 1, 2);
-    grid->addWidget(m_status, 4, 0, 1, 7);
+    grid->addWidget(m_extended, 3, 3, 1, 2);
+    grid->addWidget(findVolNextBtn, 4, 4);
+    grid->addWidget(findVolPrevBtn, 4, 5);
+    grid->addWidget(new QLabel(tr("Opacity:"), this), 5, 0);
+    grid->addWidget(m_opacitySlider, 5, 1, 1, 3);
+    grid->addWidget(m_status, 6, 0, 1, 7);
 
     connect(findBtn, &QPushButton::clicked, this, &FindReplaceDialog::findNext);
     connect(replaceBtn, &QPushButton::clicked, this, &FindReplaceDialog::replaceOne);
@@ -63,6 +77,9 @@ FindReplaceDialog::FindReplaceDialog(QWidget *parent)
     connect(markAllBtn, &QPushButton::clicked, this, &FindReplaceDialog::markAll);
     connect(countBtn, &QPushButton::clicked, this, &FindReplaceDialog::countAll);
     connect(swapBtn, &QPushButton::clicked, this, &FindReplaceDialog::swapFindReplace);
+    connect(findVolNextBtn, &QPushButton::clicked, this, &FindReplaceDialog::findNextVolatile);
+    connect(findVolPrevBtn, &QPushButton::clicked, this, &FindReplaceDialog::findPreviousVolatile);
+    connect(m_opacitySlider, &QSlider::valueChanged, this, &FindReplaceDialog::opacityChanged);
     connect(m_findEdit, &QLineEdit::returnPressed, this, &FindReplaceDialog::findNext);
     // 增量搜尋（FR-012）：輸入即時定位第一個匹配
     connect(m_findEdit, &QLineEdit::textChanged, this, &FindReplaceDialog::incrementalFind);
@@ -102,11 +119,12 @@ void FindReplaceDialog::showFind(bool replaceMode)
     m_findEdit->selectAll();
 }
 
-bool FindReplaceDialog::doFind(bool forward, bool fromStart)
+bool FindReplaceDialog::doFind(bool forward, bool fromStart, bool remember)
 {
     if (!m_editor || m_findEdit->text().isEmpty())
         return false;
 
+    const QString findText = effectiveFindText();
     const bool re = m_regex->isChecked();
     const bool cs = m_caseSensitive->isChecked();
     const bool wo = m_wholeWord->isChecked();
@@ -115,10 +133,10 @@ bool FindReplaceDialog::doFind(bool forward, bool fromStart)
     // 「In selection」：限制搜尋於勾選當下記錄的選取範圍內（不環繞，避免跑到範圍外）——FR-047 minimal 實作
     if (m_inSelection->isChecked() && m_selRestrictLineFrom >= 0) {
         const bool found =
-            fromStart ? m_editor->findFirst(m_findEdit->text(), re, cs, wo, false,
+            fromStart ? m_editor->findFirst(findText, re, cs, wo, false,
                                             forward, m_selRestrictLineFrom, m_selRestrictIndexFrom,
                                             true, false, re)
-                      : m_editor->findFirst(m_findEdit->text(), re, cs, wo, false,
+                      : m_editor->findFirst(findText, re, cs, wo, false,
                                             forward, -1, -1, true, false, re);
         if (!found)
             return false;
@@ -130,17 +148,18 @@ bool FindReplaceDialog::doFind(bool forward, bool fromStart)
             || (mlt == m_selRestrictLineTo && mit <= m_selRestrictIndexTo);
         if (!withinFrom || !withinTo)
             return false;  // 匹配超出選取邊界，視為選取內找不到
-        rememberMatch();
+        if (remember)
+            rememberMatch();
         return true;
     }
 
     // cxx11=re：正則採 C++11 std::regex（支援 \d \w 與 \1 群組回填）——FR-011
     const bool found =
-        fromStart ? m_editor->findFirst(m_findEdit->text(), re, cs, wo, wrap,
+        fromStart ? m_editor->findFirst(findText, re, cs, wo, wrap,
                                         forward, 0, 0, true, false, re)
-                  : m_editor->findFirst(m_findEdit->text(), re, cs, wo, wrap,
+                  : m_editor->findFirst(findText, re, cs, wo, wrap,
                                         forward, -1, -1, true, false, re);
-    if (found)
+    if (found && remember)
         rememberMatch();
     return found;
 }
@@ -155,13 +174,39 @@ void FindReplaceDialog::findNext()
         report(tr("找不到「%1」").arg(m_findEdit->text()));
 }
 
+void FindReplaceDialog::findNextVolatile()
+{
+    if (!m_editor)
+        return;
+    // Volatile：搜尋但不呼叫 rememberMatch，不覆寫最近一次「正式」命中記錄
+    if (doFind(/*forward=*/true, /*fromStart=*/false, /*remember=*/false))
+        m_status->clear();
+    else
+        report(tr("找不到「%1」").arg(m_findEdit->text()));
+}
+
+void FindReplaceDialog::findPreviousVolatile()
+{
+    if (!m_editor)
+        return;
+    if (doFind(/*forward=*/false, /*fromStart=*/false, /*remember=*/false))
+        m_status->clear();
+    else
+        report(tr("找不到「%1」").arg(m_findEdit->text()));
+}
+
+void FindReplaceDialog::opacityChanged(int value)
+{
+    setWindowOpacity(static_cast<qreal>(value) / 100.0);
+}
+
 void FindReplaceDialog::replaceOne()
 {
     if (!m_editor)
         return;
     // 僅在目前選取正是最近一次尋找命中的匹配時才取代，避免誤刪手動選取內容；再找下一個
     if (m_editor->hasSelectedText() && selectionIsRememberedMatch())
-        m_editor->replace(m_replaceEdit->text());
+        m_editor->replace(effectiveReplaceText());
     findNext();
 }
 
@@ -170,12 +215,15 @@ void FindReplaceDialog::replaceAll()
     if (!m_editor || m_findEdit->text().isEmpty())
         return;
 
+    const QString findText = effectiveFindText();
+    const QString replaceText = effectiveReplaceText();
+
     // 「In selection」：只在選取文字範圍內取代（記憶體內取代後整段寫回選取區，FR-047 minimal 實作）
     if (m_inSelection->isChecked() && m_editor->hasSelectedText()) {
         QString selText = m_editor->selectedText();
         int count = 0;
         if (m_regex->isChecked()) {
-            QString pattern = m_findEdit->text();
+            QString pattern = findText;
             if (m_wholeWord->isChecked())
                 pattern = QStringLiteral("\\b") + pattern + QStringLiteral("\\b");
             QRegularExpression::PatternOptions opts = QRegularExpression::NoPatternOption;
@@ -188,14 +236,14 @@ void FindReplaceDialog::replaceAll()
                 auto it = re.globalMatch(selText);
                 while (it.hasNext()) { it.next(); ++count; }
                 if (count > 0)
-                    selText.replace(re, m_replaceEdit->text());
+                    selText.replace(re, replaceText);
             }
         } else {
             const Qt::CaseSensitivity cs =
                 m_caseSensitive->isChecked() ? Qt::CaseSensitive : Qt::CaseInsensitive;
-            count = selText.count(m_findEdit->text(), cs);
+            count = selText.count(findText, cs);
             if (count > 0)
-                selText.replace(m_findEdit->text(), m_replaceEdit->text(), cs);
+                selText.replace(findText, replaceText, cs);
         }
         if (count > 0)
             m_editor->replaceSelectedText(selText);
@@ -205,7 +253,7 @@ void FindReplaceDialog::replaceAll()
 
     // 走編輯核心的批次取代路徑（效能 NFR-004，單次 undo）；dotAll 傳給 replaceAll 多載
     const int count = m_editor->replaceAll(
-        m_findEdit->text(), m_replaceEdit->text(),
+        findText, replaceText,
         m_regex->isChecked(), m_caseSensitive->isChecked(), m_wholeWord->isChecked(),
         m_dotMatchesNewline->isChecked());
 
@@ -301,6 +349,75 @@ bool FindReplaceDialog::selectionIsRememberedMatch() const
 void FindReplaceDialog::report(const QString &msg)
 {
     m_status->setText(msg);
+}
+
+QString FindReplaceDialog::effectiveFindText() const
+{
+    const QString text = m_findEdit->text();
+    if (m_extended && m_extended->isChecked() && !m_regex->isChecked())
+        return unescapeExtended(text);
+    return text;
+}
+
+QString FindReplaceDialog::effectiveReplaceText() const
+{
+    const QString text = m_replaceEdit->text();
+    if (m_extended && m_extended->isChecked() && !m_regex->isChecked())
+        return unescapeExtended(text);
+    return text;
+}
+
+QString FindReplaceDialog::unescapeExtended(const QString &text)
+{
+    // 自足實作：轉換 \n \r \t \0 \\ \xNN，其餘未知跳脫序列原樣保留。
+    QString out;
+    out.reserve(text.size());
+    for (int i = 0; i < text.size(); ++i) {
+        const QChar c = text.at(i);
+        if (c == QLatin1Char('\\') && i + 1 < text.size()) {
+            const QChar n = text.at(i + 1);
+            if (n == QLatin1Char('n')) {
+                out += QLatin1Char('\n');
+                ++i;
+                continue;
+            }
+            if (n == QLatin1Char('r')) {
+                out += QLatin1Char('\r');
+                ++i;
+                continue;
+            }
+            if (n == QLatin1Char('t')) {
+                out += QLatin1Char('\t');
+                ++i;
+                continue;
+            }
+            if (n == QLatin1Char('0')) {
+                out += QChar(QChar::Null);
+                ++i;
+                continue;
+            }
+            if (n == QLatin1Char('\\')) {
+                out += QLatin1Char('\\');
+                ++i;
+                continue;
+            }
+            if (n == QLatin1Char('x') && i + 3 < text.size()) {
+                bool ok = false;
+                const QString hex = text.mid(i + 2, 2);
+                const int val = hex.toInt(&ok, 16);
+                if (ok) {
+                    out += QChar(static_cast<char16_t>(val));
+                    i += 3;
+                    continue;
+                }
+            }
+            // 未知跳脫序列，原樣保留反斜線與該字元
+            out += c;
+            continue;
+        }
+        out += c;
+    }
+    return out;
 }
 
 }  // namespace macpad::features

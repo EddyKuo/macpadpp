@@ -1,7 +1,9 @@
 #pragma once
 
 // CliArgs — 命令列參數解析（FR-033, IR-005, FR-051）
-// 解析 `path`、`path:line` 或旗標（-n<line> -c<col> -ro -nosession -multiInst）；純邏輯、可單元測試。
+// 解析 `path`、`path:line` 或旗標（-n<line> -c<col> -ro -r -nosession -multiInst
+// -p<pos> -l<lang> -alwaysOnTop -title:<text> -titleAdd:<text> -quickPrint）；
+// 純邏輯、可單元測試。不可辨識的 "-" 開頭旗標一律忽略，不視為檔案路徑。
 
 #include <QString>
 #include <QStringList>
@@ -23,6 +25,11 @@ struct ParsedArgs {
     bool multiInstance = false;
     int gotoLine = 0;
     int gotoColumn = 0;
+    int gotoPos = 0;             // -p<pos>：以原始字元位置定位（0 = 未指定）
+    QString forceLanguage;       // -l<lang>：強制指定開啟檔案的語言
+    bool alwaysOnTop = false;    // -alwaysOnTop
+    QString titleAdd;            // -title:<text> / -titleAdd:<text>：附加視窗標題文字
+    bool quickPrint = false;     // -quickPrint
 };
 
 class CliArgs {

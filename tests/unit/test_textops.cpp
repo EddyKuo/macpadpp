@@ -19,6 +19,23 @@ private slots:
         QCOMPARE(T::invertCase("Hello World"), QStringLiteral("hELLO wORLD"));
     }
 
+    // --- Blend 大小寫變體：其餘字母保留原狀，與非 blend 版本行為不同 ---
+    void caseBlendVariants()
+    {
+        // properCaseBlend：僅將字首轉大寫，其餘字母原樣保留（不像 toTitleCase 會把其餘轉小寫）
+        QCOMPARE(T::properCaseBlend("hELLO wORLD"), QStringLiteral("HELLO WORLD"));
+        QCOMPARE(T::toTitleCase("hELLO wORLD"), QStringLiteral("Hello World"));
+        QCOMPARE(T::properCaseBlend("hello world foo"), QStringLiteral("Hello World Foo"));
+
+        // sentenceCaseBlend：僅將句首轉大寫，其餘字母原樣保留（不像 toSentenceCase 會把其餘轉小寫）
+        QCOMPARE(T::sentenceCaseBlend("hELLO. wORLD! fOO? bAR"),
+                 QStringLiteral("HELLO. WORLD! FOO? BAR"));
+        QCOMPARE(T::toSentenceCase("hELLO. wORLD! fOO? bAR"),
+                 QStringLiteral("Hello. World! Foo? Bar"));
+        QCOMPARE(T::sentenceCaseBlend("hello. world! foo? bar"),
+                 QStringLiteral("Hello. World! Foo? Bar"));
+    }
+
     // --- 排序 ---
     void sorting()
     {

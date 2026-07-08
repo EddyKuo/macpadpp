@@ -30,6 +30,20 @@ PreferencesDialog::PreferencesDialog(const Settings &current, QWidget *parent)
     m_tabs->addTab(buildAutoCompletionPage(), tr("Auto-Completion"));
     m_tabs->addTab(buildPerformancePage(), tr("Performance"));
     m_tabs->addTab(buildSearchPage(), tr("Search"));
+    m_tabs->addTab(buildHighlightingPage(), tr("Highlighting"));
+    m_tabs->addTab(buildDarkModePage(), tr("Dark Mode"));
+
+    // General 頁與 Dark Mode 頁的主題選單同步（同一份 ThemeMode 設定，兩處均可編輯）
+    connect(m_theme, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+            [this](int idx) {
+                if (m_darkModeTheme->currentIndex() != idx)
+                    m_darkModeTheme->setCurrentIndex(idx);
+            });
+    connect(m_darkModeTheme, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+            [this](int idx) {
+                if (m_theme->currentIndex() != idx)
+                    m_theme->setCurrentIndex(idx);
+            });
 
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
@@ -211,6 +225,74 @@ QWidget *PreferencesDialog::buildSearchPage()
     return page;
 }
 
+QWidget *PreferencesDialog::buildHighlightingPage()
+{
+    const Settings &current = m_original;
+    auto *page = new QWidget(this);
+
+    m_smartHighlight = new QCheckBox(tr("智慧高亮（自動標示與選取字詞相同的字串）"), page);
+    m_smartHighlight->setChecked(current.smartHighlight);
+
+    m_highlightMatchingTags = new QCheckBox(tr("標示相符的 HTML/XML 標籤"), page);
+    m_highlightMatchingTags->setChecked(current.highlightMatchingTags);
+
+    m_edgeColumn = new QSpinBox(page);
+    m_edgeColumn->setRange(0, 500);
+    m_edgeColumn->setSpecialValueText(tr("關閉"));
+    m_edgeColumn->setValue(current.edgeColumn);
+
+    m_multiEdgeEnabled = new QCheckBox(tr("啟用多重邊界線"), page);
+    m_multiEdgeEnabled->setChecked(current.multiEdgeEnabled);
+
+    m_showWrapSymbol = new QCheckBox(tr("換行處顯示折行符號"), page);
+    m_showWrapSymbol->setChecked(current.showWrapSymbol);
+
+    m_showEol = new QCheckBox(tr("顯示換行字元"), page);
+    m_showEol->setChecked(current.showEol);
+
+    auto *form = new QFormLayout(page);
+    form->addRow(m_smartHighlight);
+    form->addRow(m_highlightMatchingTags);
+    form->addRow(tr("垂直邊界線欄位"), m_edgeColumn);
+    form->addRow(m_multiEdgeEnabled);
+    form->addRow(m_showWrapSymbol);
+    form->addRow(m_showEol);
+    return page;
+}
+
+QWidget *PreferencesDialog::buildDarkModePage()
+{
+    const Settings &current = m_original;
+    auto *page = new QWidget(this);
+
+    m_darkModeTheme = new QComboBox(page);
+    m_darkModeTheme->addItems({tr("Follow System"), tr("Light"), tr("Dark")});
+    m_darkModeTheme->setCurrentIndex(int(current.theme));
+
+    m_showToolbar = new QCheckBox(tr("顯示工具列"), page);
+    m_showToolbar->setChecked(current.showToolbar);
+
+    m_showStatusBar = new QCheckBox(tr("顯示狀態列"), page);
+    m_showStatusBar->setChecked(current.showStatusBar);
+
+    m_showTabBar = new QCheckBox(tr("顯示分頁列"), page);
+    m_showTabBar->setChecked(current.showTabBar);
+
+    m_caretBlinkRate = new QSpinBox(page);
+    m_caretBlinkRate->setRange(0, 5000);
+    m_caretBlinkRate->setSuffix(tr(" ms"));
+    m_caretBlinkRate->setSpecialValueText(tr("不閃爍"));
+    m_caretBlinkRate->setValue(current.caretBlinkRate);
+
+    auto *form = new QFormLayout(page);
+    form->addRow(tr("主題"), m_darkModeTheme);
+    form->addRow(m_showToolbar);
+    form->addRow(m_showStatusBar);
+    form->addRow(m_showTabBar);
+    form->addRow(tr("插入點閃爍週期"), m_caretBlinkRate);
+    return page;
+}
+
 Settings PreferencesDialog::result() const
 {
     Settings s = m_original;  // 以原設定為底，僅覆寫對話框實際編輯的欄位（保留未暴露欄位）
@@ -243,6 +325,20 @@ Settings PreferencesDialog::result() const
     s.disableAutoCompleteOverMB = m_disableAutoCompleteOverMB->value();
 
     s.searchEngineUrl = m_searchEngineUrl->text();
+
+    s.smartHighlight = m_smartHighlight->isChecked();
+    s.highlightMatchingTags = m_highlightMatchingTags->isChecked();
+    s.edgeColumn = m_edgeColumn->value();
+    s.multiEdgeEnabled = m_multiEdgeEnabled->isChecked();
+    s.showWrapSymbol = m_showWrapSymbol->isChecked();
+    s.showEol = m_showEol->isChecked();
+
+    s.theme = ThemeMode(m_darkModeTheme->currentIndex());  // 與 General 頁同步，取任一皆可
+    s.showToolbar = m_showToolbar->isChecked();
+    s.showStatusBar = m_showStatusBar->isChecked();
+    s.showTabBar = m_showTabBar->isChecked();
+    s.caretBlinkRate = m_caretBlinkRate->value();
+
     return s;
 }
 

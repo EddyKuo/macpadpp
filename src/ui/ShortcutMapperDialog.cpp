@@ -10,6 +10,8 @@
 #include <QJsonObject>
 #include <QKeySequenceEdit>
 #include <QLabel>
+#include <QLineEdit>
+#include <QMessageBox>
 #include <QPushButton>
 #include <QTableWidget>
 #include <QVBoxLayout>
@@ -40,6 +42,20 @@ void ShortcutMapperDialog::applySavedOverrides(const QList<QAction *> &actions)
     }
 }
 
+QString ShortcutMapperDialog::conflictingAction(const QList<QAction *> &actions,
+                                                 const QKeySequence &seq, const QAction *except)
+{
+    if (seq.isEmpty())
+        return QString();
+    for (const QAction *a : actions) {
+        if (a == except)
+            continue;
+        if (a->shortcut() == seq)
+            return QString(a->text()).remove(QChar('&'));
+    }
+    return QString();
+}
+
 ShortcutMapperDialog::ShortcutMapperDialog(const QList<QAction *> &actions, QWidget *parent)
     : QDialog(parent), m_actions(actions)
 {
@@ -47,6 +63,10 @@ ShortcutMapperDialog::ShortcutMapperDialog(const QList<QAction *> &actions, QWid
     resize(560, 520);
     auto *root = new QVBoxLayout(this);
     root->addWidget(new QLabel(tr("Double-click a command to reassign its shortcut."), this));
+
+    m_filterEdit = new QLineEdit(this);
+    m_filterEdit->setPlaceholderText(tr("Filter commands..."));
+    root->addWidget(m_filterEdit);
 
     m_table = new QTableWidget(m_actions.size(), 2, this);
     m_table->setHorizontalHeaderLabels({tr("Command"), tr("Shortcut")});
@@ -66,6 +86,16 @@ ShortcutMapperDialog::ShortcutMapperDialog(const QList<QAction *> &actions, QWid
     root->addWidget(box);
     connect(box, &QDialogButtonBox::rejected, this, &QDialog::accept);
     connect(m_table, &QTableWidget::cellDoubleClicked, this, &ShortcutMapperDialog::editRow);
+    connect(m_filterEdit, &QLineEdit::textChanged, this, &ShortcutMapperDialog::applyFilter);
+}
+
+void ShortcutMapperDialog::applyFilter(const QString &text)
+{
+    for (int i = 0; i < m_table->rowCount(); ++i) {
+        const bool match = text.isEmpty()
+            || m_table->item(i, 0)->text().contains(text, Qt::CaseInsensitive);
+        m_table->setRowHidden(i, !match);
+    }
 }
 
 void ShortcutMapperDialog::editRow(int row, int)
@@ -92,6 +122,18 @@ void ShortcutMapperDialog::editRow(int row, int)
         return;
 
     const QKeySequence seq = edit->keySequence();
+
+    const QString conflict = conflictingAction(m_actions, seq, a);
+    if (!conflict.isEmpty()) {
+        const auto choice = QMessageBox::warning(
+            this, tr("Shortcut Conflict"),
+            tr("\"%1\" is already assigned to \"%2\". Assign it here anyway?")
+                .arg(seq.toString(), conflict),
+            QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+        if (choice != QMessageBox::Yes)
+            return;
+    }
+
     a->setShortcut(seq);
     m_table->item(row, 1)->setText(seq.toString());
     save();

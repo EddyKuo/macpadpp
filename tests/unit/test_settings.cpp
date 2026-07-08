@@ -67,6 +67,18 @@ private slots:
         QCOMPARE(s.largeFileMB, 200);
         QCOMPARE(s.disableAutoCompleteOverMB, 50);
         QVERIFY(s.searchEngineUrl.isEmpty());
+
+        // Highlighting / Dark Mode 擴充欄位預設值
+        QVERIFY(!s.showWrapSymbol);
+        QVERIFY(!s.showEol);
+        QVERIFY(s.smartHighlight);
+        QVERIFY(!s.highlightMatchingTags);
+        QCOMPARE(s.edgeColumn, 0);
+        QVERIFY(!s.multiEdgeEnabled);
+        QVERIFY(s.showToolbar);
+        QVERIFY(s.showStatusBar);
+        QVERIFY(s.showTabBar);
+        QCOMPARE(s.caretBlinkRate, 500);
     }
 
     void roundtripNewFields()
@@ -90,6 +102,18 @@ private slots:
         in.largeFileMB = 500;
         in.disableAutoCompleteOverMB = 100;
         in.searchEngineUrl = QStringLiteral("https://example.com/search?q=%s");
+
+        // Highlighting / Dark Mode 擴充欄位
+        in.showWrapSymbol = true;
+        in.showEol = true;
+        in.smartHighlight = false;
+        in.highlightMatchingTags = true;
+        in.edgeColumn = 80;
+        in.multiEdgeEnabled = true;
+        in.showToolbar = false;
+        in.showStatusBar = false;
+        in.showTabBar = false;
+        in.caretBlinkRate = 250;
         QVERIFY(SettingsStore::save(in));
 
         const Settings out = SettingsStore::load();
@@ -110,6 +134,17 @@ private slots:
         QCOMPARE(out.largeFileMB, 500);
         QCOMPARE(out.disableAutoCompleteOverMB, 100);
         QCOMPARE(out.searchEngineUrl, QStringLiteral("https://example.com/search?q=%s"));
+
+        QCOMPARE(out.showWrapSymbol, true);
+        QCOMPARE(out.showEol, true);
+        QCOMPARE(out.smartHighlight, false);
+        QCOMPARE(out.highlightMatchingTags, true);
+        QCOMPARE(out.edgeColumn, 80);
+        QCOMPARE(out.multiEdgeEnabled, true);
+        QCOMPARE(out.showToolbar, false);
+        QCOMPARE(out.showStatusBar, false);
+        QCOMPARE(out.showTabBar, false);
+        QCOMPARE(out.caretBlinkRate, 250);
     }
 
     void missingFieldsBackfilled()

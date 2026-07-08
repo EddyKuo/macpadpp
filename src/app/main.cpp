@@ -7,6 +7,7 @@
 
 #include "app/MainWindow.h"
 #include "core/EditorWidget.h"
+#include "core/LexerFactory.h"
 #include "features/cli/CliArgs.h"
 #include "persistence/SettingsStore.h"
 #include "platform/SingleInstance.h"
@@ -31,9 +32,15 @@ static void openParsedArgs(MainWindow &window, const macpad::features::ParsedArg
             window.openFileAtLine(fa.path, fa.line, qMax(1, fa.column));
         else
             window.openFile(fa.path);
-        if (parsed.readOnly) {
-            if (auto *e = window.activeEditor())
+        if (auto *e = window.activeEditor()) {
+            if (parsed.readOnly)
                 e->setReadOnly(true);
+            // -l<lang>：強制指定語言（覆寫副檔名自動判斷）
+            if (!parsed.forceLanguage.isEmpty()) {
+                if (QsciLexer *lex =
+                        macpad::core::LexerFactory::createForLanguage(parsed.forceLanguage, e))
+                    e->setLanguageLexer(lex);
+            }
         }
     }
     // -n<line>/-c<col>：對開啟後的作用中編輯器跳至指定行/欄（1-based）
@@ -46,6 +53,18 @@ static void openParsedArgs(MainWindow &window, const macpad::features::ParsedArg
             e->setFocus();
         }
     }
+    // -p<pos>：以原始字元位置定位（SCI_GOTOPOS）
+    if (parsed.gotoPos > 0) {
+        if (auto *e = window.activeEditor()) {
+            e->SendScintilla(QsciScintilla::SCI_GOTOPOS,
+                             static_cast<unsigned long>(parsed.gotoPos));
+            e->setFocus();
+        }
+    }
+    // -alwaysOnTop / -title:/-titleAdd:：視窗層級選項（開檔後統一套用）
+    window.applyCliWindowOptions(parsed.alwaysOnTop, parsed.titleAdd);
+    // -quickPrint：直印目前檔案後保留開啟。
+    // TODO(sprint5): 需接上預設印表機直印流程（QsciPrinter 免對話框列印），暫留待補。
 }
 
 int main(int argc, char *argv[])

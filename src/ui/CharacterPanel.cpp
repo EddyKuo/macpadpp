@@ -1,6 +1,8 @@
 #include "ui/CharacterPanel.h"
 
+#include <QEvent>
 #include <QHeaderView>
+#include <QKeyEvent>
 #include <QTableWidget>
 #include <QVBoxLayout>
 #include <QWidget>
@@ -39,7 +41,25 @@ CharacterPanel::CharacterPanel(QWidget *parent)
             emit charChosen(QString(QChar(row)));
     });
 
+    // 讓鍵盤 Return/Enter 也能比照雙擊插入目前選取列的字元
+    m_table->installEventFilter(this);
+
     setWidget(m_table);
+}
+
+bool CharacterPanel::eventFilter(QObject *watched, QEvent *event)
+{
+    if (watched == m_table && event->type() == QEvent::KeyPress) {
+        auto *keyEvent = static_cast<QKeyEvent *>(event);
+        if (keyEvent->key() == Qt::Key_Return || keyEvent->key() == Qt::Key_Enter) {
+            const int row = m_table->currentRow();
+            if (row >= 32 && row != 127) {
+                emit charChosen(QString(QChar(row)));
+                return true;
+            }
+        }
+    }
+    return QDockWidget::eventFilter(watched, event);
 }
 
 }  // namespace macpad::ui

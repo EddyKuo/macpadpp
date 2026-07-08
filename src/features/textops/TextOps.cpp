@@ -45,6 +45,40 @@ QString TextOps::toSentenceCase(const QString &s)
     return out;
 }
 
+QString TextOps::properCaseBlend(const QString &s)
+{
+    QString out = s;
+    bool startOfWord = true;
+    for (QChar &c : out) {
+        if (c.isLetter()) {
+            if (startOfWord)
+                c = c.toUpper();
+            // 非首字母：保留原大小寫（不強制轉小寫）
+            startOfWord = false;
+        } else {
+            startOfWord = true;
+        }
+    }
+    return out;
+}
+
+QString TextOps::sentenceCaseBlend(const QString &s)
+{
+    QString out = s;
+    bool startOfSentence = true;
+    for (QChar &c : out) {
+        if (c.isLetter()) {
+            if (startOfSentence)
+                c = c.toUpper();
+            // 非句首字母：保留原大小寫（不強制轉小寫）
+            startOfSentence = false;
+        } else if (c == QLatin1Char('.') || c == QLatin1Char('!') || c == QLatin1Char('?')) {
+            startOfSentence = true;
+        }
+    }
+    return out;
+}
+
 QString TextOps::invertCase(const QString &s)
 {
     QString out = s;

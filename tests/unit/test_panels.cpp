@@ -68,6 +68,45 @@ private slots:
         QVERIFY(names.contains(QStringLiteral("Gamma")));
     }
 
+    void cppScopeForClassMethods()
+    {
+        const QString code =
+            "class Foo {\n"
+            "public:\n"
+            "    void bar() {\n"
+            "    }\n"
+            "    int baz(int x) {\n"
+            "        return x;\n"
+            "    }\n"
+            "};\n"
+            "void freeFn() {\n"
+            "}\n";
+        const auto syms = FunctionListParser::parse(code, "cpp");
+        bool foundBar = false, foundBaz = false, foundFree = false, foundFoo = false;
+        for (const auto &s : syms) {
+            if (s.name == QStringLiteral("Foo")) {
+                foundFoo = true;
+                QCOMPARE(s.scope, QString());  // 類別本身頂層，無所屬範疇
+            }
+            if (s.name == QStringLiteral("bar")) {
+                foundBar = true;
+                QCOMPARE(s.scope, QStringLiteral("Foo"));
+            }
+            if (s.name == QStringLiteral("baz")) {
+                foundBaz = true;
+                QCOMPARE(s.scope, QStringLiteral("Foo"));
+            }
+            if (s.name == QStringLiteral("freeFn")) {
+                foundFree = true;
+                QCOMPARE(s.scope, QString());  // 頂層自由函式，無所屬範疇
+            }
+        }
+        QVERIFY(foundFoo);
+        QVERIFY(foundBar);
+        QVERIFY(foundBaz);
+        QVERIFY(foundFree);
+    }
+
     void unknownLanguageReturnsEmpty()
     {
         QVERIFY(FunctionListParser::parse("whatever", "").isEmpty());

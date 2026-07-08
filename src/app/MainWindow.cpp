@@ -16,6 +16,7 @@
 #include "features/udl/UdlLexer.h"
 #include "features/export/HtmlExporter.h"
 #include "features/textops/TextOps.h"
+#include "features/mime/MimeTools.h"
 #include "features/autocomplete/ApiDatabase.h"
 #include "persistence/ThemeStore.h"
 #include "ui/ThemePickerDialog.h"
@@ -39,6 +40,7 @@
 #include "persistence/JsonFile.h"
 
 #include <QClipboard>
+#include <QScrollBar>
 #include <QDesktopServices>
 #include <QDir>
 #include <QFile>
@@ -165,6 +167,17 @@ MainWindow::MainWindow(QWidget *parent, bool restoreSessionOnLaunch)
             w->setCurrentIndex(tab);
         }
     });
+    // 文件清單中鍵/右鍵「Close」→ 關閉對應分頁（同樣以合併索引解碼回檢視+分頁）
+    connect(m_docList, &macpad::ui::DocumentListDock::closeRequested, this, [this](int idx) {
+        if (idx < 0 || idx >= m_docListMap.size())
+            return;
+        QTabWidget *w = m_docListMap[idx].first;
+        const int tab = m_docListMap[idx].second;
+        if (w && tab >= 0 && tab < w->count()) {
+            setActiveTabWidget(w);
+            closeTabIn(w, tab);
+        }
+    });
 
     // 停靠面板（FR-029）：Function List / Clipboard History / Document Map
     m_funcList = new macpad::ui::FunctionListDock(this);
@@ -201,6 +214,19 @@ MainWindow::MainWindow(QWidget *parent, bool restoreSessionOnLaunch)
     m_workspace->hide();
     connect(m_workspace, &macpad::ui::WorkspaceDock::fileActivated,
             this, &MainWindow::openFile);
+    // 工作區右鍵「在此資料夾中尋找」→ 開啟範圍限定於該資料夾的 Find in Files
+    connect(m_workspace, &macpad::ui::WorkspaceDock::findInFolderRequested, this,
+            [this](const QString &dir) {
+        if (!m_findInFiles) {
+            m_findInFiles = new macpad::features::FindInFilesDock(this);
+            addDockWidget(Qt::BottomDockWidgetArea, m_findInFiles);
+            connect(m_findInFiles, &macpad::features::FindInFilesDock::openLocation,
+                    this, &MainWindow::openFileAtLine);
+        }
+        m_findInFiles->setSearchRoot(dir);
+        m_findInFiles->show();
+        m_findInFiles->raise();
+    });
 
     // Character Panel（Edit ▸ Character Panel，Notepad++ 對等）
     m_charPanel = new macpad::ui::CharacterPanel(this);
@@ -509,6 +535,14 @@ void MainWindow::createMenus()
         const QString dir = QFileDialog::getExistingDirectory(this, tr("Open Folder"));
         if (!dir.isEmpty() && m_workspace) {
             m_workspace->setRoot(dir);
+            m_workspace->show();
+            m_workspace->raise();
+        }
+    });
+    fileMenu->addAction(tr("Add Folder to Workspace…"), this, [this] {
+        const QString dir = QFileDialog::getExistingDirectory(this, tr("Add Folder to Workspace"));
+        if (!dir.isEmpty() && m_workspace) {
+            m_workspace->addRoot(dir);   // 多根支援：不清除既有根目錄
             m_workspace->show();
             m_workspace->raise();
         }
@@ -1208,6 +1242,15 @@ void MainWindow::createMenus()
         eolAct->setChecked(true);
     });
 
+    // Smart Highlighting（游標所在字詞自動標記全部出現處）——套用到所有開啟編輯器；
+    // 新分頁於 addEditorTab 依此動作的勾選狀態同步。
+    QAction *shAct = viewMenu->addAction(tr("Smart Highlighting"));
+    shAct->setCheckable(true);
+    m_smartHighlightAct = shAct;
+    connect(shAct, &QAction::toggled, this, [this](bool on) {
+        forEachEditor([on](EditorWidget *e) { if (e) e->setSmartHighlight(on); });
+    });
+
     // Fold（折疊）子選單
     QMenu *foldMenu = viewMenu->addMenu(tr("Fold"));
     foldMenu->addAction(tr("Fold All"), QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_F),
@@ -1778,6 +1821,11 @@ void MainWindow::createEditMenuOps(QMenu *editMenu)
                         this, [this] { applyTextOp(&TextOps::toLower); });
     caseMenu->addAction(tr("Title Case"), this, [this] { applyTextOp(&TextOps::toTitleCase); });
     caseMenu->addAction(tr("Sentence case"), this, [this] { applyTextOp(&TextOps::toSentenceCase); });
+    // Blend 變體：僅將首字母轉大寫，其餘字母大小寫保留原狀（Notepad++ Proper/Sentence case blend 對等）
+    caseMenu->addAction(tr("Proper Case (blend)"), this,
+                        [this] { applyTextOp(&TextOps::properCaseBlend); });
+    caseMenu->addAction(tr("Sentence case (blend)"), this,
+                        [this] { applyTextOp(&TextOps::sentenceCaseBlend); });
     caseMenu->addAction(tr("iNVERT cASE"), this, [this] { applyTextOp(&TextOps::invertCase); });
     caseMenu->addAction(tr("rAnDoM CaSe"), this,
                         [this] { applyTextOp([](const QString &s){ return TextOps::toRandomCase(s); }); });
@@ -1953,6 +2001,39 @@ void MainWindow::createEditMenuOps(QMenu *editMenu)
     editMenu->addAction(tr("Character Panel"), this, [this] {
         if (m_charPanel) { m_charPanel->show(); m_charPanel->raise(); }
     });
+
+    editMenu->addSeparator();
+
+    // 兩段式選取 / 遮蔽（Begin/End Select、欄位版本、Redact Selection）
+    QMenu *selMenu = editMenu->addMenu(tr("Selection"));
+    selMenu->addAction(tr("Begin Select"), this,
+                       [this] { if (auto *e = currentEditor()) e->beginSelect(); });
+    selMenu->addAction(tr("End Select"), this,
+                       [this] { if (auto *e = currentEditor()) e->endSelect(); });
+    selMenu->addAction(tr("Begin Column Select"), this,
+                       [this] { if (auto *e = currentEditor()) e->beginColumnSelect(); });
+    selMenu->addAction(tr("End Column Select"), this,
+                       [this] { if (auto *e = currentEditor()) e->endColumnSelect(); });
+    selMenu->addSeparator();
+    selMenu->addAction(tr("Redact Selection"), this,
+                       [this] { if (auto *e = currentEditor()) e->redactSelection(); });
+
+    // 詞彙上色（5 色 Style Token；持續標記直到清除）
+    QMenu *tokenMenu = editMenu->addMenu(tr("Style Token"));
+    for (int c = 0; c < 5; ++c)
+        tokenMenu->addAction(tr("Style Token Color %1").arg(c + 1), this,
+                             [this, c] { if (auto *e = currentEditor()) e->styleTokenOccurrences(c); });
+    tokenMenu->addSeparator();
+    tokenMenu->addAction(tr("Clear Styled Tokens"), this,
+                         [this] { if (auto *e = currentEditor()) e->clearStyledTokens(); });
+
+    // MIME 工具（Base64 / URL 編解碼）——作用於選取（無選取則整份文件），沿用 applyTextOp
+    using macpad::features::MimeTools;
+    QMenu *mimeMenu = editMenu->addMenu(tr("MIME Tools"));
+    mimeMenu->addAction(tr("Base64 Encode"), this, [this] { applyTextOp(&MimeTools::base64Encode); });
+    mimeMenu->addAction(tr("Base64 Decode"), this, [this] { applyTextOp(&MimeTools::base64Decode); });
+    mimeMenu->addAction(tr("URL Encode"), this, [this] { applyTextOp(&MimeTools::urlEncode); });
+    mimeMenu->addAction(tr("URL Decode"), this, [this] { applyTextOp(&MimeTools::urlDecode); });
 }
 
 // === Notepad++ Search 選單 ===
@@ -2360,6 +2441,18 @@ void MainWindow::toggleAlwaysOnTop(bool on)
     show();  // 變更 flag 後須重新 show
 }
 
+void MainWindow::applyCliWindowOptions(bool alwaysOnTop, const QString &titleAdd)
+{
+    // -alwaysOnTop：沿用既有置頂路徑（含 setWindowFlag + 重新 show）
+    if (alwaysOnTop)
+        toggleAlwaysOnTop(true);
+    // -title:/-titleAdd:：附加於視窗標題
+    if (!titleAdd.isEmpty()) {
+        const QString base = windowTitle().isEmpty() ? QStringLiteral("macpad++") : windowTitle();
+        setWindowTitle(base + QStringLiteral(" - ") + titleAdd);
+    }
+}
+
 void MainWindow::activateTabRelative(int delta)
 {
     QTabWidget *w = currentTabWidget();
@@ -2542,7 +2635,10 @@ void MainWindow::wireEditorSignals(EditorWidget *editor)
         }
     });
     connect(editor, &QsciScintilla::cursorPositionChanged, this,
-            [this](int, int) { updateStatusBar(); });
+            [this](int, int) { updateStatusBar(); updateDocMapRange(); });
+    // 捲動時更新 Document Map 的可視範圍色帶（FR-029）
+    if (QScrollBar *vsb = editor->verticalScrollBar())
+        connect(vsb, &QScrollBar::valueChanged, this, [this](int) { updateDocMapRange(); });
     // 長度/行數需隨編輯即時更新；選取需即時反映 Sel 欄與 INS/OVR
     connect(editor, &QsciScintilla::textChanged, this, &MainWindow::updateStatusBar);
     connect(editor, &QsciScintilla::selectionChanged, this, &MainWindow::updateStatusBar);
@@ -2572,6 +2668,9 @@ EditorWidget *MainWindow::addEditorTab()
 
     themeEditor(editor);
     applyEditorPrefs(editor, macpad::persistence::SettingsStore::load());  // 新分頁套用目前偏好
+    // Smart Highlighting 為全域檢視狀態：新分頁跟隨 View 選單目前勾選狀態
+    if (m_smartHighlightAct && m_smartHighlightAct->isChecked())
+        editor->setSmartHighlight(true);
 
     const int idx = w->addTab(pane, editor->displayName());
     w->setCurrentIndex(idx);
@@ -3010,8 +3109,23 @@ void MainWindow::refreshPanels()
     const QString suffix = e->isUntitled() ? QString() : QFileInfo(e->filePath()).suffix();
     if (m_funcList && m_funcList->isVisible())
         m_funcList->update(e->text(), suffix);
-    if (m_docMap && m_docMap->isVisible())
+    if (m_docMap && m_docMap->isVisible()) {
         m_docMap->attach(e);
+        updateDocMapRange();
+    }
+}
+
+void MainWindow::updateDocMapRange()
+{
+    if (!m_docMap || !m_docMap->isVisible())
+        return;
+    EditorWidget *e = currentEditor();
+    if (!e)
+        return;
+    // 第一可視行與螢幕上可容納行數（best-effort：反映作用中編輯器的視埠）
+    const int first = int(e->SendScintilla(QsciScintilla::SCI_GETFIRSTVISIBLELINE));
+    const int onScreen = int(e->SendScintilla(QsciScintilla::SCI_LINESONSCREEN));
+    m_docMap->setVisibleRange(first, onScreen);
 }
 
 // 建立 Notepad++ 風格的分格狀態列：文件類型（左、可伸展）＋ 5 個右側固定格。

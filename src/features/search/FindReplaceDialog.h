@@ -9,6 +9,7 @@
 class QLineEdit;
 class QCheckBox;
 class QLabel;
+class QSlider;
 
 namespace macpad::core { class EditorWidget; }
 
@@ -33,13 +34,25 @@ private slots:
     void incrementalFind(const QString &text);
     void countAll();       // FR-047「Count」按鈕：只計數不移動
     void swapFindReplace(); // 交換 Find/Replace 欄位文字
+    void findNextVolatile();     // 「Find (Volatile) Next」：搜尋但不記錄為最近命中
+    void findPreviousVolatile(); // 「Find (Volatile) Previous」：同上，反向
+    void opacityChanged(int value); // 視窗透明度滑桿變更
 
 private:
-    bool doFind(bool forward, bool fromStart);
+    // remember=false 時略過 rememberMatch（供 volatile find 使用，不覆寫最近命中記錄）
+    bool doFind(bool forward, bool fromStart, bool remember = true);
     void report(const QString &msg);
     // 記錄最近一次成功尋找所選取的匹配範圍，供 replaceOne 驗證（避免誤取代手動選取）
     void rememberMatch();
     bool selectionIsRememberedMatch() const;
+
+    // 依「Extended」勾選狀態（且非 Regex 模式）回傳跳脫轉換後的尋找/取代文字
+    QString effectiveFindText() const;
+    QString effectiveReplaceText() const;
+
+    // 將 \n \r \t \0 \\ \xNN 跳脫序列轉換為對應字元；不認得的序列原樣保留。
+    // 自足實作，不依賴其他模組。
+    static QString unescapeExtended(const QString &text);
 
     macpad::core::EditorWidget *m_editor = nullptr;
     QLineEdit *m_findEdit = nullptr;
@@ -50,6 +63,8 @@ private:
     QCheckBox *m_wrap = nullptr;
     QCheckBox *m_inSelection = nullptr;  // 「In selection」：限制 find/replaceAll 於選取範圍內
     QCheckBox *m_dotMatchesNewline = nullptr;  // 「. matches newline」：regex dot-all（僅 replaceAll 生效）
+    QCheckBox *m_extended = nullptr;  // 「Extended (\n \r \t \0 \xNN)」：尋找/取代文字跳脫轉換
+    QSlider *m_opacitySlider = nullptr;  // 視窗透明度（30%~100%）
     QLabel *m_status = nullptr;
 
     // 最近一次成功尋找的選取範圍（-1 表示尚無）

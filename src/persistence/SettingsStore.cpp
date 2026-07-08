@@ -128,6 +128,21 @@ Settings SettingsStore::load()
     // Search
     s.searchEngineUrl = o.value(QStringLiteral("search_engine_url")).toString(s.searchEngineUrl);
 
+    // Highlighting
+    s.showWrapSymbol = o.value(QStringLiteral("show_wrap_symbol")).toBool(s.showWrapSymbol);
+    s.showEol = o.value(QStringLiteral("show_eol")).toBool(s.showEol);
+    s.smartHighlight = o.value(QStringLiteral("smart_highlight")).toBool(s.smartHighlight);
+    s.highlightMatchingTags =
+        o.value(QStringLiteral("highlight_matching_tags")).toBool(s.highlightMatchingTags);
+    s.edgeColumn = o.value(QStringLiteral("edge_column")).toInt(s.edgeColumn);
+    s.multiEdgeEnabled = o.value(QStringLiteral("multi_edge_enabled")).toBool(s.multiEdgeEnabled);
+
+    // Dark Mode / Appearance
+    s.showToolbar = o.value(QStringLiteral("show_toolbar")).toBool(s.showToolbar);
+    s.showStatusBar = o.value(QStringLiteral("show_status_bar")).toBool(s.showStatusBar);
+    s.showTabBar = o.value(QStringLiteral("show_tab_bar")).toBool(s.showTabBar);
+    s.caretBlinkRate = o.value(QStringLiteral("caret_blink_rate")).toInt(s.caretBlinkRate);
+
     return s;
 }
 
@@ -171,6 +186,20 @@ bool SettingsStore::save(const Settings &s)
 
     // Search
     o.insert(QStringLiteral("search_engine_url"), s.searchEngineUrl);
+
+    // Highlighting
+    o.insert(QStringLiteral("show_wrap_symbol"), s.showWrapSymbol);
+    o.insert(QStringLiteral("show_eol"), s.showEol);
+    o.insert(QStringLiteral("smart_highlight"), s.smartHighlight);
+    o.insert(QStringLiteral("highlight_matching_tags"), s.highlightMatchingTags);
+    o.insert(QStringLiteral("edge_column"), s.edgeColumn);
+    o.insert(QStringLiteral("multi_edge_enabled"), s.multiEdgeEnabled);
+
+    // Dark Mode / Appearance
+    o.insert(QStringLiteral("show_toolbar"), s.showToolbar);
+    o.insert(QStringLiteral("show_status_bar"), s.showStatusBar);
+    o.insert(QStringLiteral("show_tab_bar"), s.showTabBar);
+    o.insert(QStringLiteral("caret_blink_rate"), s.caretBlinkRate);
 
     return JsonFile::save(settingsPath(), o);
 }

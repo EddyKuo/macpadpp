@@ -50,6 +50,9 @@ public:
     void showStatusMessage(const QString &message, int timeoutMs = 3000) override;
     QWidget *hostWindow() override { return this; }
 
+    // 命令列視窗選項（FR-051）：-alwaysOnTop 置頂、-title:/-titleAdd: 附加標題（供 main.cpp 於開檔後套用）
+    void applyCliWindowOptions(bool alwaysOnTop, const QString &titleAdd);
+
 public slots:
     // 開啟指定檔案（已開啟則聚焦既有分頁——FR-001 邊界）
     void openFile(const QString &path);
@@ -125,6 +128,7 @@ private:
     void rebuildRecentMenu();
     void refreshDocList();
     void refreshPanels();
+    void updateDocMapRange();   // 以作用中編輯器可視範圍更新 Document Map 色帶（FR-029）
     void watchPath(const QString &path);
     macpad::ui::EditorPane *currentPane() const;
     macpad::ui::EditorPane *paneAt(int index) const;
@@ -203,4 +207,5 @@ private:
     QAction *m_wrapAct = nullptr;
     QAction *m_wsAct = nullptr;
     QAction *m_eolAct = nullptr;
+    QAction *m_smartHighlightAct = nullptr;  // View ▸ Smart Highlighting（新分頁依此套用）
 };

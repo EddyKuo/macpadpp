@@ -198,6 +198,43 @@ public:
     // 純函式，供 keyPressEvent/triggerPathCompletion 與單元測試共用。
     static QString pathFragmentBefore(const QString &text, int pos);
 
+    // === 兩段式選取（Begin/End Select，串流模式）===
+    // beginSelect 記錄目前游標為選取錨點；endSelect 以錨點到目前游標設定選取。
+    // 未先呼叫 beginSelect（無錨點）時 endSelect 為 no-op。
+    void beginSelect();
+    void endSelect();
+    // 欄位（矩形）版本：與上相同流程但以矩形選取模式（SC_SEL_RECTANGLE）呈現。
+    void beginColumnSelect();
+    void endColumnSelect();
+
+    // === 遮蔽選取（Redact Selection）===
+    // 將目前所有選取範圍內的字元以遮罩字元（U+25CF ●）取代，換行字元保留；單次 undo。
+    void redactSelection();
+
+    // === 智慧高亮（Smart Highlighting）===
+    // 開啟後，游標移動時自動標記游標所在字詞的所有出現處（專用指示器 kSmartIndicator）。
+    // 每次游標移動先清除再重標；游標不在字詞內時只清除。
+    void setSmartHighlight(bool enabled);
+    bool smartHighlight() const { return m_smartHighlight; }
+
+    // === 詞彙上色（5 色 Style Token）===
+    // 以 5 種不同指示器（kTokenIndicatorBase..+4）標記目前字詞（或選取）的所有出現處。
+    // 與 markAll 不同，這些標記持續存在直到 clearStyledTokens 清除。
+    void styleTokenOccurrences(int colorIndex /* 0..4 */);
+    void clearStyledTokens();
+
+    // 智慧高亮專用指示器；詞彙上色指示器基底（連續 5 個：base..base+4）。
+    static constexpr int kSmartIndicator = 2;
+    static constexpr int kTokenIndicatorBase = 3;
+
+    // 查詢某指示器目前標記了幾個獨立範圍（供測試/UI 統計）。
+    int indicatorRangeCount(int indicator) const;
+
+    // === HTML/XML 自動閉合標籤 ===
+    // 由游標前（同一行）的文字判斷是否應補上閉合標籤；
+    // 回傳 "</tag>"（可補），或空字串（自閉合、閉合標籤、非標籤）。純函式，供測試共用。
+    static QString closingTagFor(const QString &textBeforeCaret);
+
 signals:
     void dirtyChanged(bool dirty);
     void metaChanged();     // 編碼/EOL 變更（狀態列更新）
@@ -210,9 +247,16 @@ protected:
 private slots:
     void onMarginClicked(int margin, int line, Qt::KeyboardModifiers state);
     void onUserListActivated(int id, const QString &string);
+    void onCursorPositionChanged();  // 智慧高亮：游標移動時重標
 
 private:
     void applyDefaultConfig();
+    // 智慧高亮/詞彙上色共用：清除指定指示器全文範圍。
+    void clearIndicatorRange(int indicator);
+    // 以整詞、區分大小寫搜尋 word，並以指定指示器填色；回傳出現次數。
+    int fillWordOccurrences(const QString &word, int indicator);
+    // 取游標所在字詞（無字詞回空字串）。
+    QString wordUnderCaret() const;
     void applyLexerForPath(const QString &path);
     void applyEolMode(Eol eol);
     void toggleBookmarkAtLine(int line);
@@ -229,6 +273,11 @@ private:
     Eol m_eol = Eol::Lf;
     bool m_metaDirty = false;  // 編碼/EOL/codec 變更造成的 dirty（文字內容未變）
     bool m_autoClose = true;  // 自動配對符號 ( [ { " '（FR-050）
+
+    // 兩段式選取錨點（Begin/End Select）
+    long m_selectAnchorPos = 0;
+    bool m_hasSelectAnchor = false;
+    bool m_smartHighlight = false;  // 智慧高亮開關
     bool m_changeHistoryEnabled = false;  // 變更歷史開關狀態（FR-057）
     bool m_virtualSpace = false;          // 虛擬空間開關狀態（FR-060）
 

@@ -599,6 +599,104 @@ private slots:
         e.triggerPathCompletion();
         QVERIFY(true);
     }
+
+    void beginEndSelectSelectsRange()
+    {
+        // 兩段式選取：beginSelect 記錄錨點，移動游標後 endSelect 設定選取範圍
+        EditorWidget e;
+        e.setText(QStringLiteral("hello world"));
+        e.setCursorPosition(0, 0);
+        e.beginSelect();
+        e.setCursorPosition(0, 5);   // 移動游標
+        e.endSelect();
+
+        const long s = e.SendScintilla(EditorWidget::SCI_GETSELECTIONSTART);
+        const long en = e.SendScintilla(EditorWidget::SCI_GETSELECTIONEND);
+        QCOMPARE(s, 0L);
+        QCOMPARE(en, 5L);
+        QVERIFY(e.hasSelectedText());
+        QCOMPARE(e.selectedText(), QStringLiteral("hello"));
+
+        // 未先 beginSelect（無錨點）→ endSelect 為 no-op，不改變選取
+        EditorWidget e2;
+        e2.setText(QStringLiteral("abc"));
+        e2.setCursorPosition(0, 1);
+        e2.endSelect();
+        QVERIFY(!e2.hasSelectedText());
+    }
+
+    void redactSelectionMasksSelectedChars()
+    {
+        // 遮蔽選取：選取內每個非換行字元換成 ●，換行保留；● 數 == 選取非換行字元數
+        EditorWidget e;
+        e.setText(QStringLiteral("hello world"));
+        e.setSelection(0, 0, 0, 5);   // 選取 "hello"（5 個非換行字元）
+        e.redactSelection();
+
+        const int masks = e.text().count(QChar(0x25CF));
+        QCOMPARE(masks, 5);
+        QVERIFY(e.text().endsWith(QStringLiteral(" world")));
+
+        // 跨行選取：換行保留、非換行字元被遮蔽
+        EditorWidget e2;
+        e2.setText(QStringLiteral("ab\ncd"));
+        e2.setSelection(0, 0, 1, 2);   // 選取 "ab\ncd" = 4 非換行 + 1 換行
+        e2.redactSelection();
+        QCOMPARE(e2.text().count(QChar(0x25CF)), 4);
+        QVERIFY(e2.text().contains(QChar('\n')));
+    }
+
+    void closingTagForHelper()
+    {
+        // HTML/XML 自動閉合標籤決策核心
+        QCOMPARE(EditorWidget::closingTagFor(QStringLiteral("<div>")),
+                 QStringLiteral("</div>"));
+        QCOMPARE(EditorWidget::closingTagFor(QStringLiteral("<br/>")), QString());
+        QCOMPARE(EditorWidget::closingTagFor(QStringLiteral("</div>")), QString());
+        QCOMPARE(EditorWidget::closingTagFor(QStringLiteral("plain")), QString());
+        // 帶屬性者仍取得標籤名稱
+        QCOMPARE(EditorWidget::closingTagFor(QStringLiteral("<a href=\"x\">")),
+                 QStringLiteral("</a>"));
+        // 前綴含其他文字，只取最後一個標籤
+        QCOMPARE(EditorWidget::closingTagFor(QStringLiteral("text <span>")),
+                 QStringLiteral("</span>"));
+    }
+
+    void smartHighlightToggleAndCaretMove()
+    {
+        // 智慧高亮開關反映於 getter；游標移動時自動標記且不崩潰
+        EditorWidget e;
+        QVERIFY(!e.smartHighlight());   // 預設關閉
+
+        e.setText(QStringLiteral("foo foo foo"));
+        e.setSmartHighlight(true);
+        QVERIFY(e.smartHighlight());
+
+        e.setCursorPosition(0, 1);      // 游標落在第一個 "foo" 內 → 觸發重標
+        QVERIFY(e.indicatorRangeCount(EditorWidget::kSmartIndicator) > 0);
+
+        e.setSmartHighlight(false);
+        QVERIFY(!e.smartHighlight());
+        QCOMPARE(e.indicatorRangeCount(EditorWidget::kSmartIndicator), 0);  // 關閉清除
+    }
+
+    void styleTokenOccurrencesMarksAndClears()
+    {
+        // 詞彙上色：對 "foo foo" 標記 2 處；clearStyledTokens 後歸零
+        EditorWidget e;
+        e.setText(QStringLiteral("foo foo"));
+        e.setCursorPosition(0, 1);   // 游標在第一個 "foo" 內
+        e.styleTokenOccurrences(0);
+        QCOMPARE(e.indicatorRangeCount(EditorWidget::kTokenIndicatorBase), 2);
+
+        // 不同色可獨立標記另一組
+        e.styleTokenOccurrences(2);
+        QCOMPARE(e.indicatorRangeCount(EditorWidget::kTokenIndicatorBase + 2), 2);
+
+        e.clearStyledTokens();
+        QCOMPARE(e.indicatorRangeCount(EditorWidget::kTokenIndicatorBase), 0);
+        QCOMPARE(e.indicatorRangeCount(EditorWidget::kTokenIndicatorBase + 2), 0);
+    }
 };
 
 QTEST_MAIN(TestEditorOps)

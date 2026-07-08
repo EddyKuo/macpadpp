@@ -10,7 +10,8 @@ namespace macpad::features {
 
 struct Symbol {
     QString name;
-    int line;   // 1-based
+    int line = 0;   // 1-based
+    QString scope;  // 所屬類別/命名空間名稱（cpp/js 有效；頂層或不支援語言為空字串）
 };
 
 class FunctionListParser {

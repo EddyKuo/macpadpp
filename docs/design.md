@@ -1092,4 +1092,32 @@ flowchart TB
     MW -. Move/Clone to Other View .-> V2
 ```
 
-> Sprint 4 完成後，parity 複核之結構性缺口（雙 View、UDL 樣式、Global Styles、Find in Files UI）由 missing/partial 轉為 full；細粒度長尾（Volatile Find、Smart Highlighting、Redact、Extended 搜尋、Base64…）待後續評估。
+> Sprint 4 完成後，parity 複核之結構性缺口（雙 View、UDL 樣式、Global Styles、Find in Files UI）由 missing/partial 轉為 full。
+
+---
+
+## 15. Sprint 5 — 長尾缺口全清
+
+> 目標：把 2026-07-08 複核剩餘之**所有可實作** missing/partial 清光（除 na_macos）。以模組層 12 個 agent 平行實作 + MainWindow 接線。
+
+### 15.1 實作項目
+| 模組 | 新增 |
+|------|------|
+| TextOps | Proper Case / Sentence Case（Blend，保留其餘大小寫） |
+| EditorWidget | Begin/End Select（含欄模式）、Redact Selection（●遮罩）、Smart Highlighting（游標字自動高亮）、Style Token（5 色多組標色）、HTML/XML tag 自動關閉 |
+| FindReplaceDialog | Extended 模式（`\n\r\t\0\xNN`）、對話框透明度、Volatile Find Next/Prev |
+| FunctionList | 類別/命名空間巢狀樹、過濾框、A-Z 排序 |
+| DocumentMap | 可視範圍高亮框 |
+| CharacterPanel | Enter 鍵插入 |
+| RunDock | 指令歷史下拉、瀏覽按鈕、變數插入選單 |
+| CliArgs | `-p`、`-l`、`-alwaysOnTop`、`-title`、`-quickPrint` 等旗標 |
+| MimeTools（新） | Base64 / URL 編解碼 |
+| DocumentList | A-Z 排序、右鍵選單、中鍵關閉、分頁色彩 |
+| Workspace | 多根資料夾、右鍵選單（新增/移除/在此搜尋/Finder） |
+| Preferences | Highlighting 分頁、Dark Mode/外觀分頁 + 對應 Settings 欄位 |
+| ShortcutMapper | 快捷鍵衝突偵測、過濾框 |
+
+### 15.2 殘餘（na_macos／設計取捨）
+Windows DLL 外掛與 Plugins Admin、登錄檔 File Association、legacy/彩蛋 CLI 旗標、UDL Nesting（複雜遞迴包含，評估後續）、functionList.xml 使用者可編輯 parser 定義檔（本專案以內建解析 + 樹狀/過濾替代，非 XML 設定檔）。
+
+> Sprint 5 完成後應再跑一次逐項稽核量測最終百分率。

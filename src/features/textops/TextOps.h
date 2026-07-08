@@ -16,6 +16,9 @@ public:
     static QString toTitleCase(const QString &s);     // 每個單字首字母大寫
     static QString toSentenceCase(const QString &s);  // 每句首字母大寫
     static QString invertCase(const QString &s);      // 大小寫互換
+    // Blend 變體：僅將目標位置字母轉大寫，其餘字母大小寫「保留原狀」（不像 toTitleCase/toSentenceCase 會將其餘字母轉小寫）
+    static QString properCaseBlend(const QString &s);     // 每個單字首字母大寫，其餘不變
+    static QString sentenceCaseBlend(const QString &s);   // 每句首字母大寫，其餘不變
 
     // --- 行操作 ---
     static QString sortLinesAscending(const QString &s, bool caseSensitive = true);

@@ -127,6 +127,85 @@ private slots:
         QVERIFY(!p.multiInstance);
         QCOMPARE(p.gotoLine, 0);
         QCOMPARE(p.gotoColumn, 0);
+        QCOMPARE(p.gotoPos, 0);
+        QVERIFY(p.forceLanguage.isEmpty());
+        QVERIFY(!p.alwaysOnTop);
+        QVERIFY(p.titleAdd.isEmpty());
+        QVERIFY(!p.quickPrint);
+    }
+
+    // --- 新增旗標：-p / -l / -r / -alwaysOnTop / -title: / -titleAdd: / -quickPrint ---
+
+    void parseGotoPosFlag()
+    {
+        const auto p = CliArgs::parse({"-p100", "file.txt"});
+        QCOMPARE(p.gotoPos, 100);
+        QCOMPARE(p.files.size(), 1);
+        QCOMPARE(p.files.at(0).path, QStringLiteral("file.txt"));
+    }
+
+    void parseForceLanguageFlag()
+    {
+        const auto p = CliArgs::parse({"-lcpp", "file.txt"});
+        QCOMPARE(p.forceLanguage, QStringLiteral("cpp"));
+        QCOMPARE(p.files.size(), 1);
+    }
+
+    void parseReadOnlyAliasR()
+    {
+        const auto p = CliArgs::parse({"-r", "file.txt"});
+        QVERIFY(p.readOnly);
+        QCOMPARE(p.files.size(), 1);
+    }
+
+    void parseAlwaysOnTopFlag()
+    {
+        const auto p = CliArgs::parse({"-alwaysOnTop", "file.txt"});
+        QVERIFY(p.alwaysOnTop);
+        QCOMPARE(p.files.size(), 1);
+    }
+
+    void parseTitleAddFlag()
+    {
+        const auto p = CliArgs::parse({"-titleAdd:hello", "file.txt"});
+        QCOMPARE(p.titleAdd, QStringLiteral("hello"));
+        QCOMPARE(p.files.size(), 1);
+    }
+
+    void parseTitleFlag()
+    {
+        const auto p = CliArgs::parse({"-title:world", "file.txt"});
+        QCOMPARE(p.titleAdd, QStringLiteral("world"));
+        QCOMPARE(p.files.size(), 1);
+    }
+
+    void parseQuickPrintFlag()
+    {
+        const auto p = CliArgs::parse({"-quickPrint", "file.txt"});
+        QVERIFY(p.quickPrint);
+        QCOMPARE(p.files.size(), 1);
+    }
+
+    void parseUnknownFlagIgnoredNotFile()
+    {
+        const auto p = CliArgs::parse({"-someUnknownFlag", "-x", "file.txt"});
+        QCOMPARE(p.files.size(), 1);
+        QCOMPARE(p.files.at(0).path, QStringLiteral("file.txt"));
+    }
+
+    void parseNewFlagsCombined()
+    {
+        const auto p = CliArgs::parse(
+            {"-p50", "-lpython", "-alwaysOnTop", "-titleAdd:tag", "-quickPrint", "-r",
+             "-unknownFlag", "a.txt"});
+        QCOMPARE(p.gotoPos, 50);
+        QCOMPARE(p.forceLanguage, QStringLiteral("python"));
+        QVERIFY(p.alwaysOnTop);
+        QCOMPARE(p.titleAdd, QStringLiteral("tag"));
+        QVERIFY(p.quickPrint);
+        QVERIFY(p.readOnly);
+        QCOMPARE(p.files.size(), 1);
+        QCOMPARE(p.files.at(0).path, QStringLiteral("a.txt"));
     }
 };
 

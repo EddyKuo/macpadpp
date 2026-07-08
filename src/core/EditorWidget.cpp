@@ -22,6 +22,8 @@
 #include <Qsci/qscilexer.h>
 #include <Qsci/qsciapis.h>
 
+#include <algorithm>
+
 namespace macpad::core {
 
 namespace {
@@ -44,6 +46,12 @@ constexpr int kChangeHistoryMarkerMask =
     | (1 << kMarkerHistoryModified) | (1 << kMarkerHistoryRevertedToModified);
 
 constexpr int kChangeHistoryMargin = 2;  // margin 0=行號、1=書籤、2=變更歷史
+
+// 選取／指示器相關 Scintilla 訊息與旗標一律使用 QsciScintillaBase 已匯出的繼承 enum
+// （SCI_GETSELECTIONNSTART / SCI_INDICATORVALUEAT / SC_SEL_STREAM…），不再手動定義，
+// 以免與鎖定版本的實際訊息碼不符而被 SendScintilla 當成未知訊息 no-op。
+
+constexpr ushort kRedactMaskChar = 0x25CF;  // U+25CF ● 遮罩字元
 
 // 路徑片段允許的字元（限定 ASCII，確保「字元數＝UTF-8 位元組數」，
 // 讓 onUserListActivated 能直接以字元數當作 Scintilla byte-range 刪除長度）。
@@ -68,6 +76,10 @@ EditorWidget::EditorWidget(QWidget *parent)
     // 路徑自動完成候選被選取（Ctrl+Alt+Space 觸發，見 triggerPathCompletion）
     connect(this, &QsciScintilla::userListActivated,
             this, &EditorWidget::onUserListActivated);
+
+    // 智慧高亮：游標移動時重標游標所在字詞的所有出現處（僅在開啟時作動）
+    connect(this, &QsciScintilla::cursorPositionChanged,
+            this, &EditorWidget::onCursorPositionChanged);
 }
 
 EditorWidget::~EditorWidget()
@@ -133,6 +145,26 @@ void EditorWidget::applyDefaultConfig()
     SendScintilla(SCI_INDICSETSTYLE, static_cast<unsigned long>(kMarkIndicator), INDIC_ROUNDBOX);
     SendScintilla(SCI_INDICSETFORE, static_cast<unsigned long>(kMarkIndicator), 0x00B478FFUL);
     SendScintilla(SCI_INDICSETALPHA, static_cast<unsigned long>(kMarkIndicator), 100);
+
+    // 智慧高亮指示器（kSmartIndicator）——柔和黃綠底框，與 Mark 區隔
+    SendScintilla(SCI_INDICSETSTYLE, static_cast<unsigned long>(kSmartIndicator), INDIC_ROUNDBOX);
+    SendScintilla(SCI_INDICSETFORE, static_cast<unsigned long>(kSmartIndicator), 0x0000D7FFUL);
+    SendScintilla(SCI_INDICSETALPHA, static_cast<unsigned long>(kSmartIndicator), 80);
+
+    // 詞彙上色 5 色指示器（kTokenIndicatorBase..+4）——各具不同顏色，供多詞彙同時區別
+    static const unsigned long kTokenColors[5] = {
+        0x00F08072UL,  // salmon
+        0x0090EE90UL,  // light green
+        0x00DDA0DDUL,  // plum
+        0x00FFD700UL,  // gold
+        0x0087CEFAUL,  // light sky blue
+    };
+    for (int i = 0; i < 5; ++i) {
+        const int ind = kTokenIndicatorBase + i;
+        SendScintilla(SCI_INDICSETSTYLE, static_cast<unsigned long>(ind), INDIC_ROUNDBOX);
+        SendScintilla(SCI_INDICSETFORE, static_cast<unsigned long>(ind), kTokenColors[i]);
+        SendScintilla(SCI_INDICSETALPHA, static_cast<unsigned long>(ind), 90);
+    }
 
     // 書籤符號邊欄（margin 1，FR-008）
     setMarginType(1, QsciScintilla::SymbolMargin);
@@ -864,6 +896,24 @@ void EditorWidget::keyPressEvent(QKeyEvent *event)
         }
     }
 
+    // HTML/XML 自動閉合標籤：鍵入 '>' 後，若游標前為完整開啟標籤（<tag ...>），
+    // 自動於游標後補上 </tag>，並讓游標停留在標籤之間（同樣受 m_autoClose 節制）。
+    if (m_autoClose && typed == QLatin1String(">")) {
+        const long pos = SendScintilla(SCI_GETCURRENTPOS);
+        const long line = SendScintilla(SCI_LINEFROMPOSITION, static_cast<unsigned long>(pos));
+        const long lineStart = SendScintilla(SCI_POSITIONFROMLINE, static_cast<unsigned long>(line));
+        QByteArray beforeBytes;
+        for (long p = lineStart; p < pos; ++p)
+            beforeBytes += static_cast<char>(
+                SendScintilla(SCI_GETCHARAT, static_cast<unsigned long>(p)));
+        const QString closing = closingTagFor(QString::fromUtf8(beforeBytes));
+        if (!closing.isEmpty()) {
+            const QByteArray cb = closing.toUtf8();
+            SendScintilla(SCI_INSERTTEXT, static_cast<unsigned long>(pos), cb.constData());
+            SendScintilla(SCI_GOTOPOS, static_cast<unsigned long>(pos));  // 游標留在標籤之間
+        }
+    }
+
     // 鍵入 '(' → 取其前的識別字，請上層查函式簽名顯示 call tip（FR-N/A，可由偏好設定關閉）
     if (m_callTips && typed == QLatin1String("(")) {
         const long pos = SendScintilla(SCI_GETCURRENTPOS);
@@ -1115,6 +1165,239 @@ void EditorWidget::onUserListActivated(int id, const QString &string)
     const QByteArray bytes = string.toUtf8();
     SendScintilla(SCI_INSERTTEXT, static_cast<unsigned long>(insertPos), bytes.constData());
     SendScintilla(SCI_GOTOPOS, static_cast<unsigned long>(insertPos + bytes.size()));
+}
+
+// === 兩段式選取（Begin/End Select）===
+void EditorWidget::beginSelect()
+{
+    m_selectAnchorPos = SendScintilla(SCI_GETCURRENTPOS);
+    m_hasSelectAnchor = true;
+}
+
+void EditorWidget::endSelect()
+{
+    if (!m_hasSelectAnchor)
+        return;  // 未先 beginSelect → no-op
+    // 確保串流模式（避免殘留矩形模式影響），再以高階 setSelection 同步選取快取
+    SendScintilla(SCI_SETSELECTIONMODE, static_cast<unsigned long>(SC_SEL_STREAM));
+    const long caret = SendScintilla(SCI_GETCURRENTPOS);
+    int lf = 0, iff = 0, lt = 0, it = 0;
+    lineIndexFromPosition(static_cast<int>(m_selectAnchorPos), &lf, &iff);
+    lineIndexFromPosition(static_cast<int>(caret), &lt, &it);
+    setSelection(lf, iff, lt, it);
+}
+
+void EditorWidget::beginColumnSelect()
+{
+    // 與 beginSelect 相同：記錄錨點（模式差異在 end 端呈現）
+    m_selectAnchorPos = SendScintilla(SCI_GETCURRENTPOS);
+    m_hasSelectAnchor = true;
+}
+
+void EditorWidget::endColumnSelect()
+{
+    if (!m_hasSelectAnchor)
+        return;
+    const long caret = SendScintilla(SCI_GETCURRENTPOS);
+    SendScintilla(SCI_SETSELECTIONMODE, static_cast<unsigned long>(SC_SEL_RECTANGLE));
+    SendScintilla(SCI_SETRECTANGULARSELECTIONANCHOR, static_cast<unsigned long>(m_selectAnchorPos));
+    SendScintilla(SCI_SETRECTANGULARSELECTIONCARET, static_cast<unsigned long>(caret));
+}
+
+// === 遮蔽選取（Redact Selection）===
+void EditorWidget::redactSelection()
+{
+    const int n = static_cast<int>(SendScintilla(SCI_GETSELECTIONS));
+    if (n <= 0)
+        return;
+
+    // 收集所有選取範圍（位元組偏移），依起點由後往前排序，取代時不位移前面尚未處理的範圍。
+    QList<QPair<long, long>> ranges;
+    for (int i = 0; i < n; ++i) {
+        const long s = SendScintilla(SCI_GETSELECTIONNSTART, static_cast<unsigned long>(i));
+        const long e = SendScintilla(SCI_GETSELECTIONNEND, static_cast<unsigned long>(i));
+        if (e > s)
+            ranges.append(qMakePair(s, e));
+    }
+    if (ranges.isEmpty())
+        return;
+    std::sort(ranges.begin(), ranges.end(),
+              [](const QPair<long, long> &a, const QPair<long, long> &b) {
+                  return a.first > b.first;
+              });
+
+    beginUndoAction();
+    for (const auto &r : ranges) {
+        // 讀取範圍原始位元組並解碼，逐字元換成遮罩（保留換行）
+        QByteArray raw;
+        for (long p = r.first; p < r.second; ++p)
+            raw += static_cast<char>(SendScintilla(SCI_GETCHARAT, static_cast<unsigned long>(p)));
+        const QString original = QString::fromUtf8(raw);
+        QString masked;
+        masked.reserve(original.size());
+        for (const QChar ch : original) {
+            if (ch == QLatin1Char('\n') || ch == QLatin1Char('\r'))
+                masked.append(ch);  // 換行保留
+            else
+                masked.append(QChar(kRedactMaskChar));
+        }
+        const QByteArray mb = masked.toUtf8();
+        SendScintilla(SCI_SETTARGETSTART, static_cast<unsigned long>(r.first));
+        SendScintilla(SCI_SETTARGETEND, static_cast<unsigned long>(r.second));
+        SendScintilla(SCI_REPLACETARGET,
+                      static_cast<unsigned long>(mb.size()), mb.constData());
+    }
+    endUndoAction();
+}
+
+// === 智慧高亮 / 詞彙上色 共用 ===
+void EditorWidget::clearIndicatorRange(int indicator)
+{
+    SendScintilla(SCI_SETINDICATORCURRENT, static_cast<unsigned long>(indicator));
+    SendScintilla(SCI_INDICATORCLEARRANGE, 0UL, static_cast<unsigned long>(length()));
+}
+
+int EditorWidget::fillWordOccurrences(const QString &word, int indicator)
+{
+    if (word.isEmpty())
+        return 0;
+    const QByteArray fb = word.toUtf8();
+    SendScintilla(SCI_SETSEARCHFLAGS, SCFIND_MATCHCASE | SCFIND_WHOLEWORD);
+    SendScintilla(SCI_SETINDICATORCURRENT, static_cast<unsigned long>(indicator));
+
+    int count = 0;
+    long start = 0;
+    const long end = length();
+    while (start <= end) {
+        SendScintilla(SCI_SETTARGETSTART, static_cast<unsigned long>(start));
+        SendScintilla(SCI_SETTARGETEND, static_cast<unsigned long>(end));
+        const long found = SendScintilla(SCI_SEARCHINTARGET,
+                                         static_cast<unsigned long>(fb.size()), fb.constData());
+        if (found < 0)
+            break;
+        const long ms = SendScintilla(SCI_GETTARGETSTART);
+        const long me = SendScintilla(SCI_GETTARGETEND);
+        SendScintilla(SCI_INDICATORFILLRANGE, static_cast<unsigned long>(ms),
+                      static_cast<unsigned long>(me - ms));
+        ++count;
+        start = (me > ms) ? me : me + 1;  // 空匹配前進一位
+    }
+    return count;
+}
+
+QString EditorWidget::wordUnderCaret() const
+{
+    auto *self = const_cast<EditorWidget *>(this);
+    const long pos = self->SendScintilla(SCI_GETCURRENTPOS);
+    const long ws = self->SendScintilla(SCI_WORDSTARTPOSITION, static_cast<unsigned long>(pos), 1L);
+    const long we = self->SendScintilla(SCI_WORDENDPOSITION, static_cast<unsigned long>(pos), 1L);
+    if (we <= ws)
+        return QString();
+    QByteArray raw;
+    for (long p = ws; p < we; ++p)
+        raw += static_cast<char>(self->SendScintilla(SCI_GETCHARAT, static_cast<unsigned long>(p)));
+    return QString::fromUtf8(raw);
+}
+
+void EditorWidget::setSmartHighlight(bool enabled)
+{
+    m_smartHighlight = enabled;
+    if (enabled)
+        onCursorPositionChanged();  // 立即依目前游標標記一次
+    else
+        clearIndicatorRange(kSmartIndicator);  // 關閉時清除既有標記
+}
+
+void EditorWidget::onCursorPositionChanged()
+{
+    if (!m_smartHighlight)
+        return;  // 未開啟時不作動（避免無謂搜尋）
+    clearIndicatorRange(kSmartIndicator);
+    const QString word = wordUnderCaret();
+    if (word.isEmpty())
+        return;  // 游標不在字詞內：僅清除
+    fillWordOccurrences(word, kSmartIndicator);
+}
+
+// === 詞彙上色（5 色）===
+void EditorWidget::styleTokenOccurrences(int colorIndex)
+{
+    const int idx = qBound(0, colorIndex, 4);
+    const int indicator = kTokenIndicatorBase + idx;
+    // 優先使用選取文字，否則取游標所在字詞
+    const QString word = hasSelectedText() ? selectedText() : wordUnderCaret();
+    if (word.isEmpty())
+        return;
+    clearIndicatorRange(indicator);  // 同色重標：先清該色再填
+    fillWordOccurrences(word, indicator);
+}
+
+void EditorWidget::clearStyledTokens()
+{
+    for (int i = 0; i < 5; ++i)
+        clearIndicatorRange(kTokenIndicatorBase + i);
+}
+
+int EditorWidget::indicatorRangeCount(int indicator) const
+{
+    auto *self = const_cast<EditorWidget *>(this);
+    const long end = self->length();
+    int count = 0;
+    long pos = 0;
+    while (pos < end) {
+        const long on = self->SendScintilla(SCI_INDICATORVALUEAT,
+                                            static_cast<unsigned long>(indicator),
+                                            static_cast<long>(pos));
+        const long rangeEnd = self->SendScintilla(SCI_INDICATOREND,
+                                                  static_cast<unsigned long>(indicator),
+                                                  static_cast<long>(pos));
+        if (rangeEnd <= pos)
+            break;  // 安全防護：避免不前進而無限迴圈
+        if (on)
+            ++count;
+        pos = rangeEnd;
+    }
+    return count;
+}
+
+// === HTML/XML 自動閉合標籤（純函式）===
+QString EditorWidget::closingTagFor(const QString &textBeforeCaret)
+{
+    // 取游標前最後一個 '<' 起的片段，須以 '>' 結尾方視為完整標籤
+    const int lt = textBeforeCaret.lastIndexOf(QLatin1Char('<'));
+    if (lt < 0)
+        return QString();
+    const int gt = textBeforeCaret.indexOf(QLatin1Char('>'), lt);
+    // '>' 必須是游標前的最後一字元（即剛鍵入者）
+    if (gt < 0 || gt != textBeforeCaret.size() - 1)
+        return QString();
+
+    QString inner = textBeforeCaret.mid(lt + 1, gt - lt - 1);
+    if (inner.isEmpty())
+        return QString();
+    // 閉合標籤 </...>、宣告/註解 <!... 或 <?...、自閉合 <.../> 一律不補
+    const QChar first = inner.at(0);
+    if (first == QLatin1Char('/') || first == QLatin1Char('!') || first == QLatin1Char('?'))
+        return QString();
+    if (inner.trimmed().endsWith(QLatin1Char('/')))
+        return QString();
+
+    // 擷取標籤名稱：起始字母，其後可含字母/數字/'-'/'_'/':'（涵蓋 XML 命名空間）
+    if (!first.isLetter())
+        return QString();
+    int i = 1;
+    while (i < inner.size()) {
+        const QChar c = inner.at(i);
+        if (c.isLetterOrNumber() || c == QLatin1Char('-') || c == QLatin1Char('_')
+            || c == QLatin1Char(':'))
+            ++i;
+        else
+            break;
+    }
+    const QString name = inner.left(i);
+    if (name.isEmpty())
+        return QString();
+    return QStringLiteral("</") + name + QStringLiteral(">");
 }
 
 }  // namespace macpad::core

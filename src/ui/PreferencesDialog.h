@@ -2,6 +2,7 @@
 
 // PreferencesDialog — 偏好設定 UI（暴露 SettingsStore；FR-009/015/021/034/053）
 // 分類頁籤：General / Editing / New Document / Backup / Auto-Completion / Performance / Search
+//          / Highlighting / Dark Mode（Appearance）
 
 #include <QDialog>
 
@@ -32,6 +33,8 @@ private:
     QWidget *buildAutoCompletionPage();
     QWidget *buildPerformancePage();
     QWidget *buildSearchPage();
+    QWidget *buildHighlightingPage();
+    QWidget *buildDarkModePage();
 
     macpad::persistence::Settings m_original;  // 保留傳入設定，result() 以此為底避免遺失未暴露欄位
 
@@ -73,6 +76,21 @@ private:
 
     // Search
     QLineEdit *m_searchEngineUrl = nullptr;
+
+    // Highlighting
+    QCheckBox *m_smartHighlight = nullptr;
+    QCheckBox *m_highlightMatchingTags = nullptr;
+    QSpinBox *m_edgeColumn = nullptr;
+    QCheckBox *m_showWrapSymbol = nullptr;
+    QCheckBox *m_showEol = nullptr;
+    QCheckBox *m_multiEdgeEnabled = nullptr;
+
+    // Dark Mode / Appearance
+    QComboBox *m_darkModeTheme = nullptr;
+    QCheckBox *m_showToolbar = nullptr;
+    QCheckBox *m_showStatusBar = nullptr;
+    QCheckBox *m_showTabBar = nullptr;
+    QSpinBox *m_caretBlinkRate = nullptr;
 };
 
 }  // namespace macpad::ui

@@ -17,6 +17,10 @@ public:
 signals:
     void charChosen(const QString &text);
 
+protected:
+    // 攔截表格的按鍵事件：Return/Enter 時比照雙擊插入目前選取的字元
+    bool eventFilter(QObject *watched, QEvent *event) override;
+
 private:
     QTableWidget *m_table = nullptr;
 };

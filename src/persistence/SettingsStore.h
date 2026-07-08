@@ -52,6 +52,20 @@ struct Settings {
 
     // === Search（FR-053）===
     QString searchEngineUrl;  // 「在網路上搜尋」使用的搜尋引擎網址模板
+
+    // === Highlighting（新增）===
+    bool showWrapSymbol = false;       // 換行處顯示折行符號
+    bool showEol = false;              // 顯示換行字元
+    bool smartHighlight = true;        // 智慧高亮：自動標示與選取字詞相同的字串
+    bool highlightMatchingTags = false;// 標示相符的 HTML/XML 標籤
+    int edgeColumn = 0;                // 垂直邊界線欄位（0=關閉）
+    bool multiEdgeEnabled = false;     // 啟用多重邊界線
+
+    // === Dark Mode / Appearance（新增；沿用既有 ThemeMode）===
+    bool showToolbar = true;   // 顯示工具列
+    bool showStatusBar = true; // 顯示狀態列
+    bool showTabBar = true;    // 顯示分頁列
+    int caretBlinkRate = 500;  // 插入點閃爍週期（毫秒，0=不閃爍）
 };
 
 class SettingsStore {

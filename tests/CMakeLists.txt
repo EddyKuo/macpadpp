@@ -32,6 +32,7 @@ set(MACPAD_TESTS
     test_findall
     test_themestore
     test_recoverydialog
+    test_mime
 )
 
 foreach(t ${MACPAD_TESTS})
