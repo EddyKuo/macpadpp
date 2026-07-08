@@ -3,6 +3,7 @@
 #include <algorithm>
 
 #include <QColor>
+#include <QFont>
 #include <QList>
 #include <QVector>
 
@@ -14,6 +15,28 @@ UdlLexer::UdlLexer(const UdlDefinition &def, QObject *parent)
     : QsciLexerCustom(parent), m_def(def)
 {
     m_langName = def.name.toUtf8();
+    applyUserStyles();
+}
+
+void UdlLexer::applyUserStyles()
+{
+    // 僅對 m_def.styles 中有設定的樣式呼叫 setColor/setPaper/setFont；
+    // 未設定者不覆寫，QsciLexer 會自動回退至 defaultColor()（向後相容）。
+    for (auto it = m_def.styles.constBegin(); it != m_def.styles.constEnd(); ++it) {
+        const int styleId = it.key();
+        const UdlStyle &st = it.value();
+        if (!st.fg.isEmpty())
+            setColor(QColor(st.fg), styleId);
+        if (!st.bg.isEmpty())
+            setPaper(QColor(st.bg), styleId);
+        if (st.bold || st.italic || st.underline) {
+            QFont f = font(styleId);
+            f.setBold(st.bold);
+            f.setItalic(st.italic);
+            f.setUnderline(st.underline);
+            setFont(f, styleId);
+        }
+    }
 }
 
 int UdlLexer::styleForKeywordGroup(int groupIdx)

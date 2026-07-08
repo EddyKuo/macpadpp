@@ -36,11 +36,12 @@ private slots:
 private:
     macpad::persistence::StyleOverride *currentOverride(bool create);
     void refreshSwatches();
+    void refreshGlobalSwatch();
 
     macpad::persistence::StyleSettings m_cfg;
-    QString m_langKey;          // 目前語言的 LexerFactory key
+    QString m_langKey;          // 目前語言的 LexerFactory key；等於 kGlobalStylesKey 時代表選中 Global Styles
     QString m_langName;         // 目前 lexer 的 language()（styles.json 的鍵）
-    QsciLexer *m_lexer = nullptr;   // 暫時 lexer（取 style 名稱與預設色）
+    QsciLexer *m_lexer = nullptr;   // 暫時 lexer（取 style 名稱與預設色）；Global Styles 模式下為 nullptr
 
     QFontComboBox *m_font = nullptr;
     QSpinBox *m_size = nullptr;

@@ -36,6 +36,16 @@ StyleSettings StyleStore::load()
         }
         s.byLang.insert(it.key(), list);
     }
+
+    // global：缺欄位（舊版 styles.json）→ 對應欄位維持預設空字串（向後相容）
+    const QJsonObject g = o.value(QStringLiteral("global")).toObject();
+    s.global.indentGuide = g.value(QStringLiteral("indent_guide")).toString();
+    s.global.caretLineBg = g.value(QStringLiteral("caret_line_bg")).toString();
+    s.global.selectionBg = g.value(QStringLiteral("selection_bg")).toString();
+    s.global.whitespaceFg = g.value(QStringLiteral("whitespace_fg")).toString();
+    s.global.marginBg = g.value(QStringLiteral("margin_bg")).toString();
+    s.global.marginFg = g.value(QStringLiteral("margin_fg")).toString();
+    s.global.currentLineNumber = g.value(QStringLiteral("current_line_number")).toString();
     return s;
 }
 
@@ -60,6 +70,17 @@ bool StyleStore::save(const StyleSettings &s)
         langs.insert(it.key(), arr);
     }
     o.insert(QStringLiteral("languages"), langs);
+
+    QJsonObject g;
+    g.insert(QStringLiteral("indent_guide"), s.global.indentGuide);
+    g.insert(QStringLiteral("caret_line_bg"), s.global.caretLineBg);
+    g.insert(QStringLiteral("selection_bg"), s.global.selectionBg);
+    g.insert(QStringLiteral("whitespace_fg"), s.global.whitespaceFg);
+    g.insert(QStringLiteral("margin_bg"), s.global.marginBg);
+    g.insert(QStringLiteral("margin_fg"), s.global.marginFg);
+    g.insert(QStringLiteral("current_line_number"), s.global.currentLineNumber);
+    o.insert(QStringLiteral("global"), g);
+
     return JsonFile::save(stylesPath(), o);
 }
 

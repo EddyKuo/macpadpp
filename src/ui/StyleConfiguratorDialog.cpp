@@ -18,7 +18,24 @@
 
 #include <Qsci/qscilexer.h>
 
+#include <iterator>
+
 namespace macpad::ui {
+
+// Global Styles（③b）：語言下拉選單中的特殊項目 key，代表選中的是編輯器全域樣式而非某語言的 lexer。
+static const QString kGlobalStylesKey = QStringLiteral("__global_styles__");
+
+// Global Styles 清單列的順序 ↔ GlobalStyles 欄位的對應（member pointer），
+// 供 onLanguageChanged()/currentGlobalField() 依目前選取列索引找到對應欄位。
+static QString macpad::persistence::GlobalStyles::* const kGlobalFields[] = {
+    &macpad::persistence::GlobalStyles::indentGuide,
+    &macpad::persistence::GlobalStyles::caretLineBg,
+    &macpad::persistence::GlobalStyles::selectionBg,
+    &macpad::persistence::GlobalStyles::whitespaceFg,
+    &macpad::persistence::GlobalStyles::marginBg,
+    &macpad::persistence::GlobalStyles::marginFg,
+    &macpad::persistence::GlobalStyles::currentLineNumber,
+};
 
 static void paintSwatch(QLabel *lbl, const QColor &c)
 {
@@ -60,6 +77,7 @@ StyleConfiguratorDialog::StyleConfiguratorDialog(QWidget *parent)
     auto *mid = new QHBoxLayout();
     auto *left = new QVBoxLayout();
     m_language = new QComboBox(this);
+    m_language->addItem(tr("Global Styles"), kGlobalStylesKey);
     for (const auto &e : macpad::core::LexerFactory::languages()) {
         if (e.key.isEmpty())
             continue;  // 跳過 Plain Text
@@ -120,10 +138,35 @@ void StyleConfiguratorDialog::onLanguageChanged()
 {
     m_langKey = m_language->currentData().toString();
     delete m_lexer;
+    m_lexer = nullptr;
+    m_langName.clear();
+    m_styles->clear();
+
+    const bool isGlobal = (m_langKey == kGlobalStylesKey);
+    // Global Styles 項目每列只有單一顏色（無獨立背景色/粗體/斜體），故停用對應控制項。
+    m_bgBtn->setEnabled(!isGlobal);
+    m_bold->setEnabled(!isGlobal);
+    m_italic->setEnabled(!isGlobal);
+
+    if (isGlobal) {
+        static const QStringList names = {
+            tr("Indent Guide"),      tr("Current Line Background"), tr("Selection Background"),
+            tr("Whitespace"),        tr("Margin Background"),       tr("Margin Foreground"),
+            tr("Current Line Number"),
+        };
+        for (int i = 0; i < names.size(); ++i) {
+            auto *item = new QListWidgetItem(names[i]);
+            item->setData(Qt::UserRole, i);
+            m_styles->addItem(item);
+        }
+        if (m_styles->count() > 0)
+            m_styles->setCurrentRow(0);
+        return;
+    }
+
     m_lexer = macpad::core::LexerFactory::createForLanguage(m_langKey, nullptr);
     m_langName = m_lexer ? QString::fromLatin1(m_lexer->language()) : m_langKey;
 
-    m_styles->clear();
     if (m_lexer) {
         for (int i = 0; i < 128; ++i) {
             const QString desc = m_lexer->description(i);
@@ -157,7 +200,13 @@ macpad::persistence::StyleOverride *StyleConfiguratorDialog::currentOverride(boo
 
 void StyleConfiguratorDialog::refreshSwatches()
 {
-    if (!m_styles->currentItem() || !m_lexer)
+    if (!m_styles->currentItem())
+        return;
+    if (m_langKey == kGlobalStylesKey) {
+        refreshGlobalSwatch();
+        return;
+    }
+    if (!m_lexer)
         return;
     const int style = m_styles->currentItem()->data(Qt::UserRole).toInt();
     const macpad::persistence::StyleOverride *ov = currentOverride(false);
@@ -171,6 +220,21 @@ void StyleConfiguratorDialog::refreshSwatches()
     m_italic->setChecked(ov ? ov->italic : f.italic());
 }
 
+void StyleConfiguratorDialog::refreshGlobalSwatch()
+{
+    // Global Styles 模式：每列只有單一顏色，寫入 m_cfg.global 對應欄位；背景/粗體/斜體控制項已停用。
+    const int idx = m_styles->currentItem()->data(Qt::UserRole).toInt();
+    if (idx < 0 || idx >= int(std::size(kGlobalFields)))
+        return;
+    const QString value = m_cfg.global.*kGlobalFields[idx];
+    const QColor fg = value.isEmpty() ? QColor() : QColor(value);
+    paintSwatch(m_fgSwatch, fg);
+    paintSwatch(m_bgSwatch, QColor());
+    QSignalBlocker b1(m_bold), b2(m_italic);
+    m_bold->setChecked(false);
+    m_italic->setChecked(false);
+}
+
 void StyleConfiguratorDialog::onStyleChanged()
 {
     refreshSwatches();
@@ -180,6 +244,19 @@ void StyleConfiguratorDialog::pickForeground()
 {
     if (!m_styles->currentItem())
         return;
+    if (m_langKey == kGlobalStylesKey) {
+        const int idx = m_styles->currentItem()->data(Qt::UserRole).toInt();
+        if (idx < 0 || idx >= int(std::size(kGlobalFields)))
+            return;
+        const QString cur = m_cfg.global.*kGlobalFields[idx];
+        const QColor c = QColorDialog::getColor(cur.isEmpty() ? QColor(Qt::black) : QColor(cur),
+                                                 this, tr("Color"));
+        if (!c.isValid())
+            return;
+        m_cfg.global.*kGlobalFields[idx] = c.name();
+        refreshSwatches();
+        return;
+    }
     const int style = m_styles->currentItem()->data(Qt::UserRole).toInt();
     const QColor cur = m_lexer ? m_lexer->color(style) : QColor(Qt::black);
     const QColor c = QColorDialog::getColor(cur, this, tr("Foreground Color"));
@@ -191,7 +268,7 @@ void StyleConfiguratorDialog::pickForeground()
 
 void StyleConfiguratorDialog::pickBackground()
 {
-    if (!m_styles->currentItem())
+    if (!m_styles->currentItem() || m_langKey == kGlobalStylesKey)
         return;
     const int style = m_styles->currentItem()->data(Qt::UserRole).toInt();
     const QColor cur = m_lexer ? m_lexer->paper(style) : QColor(Qt::white);
@@ -204,6 +281,8 @@ void StyleConfiguratorDialog::pickBackground()
 
 void StyleConfiguratorDialog::onBoldItalicChanged()
 {
+    if (m_langKey == kGlobalStylesKey)
+        return;
     if (auto *ov = currentOverride(true)) {
         ov->bold = m_bold->isChecked();
         ov->italic = m_italic->isChecked();

@@ -42,6 +42,9 @@ private:
     static int styleForKeywordGroup(int groupIdx);
     // 依 folderTokens 掃描整份文件、設定 fold points
     void applyFolding(const QString &text);
+    // 依 UdlDefinition::styles 套用使用者自訂顏色/粗體/斜體/底線（③a UDL Styler）；
+    // 未設定的樣式維持 defaultColor() 內建預設（向後相容）。
+    void applyUserStyles();
 
     UdlDefinition m_def;
     QByteArray m_langName;

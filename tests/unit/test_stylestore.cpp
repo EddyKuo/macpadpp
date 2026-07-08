@@ -167,6 +167,69 @@ private slots:
         QCOMPARE(out.fontSize, 12);
         QVERIFY(out.byLang.isEmpty());
     }
+
+    void defaultsGlobalStylesEmptyWhenMissing()
+    {
+        // 舊版 styles.json（無 "global" 鍵）載入時，GlobalStyles 各欄位應維持空字串（向後相容）
+        StyleSettings in;
+        in.fontFamily = QStringLiteral("Menlo");
+        in.fontSize = 13;
+        QVERIFY(StyleStore::save(in));
+
+        const StyleSettings out = StyleStore::load();
+        QVERIFY(out.global.indentGuide.isEmpty());
+        QVERIFY(out.global.caretLineBg.isEmpty());
+        QVERIFY(out.global.selectionBg.isEmpty());
+        QVERIFY(out.global.whitespaceFg.isEmpty());
+        QVERIFY(out.global.marginBg.isEmpty());
+        QVERIFY(out.global.marginFg.isEmpty());
+        QVERIFY(out.global.currentLineNumber.isEmpty());
+    }
+
+    void roundtripGlobalStyles()
+    {
+        StyleSettings in;
+        in.fontFamily = QStringLiteral("Menlo");
+        in.fontSize = 13;
+        in.global.indentGuide = QStringLiteral("#404040");
+        in.global.caretLineBg = QStringLiteral("#2A2C2F");
+        in.global.selectionBg = QStringLiteral("#334455");
+        in.global.whitespaceFg = QStringLiteral("#606060");
+        in.global.marginBg = QStringLiteral("#262829");
+        in.global.marginFg = QStringLiteral("#6A6C6E");
+        in.global.currentLineNumber = QStringLiteral("#FFAA00");
+
+        QVERIFY(StyleStore::save(in));
+
+        const StyleSettings out = StyleStore::load();
+        QCOMPARE(out.global.indentGuide, QStringLiteral("#404040"));
+        QCOMPARE(out.global.caretLineBg, QStringLiteral("#2A2C2F"));
+        QCOMPARE(out.global.selectionBg, QStringLiteral("#334455"));
+        QCOMPARE(out.global.whitespaceFg, QStringLiteral("#606060"));
+        QCOMPARE(out.global.marginBg, QStringLiteral("#262829"));
+        QCOMPARE(out.global.marginFg, QStringLiteral("#6A6C6E"));
+        QCOMPARE(out.global.currentLineNumber, QStringLiteral("#FFAA00"));
+    }
+
+    void globalStylesAndByLangCoexist()
+    {
+        StyleSettings in;
+        in.fontFamily = QStringLiteral("Fira Code");
+        in.fontSize = 15;
+        in.global.selectionBg = QStringLiteral("#112233");
+
+        StyleOverride ov;
+        ov.style = 5;
+        ov.fg = QStringLiteral("#0000FF");
+        in.byLang.insert(QStringLiteral("cpp"), {ov});
+
+        QVERIFY(StyleStore::save(in));
+
+        const StyleSettings out = StyleStore::load();
+        QCOMPARE(out.global.selectionBg, QStringLiteral("#112233"));
+        QVERIFY(out.byLang.contains(QStringLiteral("cpp")));
+        QCOMPARE(out.byLang.value(QStringLiteral("cpp")).size(), 1);
+    }
 };
 
 QTEST_GUILESS_MAIN(TestStyleStore)

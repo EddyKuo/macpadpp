@@ -17,6 +17,7 @@
 #include <QPair>
 
 class QTabWidget;
+class QSplitter;
 class QLabel;
 class QMenu;
 class QToolBar;
@@ -70,6 +71,9 @@ private slots:
     void showFind();
     void showReplace();
     void toggleSplit();
+    // Dual-View（雙檢視）：把目前分頁搬到 / 複製到另一個檢視容器（複刻 Notepad++ 兩欄檢視）
+    void moveToOtherView();
+    void cloneToOtherView();
     void applyTheme();
     void themeEditor(macpad::core::EditorWidget *editor);  // 依設定為單一編輯器上主題色
     void applyViewPrefs(macpad::core::EditorWidget *editor);
@@ -127,11 +131,29 @@ private:
     macpad::core::EditorWidget *currentEditor() const;
     macpad::core::EditorWidget *editorAt(int index) const;
     macpad::core::EditorWidget *addEditorTab();
+
+    // === Dual-View 支援（兩個 QTabWidget 檢視容器）===
+    // 目前作用中的檢視（最後取得焦點 / 切換分頁者）；預設 m_tabs
+    QTabWidget *currentTabWidget() const;
+    QTabWidget *otherTabWidget() const;                 // 相對於作用中檢視的另一個
+    macpad::ui::EditorPane *paneIn(QTabWidget *w, int index) const;
+    macpad::core::EditorWidget *editorIn(QTabWidget *w, int index) const;
+    void setActiveTabWidget(QTabWidget *w);             // 切換作用中檢視並刷新面板/狀態列
+    void wireTabWidget(QTabWidget *w);                  // 為某檢視接上關閉/右鍵/切換等訊號
+    void wireEditorSignals(macpad::core::EditorWidget *editor);  // 編輯器→狀態列/標題連線（供分頁與 clone 共用）
+    void closeTabIn(QTabWidget *w, int index);          // 關閉指定檢視的分頁（closeTab 的底層）
+    void updateSecondViewVisibility();                  // 第二檢視空了就隱藏、有內容就顯示
+    bool focusExistingPath(const QString &absPath);     // 兩檢視中找已開啟檔案並聚焦；回傳是否命中
+    // 對兩檢視所有分頁的 primary 編輯器套用同一操作（跨 view 迭代）
+    void forEachEditor(const std::function<void(macpad::core::EditorWidget *)> &fn) const;
     // 若分頁有未存變更，詢問存/不存/取消；回傳 false 表示使用者取消（FR-001 AC2）
     bool maybeSave(macpad::core::EditorWidget *editor);
     int indexOfPath(const QString &absPath) const;
 
     QTabWidget *m_tabs = nullptr;
+    QTabWidget *m_tabs2 = nullptr;      // 第二檢視（Dual-View）；預設隱藏，移動/複製文件過去才顯示
+    QSplitter *m_viewSplit = nullptr;   // 兩檢視並排的中央容器
+    QTabWidget *m_activeTabs = nullptr; // 作用中檢視（currentTabWidget 依此回傳）
     // 狀態列六格（複刻 Notepad++）：文件類型 / 長度·行數 / 游標·選取 / EOL / 編碼 / INS·OVR
     QLabel *m_stDoc = nullptr;
     QLabel *m_stLenLines = nullptr;

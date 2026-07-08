@@ -4,6 +4,7 @@
 // 圖形化建立/編輯 UDL：名稱、副檔名、8 組關鍵字、運算子、分隔符、摺疊符、行/區塊註解、
 // 大小寫敏感；存入 UdlManager，並可匯出成外部 JSON 檔（FR-059）。
 
+#include <QColor>
 #include <QDialog>
 #include <QVector>
 
@@ -12,6 +13,8 @@
 class QLineEdit;
 class QPlainTextEdit;
 class QCheckBox;
+class QPushButton;
+class QTabWidget;
 
 namespace macpad::features { class UdlManager; }
 
@@ -27,8 +30,25 @@ private slots:
     void exportDefinition();
 
 private:
+    // 單一樣式的編輯列元件（③a UDL Styler）
+    struct StyleRow {
+        int styleId = 0;
+        QPushButton *fgButton = nullptr;
+        QPushButton *bgButton = nullptr;
+        QCheckBox *bold = nullptr;
+        QCheckBox *italic = nullptr;
+        QCheckBox *underline = nullptr;
+        QColor fg;   // 無效（isValid()==false）代表「未設定，沿用預設色」
+        QColor bg;
+    };
+
     // 從目前 UI 欄位組出一份 UdlDefinition
     macpad::features::UdlDefinition collectDefinition() const;
+    // 建立「Styles」分頁，為每個 UdlLexer::Style 建立一列可編輯外觀的元件
+    void buildStylesPage(QTabWidget *tabs);
+    // 更新色彩按鈕的顯示樣式（背景色 = 目前選取色，無效色 = 顯示為未設定）
+    static void updateColorButton(QPushButton *btn, const QColor &color);
+    void pickColor(QPushButton *btn, QColor *target);
 
     macpad::features::UdlManager *m_manager;
     QLineEdit *m_name = nullptr;
@@ -44,6 +64,7 @@ private:
     QLineEdit *m_folderOpen = nullptr;
     QLineEdit *m_folderMiddle = nullptr;
     QLineEdit *m_folderClose = nullptr;
+    QVector<StyleRow> m_styleRows;  // 樣式外觀編輯列（③a）
 };
 
 }  // namespace macpad::ui

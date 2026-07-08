@@ -59,6 +59,26 @@ UdlDefinition UdlDefinition::fromJson(const QJsonObject &obj)
     d.blockCommentStart = obj.value(QStringLiteral("block_comment_start")).toString();
     d.blockCommentEnd = obj.value(QStringLiteral("block_comment_end")).toString();
     d.caseSensitive = obj.value(QStringLiteral("case_sensitive")).toBool(true);
+
+    // 樣式（③a UDL Styler）：舊版 JSON 無此欄位時 styles 保持空，
+    // UdlLexer 會回退至內建 defaultColor()（向後相容）。
+    if (obj.contains(QStringLiteral("styles"))) {
+        const QJsonObject stylesObj = obj.value(QStringLiteral("styles")).toObject();
+        for (auto it = stylesObj.constBegin(); it != stylesObj.constEnd(); ++it) {
+            bool ok = false;
+            const int styleId = it.key().toInt(&ok);
+            if (!ok)
+                continue;
+            const QJsonObject sObj = it.value().toObject();
+            UdlStyle st;
+            st.fg = sObj.value(QStringLiteral("fg")).toString();
+            st.bg = sObj.value(QStringLiteral("bg")).toString();
+            st.bold = sObj.value(QStringLiteral("bold")).toBool(false);
+            st.italic = sObj.value(QStringLiteral("italic")).toBool(false);
+            st.underline = sObj.value(QStringLiteral("underline")).toBool(false);
+            d.styles.insert(styleId, st);
+        }
+    }
     return d;
 }
 
@@ -112,6 +132,19 @@ QJsonObject UdlDefinition::toJson() const
     o.insert(QStringLiteral("block_comment_start"), blockCommentStart);
     o.insert(QStringLiteral("block_comment_end"), blockCommentEnd);
     o.insert(QStringLiteral("case_sensitive"), caseSensitive);
+
+    // 樣式（③a UDL Styler）：以字串化的樣式編號為鍵
+    QJsonObject stylesObj;
+    for (auto it = styles.constBegin(); it != styles.constEnd(); ++it) {
+        QJsonObject sObj;
+        sObj.insert(QStringLiteral("fg"), it.value().fg);
+        sObj.insert(QStringLiteral("bg"), it.value().bg);
+        sObj.insert(QStringLiteral("bold"), it.value().bold);
+        sObj.insert(QStringLiteral("italic"), it.value().italic);
+        sObj.insert(QStringLiteral("underline"), it.value().underline);
+        stylesObj.insert(QString::number(it.key()), sObj);
+    }
+    o.insert(QStringLiteral("styles"), stylesObj);
     return o;
 }
 

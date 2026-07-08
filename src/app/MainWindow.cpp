@@ -85,6 +85,7 @@ using macpad::ui::EditorPane;
 #include <QLocale>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QSplitter>
 #include <QStatusBar>
 #include <QTabWidget>
 
@@ -120,49 +121,29 @@ static void backupAfterSave(const QString &path, const QByteArray &content)
 MainWindow::MainWindow(QWidget *parent, bool restoreSessionOnLaunch)
     : QMainWindow(parent)
 {
-    m_tabs = new QTabWidget(this);
-    m_tabs->setTabsClosable(true);
-    m_tabs->setMovable(true);           // 分頁拖曳排序（FR-001）
-    m_tabs->setDocumentMode(true);
-    setCentralWidget(m_tabs);
+    // Dual-View（雙檢視，複刻 Notepad++ 兩欄檢視）：兩個 QTabWidget 並排於水平 QSplitter。
+    // 第二檢視預設隱藏，使用者把文件移動/複製過去時才出現，空了又自動隱藏。
+    m_tabs = new QTabWidget;
+    m_tabs2 = new QTabWidget;
+    m_viewSplit = new QSplitter(Qt::Horizontal, this);
+    m_viewSplit->addWidget(m_tabs);
+    m_viewSplit->addWidget(m_tabs2);
+    setCentralWidget(m_viewSplit);
+    m_tabs2->hide();
+    m_activeTabs = m_tabs;
 
-    connect(m_tabs, &QTabWidget::tabCloseRequested, this, &MainWindow::closeTab);
+    wireTabWidget(m_tabs);
+    wireTabWidget(m_tabs2);
 
-    // 分頁右鍵選單：標色 / 唯讀鎖定（FR-001）
-    m_tabs->tabBar()->setContextMenuPolicy(Qt::CustomContextMenu);
-    connect(m_tabs->tabBar(), &QTabBar::customContextMenuRequested, this,
-            [this](const QPoint &pos) {
-        const int idx = m_tabs->tabBar()->tabAt(pos);
-        if (idx < 0) return;
-        QMenu menu;
-        menu.addAction(tr("Set Tab Color…"), this, [this, idx] {
-            const QColor c = QColorDialog::getColor(Qt::white, this, tr("Tab Color"));
-            if (c.isValid())
-                m_tabs->tabBar()->setTabTextColor(idx, c);
-        });
-        menu.addAction(tr("Clear Tab Color"), this, [this, idx] {
-            m_tabs->tabBar()->setTabTextColor(idx, QColor());
-        });
-        if (EditorWidget *e = editorAt(idx)) {
-            QAction *lock = menu.addAction(tr("Read-Only"));
-            lock->setCheckable(true);
-            lock->setChecked(e->isReadOnly());
-            connect(lock, &QAction::toggled, this, [this, idx](bool ro) {
-                if (EditorWidget *ed = editorAt(idx)) {
-                    ed->setReadOnly(ro);
-                    m_tabs->setTabText(idx, (ro ? QStringLiteral("🔒 ") : QString())
-                                            + ed->displayName());
-                }
-            });
-        }
-        menu.exec(m_tabs->tabBar()->mapToGlobal(pos));
-    });
-    connect(m_tabs, &QTabWidget::currentChanged, this, [this](int) {
-        updateStatusBar();
-        refreshDocList();
-        refreshPanels();
-        if (m_findDialog)
-            m_findDialog->setEditor(currentEditor());
+    // 作用中檢視追蹤：焦點落在哪個檢視內，該檢視即為作用中（狀態列/面板隨之切換）
+    connect(qApp, &QApplication::focusChanged, this,
+            [this](QWidget *, QWidget *now) {
+        if (!now)
+            return;
+        if (m_tabs && m_tabs->isAncestorOf(now))
+            setActiveTabWidget(m_tabs);
+        else if (m_tabs2 && m_tabs2->isAncestorOf(now))
+            setActiveTabWidget(m_tabs2);
     });
 
     // 文件切換清單（FR-026）
@@ -170,8 +151,9 @@ MainWindow::MainWindow(QWidget *parent, bool restoreSessionOnLaunch)
     addDockWidget(Qt::LeftDockWidgetArea, m_docList);
     m_docList->hide();  // 預設隱藏，由 View 選單開啟
     connect(m_docList, &macpad::ui::DocumentListDock::activated, this, [this](int idx) {
-        if (idx >= 0 && idx < m_tabs->count())
-            m_tabs->setCurrentIndex(idx);
+        QTabWidget *w = currentTabWidget();
+        if (idx >= 0 && idx < w->count())
+            w->setCurrentIndex(idx);
     });
 
     // 停靠面板（FR-029）：Function List / Clipboard History / Document Map
@@ -289,11 +271,10 @@ MainWindow::MainWindow(QWidget *parent, bool restoreSessionOnLaunch)
         const int intervalSec = qBound(5, settings.autosaveIntervalSec, 3600);
         timer->setInterval(intervalSec * 1000);
         connect(timer, &QTimer::timeout, this, [this] {
-            for (int i = 0; i < m_tabs->count(); ++i) {
-                EditorWidget *e = editorAt(i);
+            forEachEditor([](EditorWidget *e) {
                 if (e && !e->isUntitled() && e->isDirty())
                     e->saveFile(e->filePath());
-            }
+            });
             updateTabTitle();
         });
         timer->start();
@@ -305,16 +286,17 @@ MainWindow::MainWindow(QWidget *parent, bool restoreSessionOnLaunch)
         auto *snapTimer = new QTimer(this);
         snapTimer->setInterval(30 * 1000);
         connect(snapTimer, &QTimer::timeout, this, [this] {
-            for (int i = 0; i < m_tabs->count(); ++i) {
-                EditorWidget *e = editorAt(i);
+            int i = 0;
+            forEachEditor([&i](EditorWidget *e) {
+                const int idx = i++;
                 if (e && e->isDirty()) {
                     const QString docId = e->isUntitled()
-                        ? QStringLiteral("untitled-%1").arg(i)
+                        ? QStringLiteral("untitled-%1").arg(idx)
                         : QFileInfo(e->filePath()).fileName();
                     macpad::features::BackupService::writeSnapshot(
                         QStringLiteral("session"), docId, e->text().toUtf8());
                 }
-            }
+            });
         });
         snapTimer->start();
     }
@@ -324,11 +306,10 @@ MainWindow::MainWindow(QWidget *parent, bool restoreSessionOnLaunch)
             [this](Qt::ApplicationState state) {
         if (state != Qt::ApplicationActive
             && macpad::persistence::SettingsStore::load().autosaveOnFocusLoss) {
-            for (int i = 0; i < m_tabs->count(); ++i) {
-                EditorWidget *e = editorAt(i);
+            forEachEditor([](EditorWidget *e) {
                 if (e && !e->isUntitled() && e->isDirty())
                     e->saveFile(e->filePath());
-            }
+            });
             updateTabTitle();
         }
     });
@@ -405,7 +386,10 @@ void MainWindow::buildToolbar()
     add("open", tr("Open…"), [this] { openFileDialog(); });
     add("save", tr("Save"), [this] { saveCurrent(); });
     add("saveall", tr("Save All"), [this] { saveAll(); });
-    add("close", tr("Close Tab"), [this] { if (m_tabs->count()) closeTab(m_tabs->currentIndex()); });
+    add("close", tr("Close Tab"), [this] {
+        QTabWidget *w = currentTabWidget();
+        if (w->count()) closeTab(w->currentIndex());
+    });
     add("closeall", tr("Close All"), [this] { closeAllTabs(); });
     add("print", tr("Print…"), [this] {
         if (EditorWidget *e = currentEditor()) {
@@ -560,8 +544,9 @@ void MainWindow::createMenus()
     });
     fileMenu->addSeparator();
     fileMenu->addAction(tr("Close Tab"), QKeySequence::Close, this, [this] {
-        if (m_tabs->count() > 0)
-            closeTab(m_tabs->currentIndex());
+        QTabWidget *w = currentTabWidget();
+        if (w->count() > 0)
+            closeTab(w->currentIndex());
     });
     fileMenu->addAction(tr("Close All"), this, [this] { closeAllTabs(); });
     fileMenu->addAction(tr("Close All but This"), this, [this] { closeAllButCurrent(); });
@@ -872,10 +857,10 @@ void MainWindow::createMenus()
         const QString name = dlg.selectedTheme();
         if (name.isEmpty())
             return;
-        for (int i = 0; i < m_tabs->count(); ++i) {
-            if (EditorWidget *e = editorAt(i))
+        forEachEditor([&name](EditorWidget *e) {
+            if (e)
                 macpad::platform::ThemeManager::applyNamedTheme(e, name);
-        }
+        });
         statusBar()->showMessage(tr("主題已套用：%1").arg(name), 3000);
     });
     settingsMenu->addAction(tr("Shortcut Mapper…"), this, [this] {
@@ -933,8 +918,7 @@ void MainWindow::createMenus()
             if (m_wsAct) m_wsAct->setChecked(s.showWhitespace);
             m_showIndentGuide = s.showIndentGuides;
             // 逐分頁即時套用可即時生效的偏好（tabWidth/行號/游標寬/自動配對/自動完成/call tip/縮排參考線）
-            for (int i = 0; i < m_tabs->count(); ++i)
-                applyEditorPrefs(editorAt(i), s);
+            forEachEditor([this, &s](EditorWidget *e) { applyEditorPrefs(e, s); });
             applyTheme();
             statusBar()->showMessage(tr("偏好設定已儲存"), 4000);
         }
@@ -1179,34 +1163,34 @@ void MainWindow::createMenus()
     wrapAct->setCheckable(true);
     connect(wrapAct, &QAction::toggled, this, [this](bool on) {
         m_wordWrap = on;
-        for (int i = 0; i < m_tabs->count(); ++i) applyViewPrefs(editorAt(i));
+        forEachEditor([this](EditorWidget *e) { applyViewPrefs(e); });
     });
     QAction *wsAct = viewMenu->addAction(tr("Show Whitespace"));
     m_wsAct = wsAct;  // 供工具列 Show All Characters 按鈕切換
     wsAct->setCheckable(true);
     connect(wsAct, &QAction::toggled, this, [this](bool on) {
         m_showWhitespace = on;
-        for (int i = 0; i < m_tabs->count(); ++i) applyViewPrefs(editorAt(i));
+        forEachEditor([this](EditorWidget *e) { applyViewPrefs(e); });
     });
     QAction *eolAct = viewMenu->addAction(tr("Show End of Line"));
     m_eolAct = eolAct;  // 供工具列 Show All Characters 按鈕切換
     eolAct->setCheckable(true);
     connect(eolAct, &QAction::toggled, this, [this](bool on) {
         m_showEol = on;
-        for (int i = 0; i < m_tabs->count(); ++i) applyViewPrefs(editorAt(i));
+        forEachEditor([this](EditorWidget *e) { applyViewPrefs(e); });
     });
     QAction *igAct = viewMenu->addAction(tr("Show Indent Guide"));
     igAct->setCheckable(true);
     igAct->setChecked(true);
     connect(igAct, &QAction::toggled, this, [this](bool on) {
         m_showIndentGuide = on;
-        for (int i = 0; i < m_tabs->count(); ++i) applyViewPrefs(editorAt(i));
+        forEachEditor([this](EditorWidget *e) { applyViewPrefs(e); });
     });
     QAction *wrapSymAct = viewMenu->addAction(tr("Show Wrap Symbol"));
     wrapSymAct->setCheckable(true);
     connect(wrapSymAct, &QAction::toggled, this, [this](bool on) {
         m_showWrapSymbol = on;
-        for (int i = 0; i < m_tabs->count(); ++i) applyViewPrefs(editorAt(i));
+        forEachEditor([this](EditorWidget *e) { applyViewPrefs(e); });
     });
     viewMenu->addAction(tr("Show All Characters"), this, [wsAct, eolAct] {
         // 一鍵開啟空白＋EOL 顯示
@@ -1235,8 +1219,14 @@ void MainWindow::createMenus()
                        this, [this] { activateTabRelative(1); });
     tabMenu->addAction(tr("Previous Tab"), QKeySequence(Qt::CTRL | Qt::Key_BraceLeft),
                        this, [this] { activateTabRelative(-1); });
-    tabMenu->addAction(tr("First Tab"), this, [this] { if (m_tabs->count()) m_tabs->setCurrentIndex(0); });
-    tabMenu->addAction(tr("Last Tab"), this, [this] { if (m_tabs->count()) m_tabs->setCurrentIndex(m_tabs->count() - 1); });
+    tabMenu->addAction(tr("First Tab"), this, [this] {
+        QTabWidget *w = currentTabWidget();
+        if (w->count()) w->setCurrentIndex(0);
+    });
+    tabMenu->addAction(tr("Last Tab"), this, [this] {
+        QTabWidget *w = currentTabWidget();
+        if (w->count()) w->setCurrentIndex(w->count() - 1);
+    });
     tabMenu->addSeparator();
     tabMenu->addAction(tr("Move Tab Forward"), this, [this] { moveCurrentTab(1); });
     tabMenu->addAction(tr("Move Tab Backward"), this, [this] { moveCurrentTab(-1); });
@@ -1265,6 +1255,11 @@ void MainWindow::createMenus()
             tr("字元數：%1\n單字數：%2\n行數：%3\n選取字元：%4")
                 .arg(chars).arg(words).arg(lines).arg(selChars));
     });
+    viewMenu->addSeparator();
+    // Dual-View：把目前分頁移到 / 複製到另一個檢視容器（複刻 Notepad++ Move/Clone to Other View）
+    QMenu *moveCloneMenu = viewMenu->addMenu(tr("Move/Clone Current Document"));
+    moveCloneMenu->addAction(tr("Move to Other View"), this, &MainWindow::moveToOtherView);
+    moveCloneMenu->addAction(tr("Clone to Other View"), this, &MainWindow::cloneToOtherView);
     viewMenu->addSeparator();
     viewMenu->addAction(tr("Toggle Split"), QKeySequence(Qt::CTRL | Qt::Key_Backslash),
                         this, &MainWindow::toggleSplit);
@@ -1344,6 +1339,7 @@ void MainWindow::setDistractionFree(bool on)
         if (m_toolbar) m_toolbar->hide();
         statusBar()->hide();
         m_tabs->tabBar()->hide();
+        if (m_tabs2) m_tabs2->tabBar()->hide();
         showFullScreen();
     } else {
         for (QDockWidget *d : m_dfHidden)
@@ -1351,6 +1347,7 @@ void MainWindow::setDistractionFree(bool on)
         m_dfHidden.clear();
         statusBar()->show();
         m_tabs->tabBar()->show();
+        if (m_tabs2) m_tabs2->tabBar()->show();
         showNormal();
     }
 }
@@ -1367,6 +1364,7 @@ void MainWindow::setPostIt(bool on)
         if (m_toolbar) m_toolbar->hide();
         statusBar()->hide();
         m_tabs->tabBar()->hide();
+        if (m_tabs2) m_tabs2->tabBar()->hide();
         setWindowFlag(Qt::FramelessWindowHint, true);
         setWindowFlag(Qt::WindowStaysOnTopHint, true);
         showNormal();
@@ -1377,6 +1375,7 @@ void MainWindow::setPostIt(bool on)
         m_postItHidden.clear();
         statusBar()->show();
         m_tabs->tabBar()->show();
+        if (m_tabs2) m_tabs2->tabBar()->show();
         setWindowFlag(Qt::FramelessWindowHint, false);
         setWindowFlag(Qt::WindowStaysOnTopHint, m_alwaysOnTop);
         show();
@@ -1447,12 +1446,19 @@ void MainWindow::buildWindowMenu()
                             QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_Tab),
                             this, [this] { activateTabRelative(-1); });
     m_windowMenu->addSeparator();
-    // 開啟中的文件清單（打勾標示目前分頁）
-    for (int i = 0; i < m_tabs->count(); ++i) {
-        QAction *act = m_windowMenu->addAction(m_tabs->tabText(i));
-        act->setCheckable(true);
-        act->setChecked(i == m_tabs->currentIndex());
-        connect(act, &QAction::triggered, this, [this, i] { m_tabs->setCurrentIndex(i); });
+    // 開啟中的文件清單（打勾標示目前分頁）——涵蓋兩個檢視（Dual-View）
+    for (QTabWidget *w : {m_tabs, m_tabs2}) {
+        if (!w)
+            continue;
+        for (int i = 0; i < w->count(); ++i) {
+            QAction *act = m_windowMenu->addAction(w->tabText(i));
+            act->setCheckable(true);
+            act->setChecked(w == currentTabWidget() && i == w->currentIndex());
+            connect(act, &QAction::triggered, this, [this, w, i] {
+                w->setCurrentIndex(i);
+                setActiveTabWidget(w);
+            });
+        }
     }
 }
 
@@ -1460,6 +1466,83 @@ void MainWindow::toggleSplit()
 {
     if (EditorPane *pane = currentPane())
         pane->toggleSplit();  // FR-002
+}
+
+// --- Dual-View（雙檢視，複刻 Notepad++ Move/Clone to Other View）---------
+
+// 第二檢視空了就隱藏、有內容就顯示；作用中檢視若被隱藏則退回主檢視。
+void MainWindow::updateSecondViewVisibility()
+{
+    if (!m_tabs2)
+        return;
+    const bool hasTabs = m_tabs2->count() > 0;
+    m_tabs2->setVisible(hasTabs);
+    if (!hasTabs && m_activeTabs == m_tabs2)
+        setActiveTabWidget(m_tabs);
+}
+
+// 把目前分頁從作用中檢視「搬移」到另一個檢視（原 pane 物件直接轉移，狀態不變）。
+void MainWindow::moveToOtherView()
+{
+    QTabWidget *src = currentTabWidget();
+    QTabWidget *dst = otherTabWidget();
+    EditorPane *pane = qobject_cast<EditorPane *>(src->currentWidget());
+    if (!pane || !dst || src == dst)
+        return;
+
+    const int idx = src->indexOf(pane);
+    const QString title = src->tabText(idx);
+    const QString tip = src->tabToolTip(idx);
+    const QColor col = src->tabBar()->tabTextColor(idx);
+
+    src->removeTab(idx);                         // pane 仍存活（QTabWidget 不刪除被移除的頁面）
+    const int nidx = dst->addTab(pane, title);   // addTab 自動 reparent 到 dst
+    dst->setTabToolTip(nidx, tip);
+    dst->tabBar()->setTabTextColor(nidx, col);
+    dst->setCurrentIndex(nidx);
+
+    updateSecondViewVisibility();                // dst 若原本隱藏（第二檢視）現在要顯示
+    setActiveTabWidget(dst);
+    pane->primary()->setFocus();
+
+    // 若來源檢視被搬空：第二檢視自動隱藏；主檢視若空了且無其他文件才補一張空白頁
+    if (src->count() == 0) {
+        if (src == m_tabs2)
+            updateSecondViewVisibility();
+        else if (!m_tabs2 || m_tabs2->count() == 0)
+            newFile();
+    }
+    updateTabTitle();
+}
+
+// 把目前文件「複製」到另一個檢視：新分頁與來源共享同一 QsciDocument（游標/捲動獨立）。
+void MainWindow::cloneToOtherView()
+{
+    EditorPane *srcPane = currentPane();
+    QTabWidget *dst = otherTabWidget();
+    if (!srcPane || !dst)
+        return;
+    EditorWidget *src = srcPane->primary();
+    if (!src)
+        return;
+
+    EditorPane *clone = EditorPane::makeClone(src, dst);
+    wireEditorSignals(clone->primary());          // clone 也要即時更新狀態列/標題
+    // 為 clone 建立獨立 lexer 實例（與來源相同語言，但各自擁有；避免共用指標懸空）
+    if (const QString langKey = languageKeyForLexer(src->lexer()); !langKey.isEmpty()) {
+        if (QsciLexer *lex = macpad::core::LexerFactory::createForLanguage(langKey, clone->primary()))
+            clone->primary()->setLanguageLexer(lex);
+    }
+    themeEditor(clone->primary());
+    applyEditorPrefs(clone->primary(), macpad::persistence::SettingsStore::load());
+
+    const int nidx = dst->addTab(clone, srcPane->tabTitle());
+    dst->setCurrentIndex(nidx);
+
+    updateSecondViewVisibility();
+    setActiveTabWidget(dst);
+    clone->primary()->setFocus();
+    updateTabTitle();
 }
 
 // --- 巨集錄製/播放（FR-028）---------------------------------------------
@@ -1544,10 +1627,10 @@ void MainWindow::applyTheme()
 {
     // 重建每個編輯器的 lexer（回到預設色）→ lexerChanged 觸發 themeEditor 重新降飽和，
     // 避免對已降飽和的顏色再次降飽和（疊加變灰）。
-    for (int i = 0; i < m_tabs->count(); ++i) {
-        if (EditorWidget *e = editorAt(i))
+    forEachEditor([](EditorWidget *e) {
+        if (e)
             e->reapplyLexer();
-    }
+    });
     retintToolbar();  // 圖示跟隨主題明暗重新上色
 }
 
@@ -1560,11 +1643,21 @@ void MainWindow::watchPath(const QString &path)
 
 void MainWindow::onFileChangedOnDisk(const QString &path)
 {
-    // FR-018：外部異動時提示（僅在視窗作用中避免打擾）
-    const int idx = indexOfPath(path);
-    if (idx < 0)
-        return;
-    EditorWidget *editor = editorAt(idx);
+    // FR-018：外部異動時提示（僅在視窗作用中避免打擾）——兩個檢視都找
+    EditorWidget *editor = nullptr;
+    for (QTabWidget *w : {m_tabs, m_tabs2}) {
+        if (!w)
+            continue;
+        for (int i = 0; i < w->count(); ++i) {
+            EditorWidget *e = editorIn(w, i);
+            if (e && !e->isUntitled() && e->filePath() == path) {
+                editor = e;
+                break;
+            }
+        }
+        if (editor)
+            break;
+    }
     if (!editor)
         return;
 
@@ -1834,13 +1927,17 @@ void MainWindow::createEditMenuOps(QMenu *editMenu)
     connect(roAct, &QAction::toggled, this, [this](bool on) {
         if (auto *e = currentEditor()) e->setReadOnly(on);
     });
-    // 切換分頁時同步唯讀勾選狀態
-    connect(m_tabs, &QTabWidget::currentChanged, this, [this, roAct] {
-        if (auto *e = currentEditor()) {
-            QSignalBlocker b(roAct);
-            roAct->setChecked(e->isReadOnly());
-        }
-    });
+    // 切換分頁時同步唯讀勾選狀態（兩個檢視都要監聽）
+    for (QTabWidget *w : {m_tabs, m_tabs2}) {
+        if (!w)
+            continue;
+        connect(w, &QTabWidget::currentChanged, this, [this, roAct] {
+            if (auto *e = currentEditor()) {
+                QSignalBlocker b(roAct);
+                roAct->setChecked(e->isReadOnly());
+            }
+        });
+    }
 
     // Character Panel（開啟/聚焦 ASCII 插入面板）
     editMenu->addAction(tr("Character Panel"), this, [this] {
@@ -1925,11 +2022,20 @@ void MainWindow::createSearchMenu(QMenu *searchMenu)
         if (!ok)
             return;
         int total = 0;
-        for (int i = 0; i < m_tabs->count(); ++i) {
-            EditorWidget *e = editorAt(i);
-            if (!e || e->isReadOnly())
+        // Dual-View：涵蓋兩個檢視的所有文件；略過 clone（與來源共享同一文件，
+        // 對來源取代即已生效，重複呼叫會造成雙重取代）。
+        for (QTabWidget *w : {m_tabs, m_tabs2}) {
+            if (!w)
                 continue;
-            total += e->replaceAll(findText, replText, /*regex=*/false, /*cs=*/false, /*wholeWord=*/false);
+            for (int i = 0; i < w->count(); ++i) {
+                macpad::ui::EditorPane *p = paneIn(w, i);
+                if (!p || p->isClone())
+                    continue;
+                EditorWidget *e = p->primary();
+                if (!e || e->isReadOnly())
+                    continue;
+                total += e->replaceAll(findText, replText, /*regex=*/false, /*cs=*/false, /*wholeWord=*/false);
+            }
         }
         statusBar()->showMessage(tr("已在所有開啟文件中取代 %1 處").arg(total), 3000);
     });
@@ -1944,13 +2050,15 @@ void MainWindow::createSearchMenu(QMenu *searchMenu)
             return;
         m_lastFindText = pattern;
 
+        // TODO(sprint4): 目前僅搜尋作用中檢視；跨兩個檢視彙整需為 docId 設計 (view,index) 複合鍵。
+        QTabWidget *searchView = currentTabWidget();
         QVector<macpad::features::FindAllMatch> all;
-        for (int i = 0; i < m_tabs->count(); ++i) {
-            EditorWidget *e = editorAt(i);
+        for (int i = 0; i < searchView->count(); ++i) {
+            EditorWidget *e = editorIn(searchView, i);
             if (!e)
                 continue;
             all += macpad::features::FindAllEngine::searchInText(
-                i, m_tabs->tabText(i), e->text(), pattern,
+                i, searchView->tabText(i), e->text(), pattern,
                 /*regex=*/false, /*cs=*/false, /*wholeWord=*/false);
         }
 
@@ -1959,9 +2067,10 @@ void MainWindow::createSearchMenu(QMenu *searchMenu)
             addDockWidget(Qt::BottomDockWidgetArea, m_findAllDock);
             connect(m_findAllDock, &macpad::features::FindAllDock::openLocation, this,
                     [this](int docId, int line, int column) {
-                if (docId < 0 || docId >= m_tabs->count())
+                QTabWidget *w = currentTabWidget();
+                if (docId < 0 || docId >= w->count())
                     return;
-                m_tabs->setCurrentIndex(docId);
+                w->setCurrentIndex(docId);
                 if (EditorWidget *e = currentEditor()) {
                     e->setCursorPosition(qMax(0, line - 1), qMax(0, column - 1));
                     e->ensureLineVisible(qMax(0, line - 1));
@@ -2019,15 +2128,30 @@ void MainWindow::reloadFromDisk()
 
 void MainWindow::saveAll()
 {
-    const int cur = m_tabs->currentIndex();
-    for (int i = 0; i < m_tabs->count(); ++i) {
-        EditorWidget *e = editorAt(i);
-        if (e && e->isDirty()) {
-            m_tabs->setCurrentIndex(i);
-            saveCurrent();  // 未命名檔會轉為 Save As
+    // Dual-View：兩個檢視都存；略過 clone（與來源共享文件，存來源即涵蓋）
+    QTabWidget *prevActive = currentTabWidget();
+    const int prevIdx = prevActive->currentIndex();
+    for (QTabWidget *w : {m_tabs, m_tabs2}) {
+        if (!w)
+            continue;
+        const int cur = w->currentIndex();
+        for (int i = 0; i < w->count(); ++i) {
+            EditorPane *p = paneIn(w, i);
+            if (!p || p->isClone())
+                continue;
+            EditorWidget *e = p->primary();
+            if (e && e->isDirty()) {
+                setActiveTabWidget(w);
+                w->setCurrentIndex(i);
+                saveCurrent();  // 未命名檔會轉為 Save As
+            }
         }
+        if (cur >= 0 && cur < w->count())
+            w->setCurrentIndex(cur);
     }
-    m_tabs->setCurrentIndex(cur);
+    setActiveTabWidget(prevActive);
+    if (prevIdx >= 0 && prevIdx < prevActive->count())
+        prevActive->setCurrentIndex(prevIdx);
     statusBar()->showMessage(tr("已全部儲存"), 2000);
 }
 
@@ -2076,25 +2200,34 @@ void MainWindow::renameCurrentFile()
 
 void MainWindow::closeAllTabs()
 {
-    for (int i = m_tabs->count() - 1; i >= 0; --i) {
-        const int before = m_tabs->count();
-        m_tabs->setCurrentIndex(i);
-        closeTab(i);
-        if (m_tabs->count() == before)   // 使用者取消
-            return;
+    // Dual-View：關閉兩個檢視的所有分頁
+    for (QTabWidget *w : {m_tabs, m_tabs2}) {
+        if (!w)
+            continue;
+        for (int i = w->count() - 1; i >= 0; --i) {
+            const int before = w->count();
+            w->setCurrentIndex(i);
+            closeTabIn(w, i);
+            if (w->count() == before)   // 使用者取消
+                return;
+        }
     }
 }
 
 void MainWindow::closeAllButCurrent()
 {
     EditorWidget *keep = currentEditor();
-    for (int i = m_tabs->count() - 1; i >= 0; --i) {
-        if (editorAt(i) == keep)
+    for (QTabWidget *w : {m_tabs, m_tabs2}) {
+        if (!w)
             continue;
-        const int before = m_tabs->count();
-        closeTab(i);
-        if (m_tabs->count() == before)
-            return;
+        for (int i = w->count() - 1; i >= 0; --i) {
+            if (editorIn(w, i) == keep)
+                continue;
+            const int before = w->count();
+            closeTabIn(w, i);
+            if (w->count() == before)
+                return;
+        }
     }
 }
 
@@ -2116,12 +2249,14 @@ void MainWindow::moveCurrentToTrash()
         return;
     }
     // 檔案已不在磁碟 → 直接關閉分頁（不再提示存檔）
-    const int idx = m_tabs->currentIndex();
-    EditorPane *pane = paneAt(idx);
-    m_tabs->removeTab(idx);
+    QTabWidget *w = currentTabWidget();
+    const int idx = w->currentIndex();
+    EditorPane *pane = paneIn(w, idx);
+    w->removeTab(idx);
     if (pane)
         pane->deleteLater();
-    if (m_tabs->count() == 0)
+    updateSecondViewVisibility();
+    if (m_tabs->count() == 0 && (!m_tabs2 || m_tabs2->count() == 0))
         newFile();
 }
 
@@ -2209,19 +2344,21 @@ void MainWindow::toggleAlwaysOnTop(bool on)
 
 void MainWindow::activateTabRelative(int delta)
 {
-    const int n = m_tabs->count();
+    QTabWidget *w = currentTabWidget();
+    const int n = w->count();
     if (n <= 0)
         return;
-    m_tabs->setCurrentIndex((m_tabs->currentIndex() + delta + n) % n);
+    w->setCurrentIndex((w->currentIndex() + delta + n) % n);
 }
 
 void MainWindow::moveCurrentTab(int delta)
 {
-    const int idx = m_tabs->currentIndex();
+    QTabWidget *w = currentTabWidget();
+    const int idx = w->currentIndex();
     const int dst = idx + delta;
-    if (idx < 0 || dst < 0 || dst >= m_tabs->count())
+    if (idx < 0 || dst < 0 || dst >= w->count())
         return;
-    m_tabs->tabBar()->moveTab(idx, dst);
+    w->tabBar()->moveTab(idx, dst);
 }
 
 void MainWindow::toggleMonitoring()
@@ -2246,14 +2383,29 @@ void MainWindow::toggleMonitoring()
     }
 }
 
+QTabWidget *MainWindow::currentTabWidget() const
+{
+    return m_activeTabs ? m_activeTabs : m_tabs;
+}
+
+QTabWidget *MainWindow::otherTabWidget() const
+{
+    return currentTabWidget() == m_tabs ? m_tabs2 : m_tabs;
+}
+
 EditorPane *MainWindow::currentPane() const
 {
-    return qobject_cast<EditorPane *>(m_tabs->currentWidget());
+    return qobject_cast<EditorPane *>(currentTabWidget()->currentWidget());
 }
 
 EditorPane *MainWindow::paneAt(int index) const
 {
-    return qobject_cast<EditorPane *>(m_tabs->widget(index));
+    return paneIn(currentTabWidget(), index);
+}
+
+EditorPane *MainWindow::paneIn(QTabWidget *w, int index) const
+{
+    return w ? qobject_cast<EditorPane *>(w->widget(index)) : nullptr;
 }
 
 EditorWidget *MainWindow::currentEditor() const
@@ -2268,11 +2420,98 @@ EditorWidget *MainWindow::editorAt(int index) const
     return pane ? pane->primary() : nullptr;
 }
 
-EditorWidget *MainWindow::addEditorTab()
+EditorWidget *MainWindow::editorIn(QTabWidget *w, int index) const
 {
-    auto *pane = new EditorPane(m_tabs);
-    EditorWidget *editor = pane->primary();
+    EditorPane *pane = paneIn(w, index);
+    return pane ? pane->primary() : nullptr;
+}
 
+void MainWindow::forEachEditor(const std::function<void(EditorWidget *)> &fn) const
+{
+    for (QTabWidget *w : {m_tabs, m_tabs2}) {
+        if (!w)
+            continue;
+        for (int i = 0; i < w->count(); ++i) {
+            if (EditorWidget *e = editorIn(w, i))
+                fn(e);
+        }
+    }
+}
+
+void MainWindow::setActiveTabWidget(QTabWidget *w)
+{
+    if (!w || w == m_activeTabs)
+        return;
+    m_activeTabs = w;
+    // 作用中檢視變更 → 狀態列/面板/文件清單/Find 對話框全部切換到新檢視的當前文件
+    updateStatusBar();
+    refreshDocList();
+    refreshPanels();
+    if (m_findDialog)
+        m_findDialog->setEditor(currentEditor());
+}
+
+// 為某個檢視容器接上「關閉/右鍵選單/切換分頁」訊號（兩個檢視共用同一套行為）
+void MainWindow::wireTabWidget(QTabWidget *w)
+{
+    w->setTabsClosable(true);
+    w->setMovable(true);            // 分頁拖曳排序（FR-001）
+    w->setDocumentMode(true);
+
+    connect(w, &QTabWidget::tabCloseRequested, this,
+            [this, w](int idx) { closeTabIn(w, idx); });
+
+    // 分頁右鍵選單：標色 / 唯讀鎖定（FR-001）＋ Dual-View 的移動/複製
+    w->tabBar()->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(w->tabBar(), &QTabBar::customContextMenuRequested, this,
+            [this, w](const QPoint &pos) {
+        const int idx = w->tabBar()->tabAt(pos);
+        if (idx < 0) return;
+        setActiveTabWidget(w);      // 右鍵操作前先讓該檢視成為作用中
+        w->setCurrentIndex(idx);
+        QMenu menu;
+        menu.addAction(tr("Set Tab Color…"), this, [this, w, idx] {
+            const QColor c = QColorDialog::getColor(Qt::white, this, tr("Tab Color"));
+            if (c.isValid())
+                w->tabBar()->setTabTextColor(idx, c);
+        });
+        menu.addAction(tr("Clear Tab Color"), this, [w, idx] {
+            w->tabBar()->setTabTextColor(idx, QColor());
+        });
+        if (EditorWidget *e = editorIn(w, idx)) {
+            QAction *lock = menu.addAction(tr("Read-Only"));
+            lock->setCheckable(true);
+            lock->setChecked(e->isReadOnly());
+            connect(lock, &QAction::toggled, this, [this, w, idx](bool ro) {
+                if (EditorWidget *ed = editorIn(w, idx)) {
+                    ed->setReadOnly(ro);
+                    w->setTabText(idx, (ro ? QStringLiteral("🔒 ") : QString())
+                                            + ed->displayName());
+                }
+            });
+        }
+        menu.addSeparator();
+        menu.addAction(tr("Move to Other View"), this, &MainWindow::moveToOtherView);
+        menu.addAction(tr("Clone to Other View"), this, &MainWindow::cloneToOtherView);
+        menu.exec(w->tabBar()->mapToGlobal(pos));
+    });
+
+    connect(w, &QTabWidget::currentChanged, this, [this, w](int) {
+        setActiveTabWidget(w);
+        // 若切換發生在已作用中的檢視，setActiveTabWidget 會提前 return，這裡補刷新一次
+        if (w == currentTabWidget()) {
+            updateStatusBar();
+            refreshDocList();
+            refreshPanels();
+            if (m_findDialog)
+                m_findDialog->setEditor(currentEditor());
+        }
+    });
+}
+
+// 編輯器 → 狀態列/標題/自動完成的訊號連線（新分頁與 clone 檢視共用）
+void MainWindow::wireEditorSignals(EditorWidget *editor)
+{
     connect(editor, &EditorWidget::dirtyChanged, this, &MainWindow::updateTabTitle);
     connect(editor, &EditorWidget::metaChanged, this, &MainWindow::updateStatusBar);
     connect(editor, &EditorWidget::lexerChanged, this, [this, editor] {
@@ -2302,12 +2541,22 @@ EditorWidget *MainWindow::addEditorTab()
             }
         }
     });
+}
+
+EditorWidget *MainWindow::addEditorTab()
+{
+    // 新分頁一律加入作用中檢視（單一檢視時即 m_tabs，行為與改動前一致）
+    QTabWidget *w = currentTabWidget();
+    auto *pane = new EditorPane(w);
+    EditorWidget *editor = pane->primary();
+
+    wireEditorSignals(editor);
 
     themeEditor(editor);
     applyEditorPrefs(editor, macpad::persistence::SettingsStore::load());  // 新分頁套用目前偏好
 
-    const int idx = m_tabs->addTab(pane, editor->displayName());
-    m_tabs->setCurrentIndex(idx);
+    const int idx = w->addTab(pane, editor->displayName());
+    w->setCurrentIndex(idx);
     return editor;
 }
 
@@ -2332,12 +2581,9 @@ void MainWindow::openFile(const QString &path)
 {
     const QString absPath = QFileInfo(path).absoluteFilePath();
 
-    // 已開啟則聚焦既有分頁（FR-001 邊界：不重複開）
-    const int existing = indexOfPath(absPath);
-    if (existing >= 0) {
-        m_tabs->setCurrentIndex(existing);
+    // 已開啟則聚焦既有分頁（FR-001 邊界：不重複開）——兩個檢視都找
+    if (focusExistingPath(absPath))
         return;
-    }
 
     // 大檔守衛（FR-053 largeFileMB）：超過門檻先確認，避免誤開巨檔卡住
     const int largeMB = macpad::persistence::SettingsStore::load().largeFileMB;
@@ -2436,7 +2682,17 @@ bool MainWindow::maybeSave(EditorWidget *editor)
 
     switch (ret) {
     case QMessageBox::Save:
-        m_tabs->setCurrentWidget(editor);
+        // 先把該編輯器所在的檢視/分頁設為作用中，saveCurrent 才會存到正確文件（Dual-View）
+        for (QTabWidget *w : {m_tabs, m_tabs2}) {
+            if (!w)
+                continue;
+            for (int i = 0; i < w->count(); ++i) {
+                if (editorIn(w, i) == editor) {
+                    setActiveTabWidget(w);
+                    w->setCurrentIndex(i);
+                }
+            }
+        }
         return saveCurrent();
     case QMessageBox::Discard:
         return true;
@@ -2447,35 +2703,54 @@ bool MainWindow::maybeSave(EditorWidget *editor)
 
 void MainWindow::closeTab(int index)
 {
-    EditorPane *pane = paneAt(index);
+    // 選單/工具列入口：關閉作用中檢視的指定分頁
+    closeTabIn(currentTabWidget(), index);
+}
+
+void MainWindow::closeTabIn(QTabWidget *w, int index)
+{
+    if (!w)
+        return;
+    EditorPane *pane = paneIn(w, index);
     EditorWidget *ed = pane ? pane->primary() : nullptr;
-    if (!maybeSave(ed))
+    // clone 分頁與來源共享文件：關閉 clone 不應觸發存檔提示（來源仍在或已各自處理）
+    const bool isClone = pane && pane->isClone();
+    if (!isClone && !maybeSave(ed))
         return;
 
-    // 記住剛關閉的檔案，供 Restore Recent Closed File
-    if (ed && !ed->isUntitled()) {
+    // 記住剛關閉的檔案，供 Restore Recent Closed File（clone 不記，避免重覆）
+    if (!isClone && ed && !ed->isUntitled()) {
         m_closedFiles.removeAll(ed->filePath());
         m_closedFiles.append(ed->filePath());
         if (m_closedFiles.size() > 20)
             m_closedFiles.removeFirst();
     }
 
-    m_tabs->removeTab(index);
+    w->removeTab(index);
     if (pane)
         pane->deleteLater();
 
-    // 0 分頁時給一個空白分頁（避免空視窗；歡迎頁最小版）
-    if (m_tabs->count() == 0)
+    updateSecondViewVisibility();
+
+    // 兩個檢視都空了才補一張空白分頁（避免空視窗）；第二檢視空了只隱藏
+    if (m_tabs->count() == 0 && (!m_tabs2 || m_tabs2->count() == 0))
         newFile();
 }
 
 void MainWindow::closeEvent(QCloseEvent *event)
 {
-    // 逐一確認未存分頁（FR-001 AC2）
-    for (int i = 0; i < m_tabs->count(); ++i) {
-        if (!maybeSave(editorAt(i))) {
-            event->ignore();
-            return;
+    // 逐一確認未存分頁（FR-001 AC2）——涵蓋兩個檢視；clone 略過（共享文件由來源負責）
+    for (QTabWidget *w : {m_tabs, m_tabs2}) {
+        if (!w)
+            continue;
+        for (int i = 0; i < w->count(); ++i) {
+            EditorPane *p = paneIn(w, i);
+            if (p && p->isClone())
+                continue;
+            if (!maybeSave(p ? p->primary() : nullptr)) {
+                event->ignore();
+                return;
+            }
         }
     }
     saveSession();  // FR-016：關閉前保存 session
@@ -2509,30 +2784,39 @@ static QString languageKeyForLexer(QsciLexer *lex)
 macpad::persistence::SessionState MainWindow::buildCurrentSession() const
 {
     using namespace macpad::persistence;
+    // TODO(sprint4): session 尚未記錄「分頁位於哪個檢視」；還原時全部落在主檢視。
+    // 兩個檢視的已命名檔攤平成單一清單（clone 為 untitled 自動略過，不會重覆）。
     SessionState state;
-    state.activeIndex = m_tabs->currentIndex();
-    for (int i = 0; i < m_tabs->count(); ++i) {
-        EditorWidget *e = editorAt(i);
-        if (!e || e->isUntitled())
-            continue;  // 只還原已命名檔（DR-002）
-        TabState t;
-        t.path = e->filePath();
-        int line = 0, index = 0;
-        e->getCursorPosition(&line, &index);
-        t.line = line;
-        t.index = index;
-        t.firstVisibleLine = e->firstVisibleLine();
-        // FR-052：選取範圍（無選取則留空字串）
-        if (e->hasSelectedText()) {
-            int aLine = 0, aIdx = 0, cLine = 0, cIdx = 0;
-            e->getSelection(&aLine, &aIdx, &cLine, &cIdx);
-            t.selection = QStringLiteral("%1,%2,%3,%4").arg(aLine).arg(aIdx).arg(cLine).arg(cIdx);
+    EditorWidget *active = currentEditor();
+    state.activeIndex = 0;
+    for (QTabWidget *w : {m_tabs, m_tabs2}) {
+        if (!w)
+            continue;
+        for (int i = 0; i < w->count(); ++i) {
+            EditorWidget *e = editorIn(w, i);
+            if (!e || e->isUntitled())
+                continue;  // 只還原已命名檔（DR-002）；clone 亦為 untitled 故排除
+            if (e == active)
+                state.activeIndex = int(state.tabs.size());
+            TabState t;
+            t.path = e->filePath();
+            int line = 0, index = 0;
+            e->getCursorPosition(&line, &index);
+            t.line = line;
+            t.index = index;
+            t.firstVisibleLine = e->firstVisibleLine();
+            // FR-052：選取範圍（無選取則留空字串）
+            if (e->hasSelectedText()) {
+                int aLine = 0, aIdx = 0, cLine = 0, cIdx = 0;
+                e->getSelection(&aLine, &aIdx, &cLine, &cIdx);
+                t.selection = QStringLiteral("%1,%2,%3,%4").arg(aLine).arg(aIdx).arg(cLine).arg(cIdx);
+            }
+            // FR-052：書籤行號
+            t.bookmarks = e->bookmarkedLines();
+            // FR-052：手動/自動判定出的語言鍵（無對應則留空，還原時以副檔名自動偵測）
+            t.languageOverride = languageKeyForLexer(e->lexer());
+            state.tabs.push_back(t);
         }
-        // FR-052：書籤行號
-        t.bookmarks = e->bookmarkedLines();
-        // FR-052：手動/自動判定出的語言鍵（無對應則留空，還原時以副檔名自動偵測）
-        t.languageOverride = languageKeyForLexer(e->lexer());
-        state.tabs.push_back(t);
     }
     return state;
 }
@@ -2613,19 +2897,50 @@ int MainWindow::indexOfPath(const QString &absPath) const
 {
     if (absPath.isEmpty())
         return -1;
-    for (int i = 0; i < m_tabs->count(); ++i) {
-        if (editorAt(i)->filePath() == absPath)
+    QTabWidget *w = currentTabWidget();
+    for (int i = 0; i < w->count(); ++i) {
+        EditorWidget *e = editorIn(w, i);
+        if (e && e->filePath() == absPath)
             return i;
     }
     return -1;
 }
 
+// 兩個檢視中尋找已開啟的檔案並聚焦（含切換作用中檢視）；回傳是否命中。
+bool MainWindow::focusExistingPath(const QString &absPath)
+{
+    if (absPath.isEmpty())
+        return false;
+    for (QTabWidget *w : {m_tabs, m_tabs2}) {
+        if (!w)
+            continue;
+        for (int i = 0; i < w->count(); ++i) {
+            EditorPane *p = paneIn(w, i);
+            if (!p || p->isClone())
+                continue;  // clone 不算「已開啟本檔」的正本
+            EditorWidget *e = p->primary();
+            if (e && !e->isUntitled() && e->filePath() == absPath) {
+                setActiveTabWidget(w);
+                w->setCurrentIndex(i);
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 void MainWindow::updateTabTitle()
 {
-    for (int i = 0; i < m_tabs->count(); ++i) {
-        EditorWidget *e = editorAt(i);
-        m_tabs->setTabText(i, e->displayName());
-        m_tabs->setTabToolTip(i, e->filePath());
+    for (QTabWidget *w : {m_tabs, m_tabs2}) {
+        if (!w)
+            continue;
+        for (int i = 0; i < w->count(); ++i) {
+            EditorPane *p = paneIn(w, i);
+            if (!p)
+                continue;
+            w->setTabText(i, p->tabTitle());              // clone 追隨來源檔名
+            w->setTabToolTip(i, p->primary()->filePath());
+        }
     }
     refreshDocList();
 }
@@ -2634,12 +2949,14 @@ void MainWindow::refreshDocList()
 {
     if (!m_docList)
         return;
+    // 文件清單顯示作用中檢視的分頁（Dual-View；TODO(sprint4) 可合併兩檢視）
+    QTabWidget *w = currentTabWidget();
     QStringList names;
-    for (int i = 0; i < m_tabs->count(); ++i) {
-        EditorWidget *e = editorAt(i);
-        names << (e ? e->displayName() : tr("Untitled"));
+    for (int i = 0; i < w->count(); ++i) {
+        EditorPane *p = paneIn(w, i);
+        names << (p ? p->tabTitle() : tr("Untitled"));
     }
-    m_docList->refresh(names, m_tabs->currentIndex());
+    m_docList->refresh(names, w->currentIndex());
 }
 
 void MainWindow::refreshPanels()

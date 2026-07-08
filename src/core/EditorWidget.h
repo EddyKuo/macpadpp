@@ -190,6 +190,14 @@ public:
     void setCallTipsEnabled(bool enabled) { m_callTips = enabled; }
     bool callTipsEnabled() const { return m_callTips; }
 
+    // === 路徑自動完成（手動觸發，Ctrl+Alt+Space）===
+    // 取游標前的路徑片段，交由 ApiDatabase::completePath 查詢候選並以 showUserList 顯示。
+    void triggerPathCompletion();
+
+    // 由完整文字與游標前字元位置（0-based）萃取路徑片段（向前掃描路徑字元，含 '/'）。
+    // 純函式，供 keyPressEvent/triggerPathCompletion 與單元測試共用。
+    static QString pathFragmentBefore(const QString &text, int pos);
+
 signals:
     void dirtyChanged(bool dirty);
     void metaChanged();     // 編碼/EOL 變更（狀態列更新）
@@ -201,6 +209,7 @@ protected:
 
 private slots:
     void onMarginClicked(int margin, int line, Qt::KeyboardModifiers state);
+    void onUserListActivated(int id, const QString &string);
 
 private:
     void applyDefaultConfig();
@@ -232,6 +241,11 @@ private:
     // API 自動完成資料（FR-055）——由 EditorWidget 持有（parent 改為 this，與 lexer 生命週期解耦），
     // 銷毀前主動收斂背景 prepare() 的 worker thread，避免 async 競態造成的懸空回呼（SIGBUS）。
     QsciAPIs *m_apis = nullptr;
+
+    // 路徑自動完成（手動觸發）：user list id 與觸發當下已輸入前綴長度（字元數＝位元組數，
+    // 路徑片段限定 ASCII 字元，見 pathFragmentBefore），供 onUserListActivated 決定要刪除多少字元。
+    static constexpr int kPathCompletionListId = 1;
+    int m_pathCompletionPrefixLen = 0;
 };
 
 }  // namespace macpad::core

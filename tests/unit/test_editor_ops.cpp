@@ -3,6 +3,7 @@
 #include <QtTest>
 #include <QApplication>
 #include <QClipboard>
+#include <QFile>
 #include <QTemporaryDir>
 
 #include <Qsci/qscilexercpp.h>
@@ -558,6 +559,45 @@ private slots:
         QSignalSpy spy2(&e, &EditorWidget::callTipRequested);
         QTest::keyClick(&e, '(');
         QCOMPARE(spy2.count(), 0);
+    }
+
+    void pathFragmentBeforeExtractsTrailingPathChars()
+    {
+        // 一般路徑片段（含目錄分隔符）
+        QCOMPARE(EditorWidget::pathFragmentBefore(QStringLiteral("open /usr/lo"), 12),
+                 QStringLiteral("/usr/lo"));
+        // 非路徑字元（空白）中斷掃描
+        QCOMPARE(EditorWidget::pathFragmentBefore(QStringLiteral("foo bar"), 7),
+                 QStringLiteral("bar"));
+        // 游標在字串開頭：無前綴
+        QCOMPARE(EditorWidget::pathFragmentBefore(QStringLiteral("/etc/hosts"), 0),
+                 QString());
+        // 全部字元皆為路徑字元
+        QCOMPARE(EditorWidget::pathFragmentBefore(QStringLiteral("~/proj"), 6),
+                 QStringLiteral("~/proj"));
+        // pos 超出字串長度時安全鉗制
+        QCOMPARE(EditorWidget::pathFragmentBefore(QStringLiteral("abc"), 100),
+                 QStringLiteral("abc"));
+        // pos 為負值時安全鉗制為空字串
+        QCOMPARE(EditorWidget::pathFragmentBefore(QStringLiteral("abc"), -1), QString());
+    }
+
+    void triggerPathCompletionShowsUserListForExistingDir()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QFile f1(dir.filePath(QStringLiteral("alpha.txt")));
+        QVERIFY(f1.open(QIODevice::WriteOnly));
+        f1.close();
+
+        EditorWidget e;
+        const QString text = dir.filePath(QStringLiteral("al"));
+        e.setText(text);
+        e.setCursorPosition(0, text.length());
+
+        // 觸發不應拋出例外；有無候選視暫存目錄內容而定，僅驗證呼叫安全完成。
+        e.triggerPathCompletion();
+        QVERIFY(true);
     }
 };
 

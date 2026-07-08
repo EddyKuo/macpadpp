@@ -1,6 +1,7 @@
 #include "core/EditorWidget.h"
 
 #include "core/LexerFactory.h"
+#include "features/autocomplete/ApiDatabase.h"
 
 #include <QClipboard>
 #include <QColor>
@@ -43,6 +44,16 @@ constexpr int kChangeHistoryMarkerMask =
     | (1 << kMarkerHistoryModified) | (1 << kMarkerHistoryRevertedToModified);
 
 constexpr int kChangeHistoryMargin = 2;  // margin 0=行號、1=書籤、2=變更歷史
+
+// 路徑片段允許的字元（限定 ASCII，確保「字元數＝UTF-8 位元組數」，
+// 讓 onUserListActivated 能直接以字元數當作 Scintilla byte-range 刪除長度）。
+bool isPathChar(QChar c)
+{
+    if (c.unicode() > 127)
+        return false;
+    return c.isLetterOrNumber() || c == QLatin1Char('_') || c == QLatin1Char('-')
+        || c == QLatin1Char('.') || c == QLatin1Char('/') || c == QLatin1Char('~');
+}
 }  // namespace
 
 EditorWidget::EditorWidget(QWidget *parent)
@@ -53,6 +64,10 @@ EditorWidget::EditorWidget(QWidget *parent)
     // dirty 狀態變化轉發（FR-014：分頁未存標記 ●）
     connect(this, &QsciScintilla::modificationChanged,
             this, &EditorWidget::dirtyChanged);
+
+    // 路徑自動完成候選被選取（Ctrl+Alt+Space 觸發，見 triggerPathCompletion）
+    connect(this, &QsciScintilla::userListActivated,
+            this, &EditorWidget::onUserListActivated);
 }
 
 EditorWidget::~EditorWidget()
@@ -810,6 +825,16 @@ QChar EditorWidget::closerFor(QChar opener)
 
 void EditorWidget::keyPressEvent(QKeyEvent *event)
 {
+    // 路徑自動完成手動觸發（Ctrl+Alt+Space）：攔截於 base 處理之前，
+    // 避免 Option+Space 被當一般輸入插入字元（如 macOS IM 的不斷行空白）。
+    if (event->key() == Qt::Key_Space
+        && (event->modifiers() & Qt::ControlModifier)
+        && (event->modifiers() & Qt::AltModifier)) {
+        triggerPathCompletion();
+        event->accept();
+        return;
+    }
+
     const QString typed = event->text();
     QsciScintilla::keyPressEvent(event);
 
@@ -1041,6 +1066,55 @@ void EditorWidget::applyApiCompletions(const QStringList &entries)
 
     setAutoCompletionSource(QsciScintilla::AcsAll);  // 文件字詞 + API 合併來源
     setAutoCompletionThreshold(2);
+}
+
+// === 路徑自動完成（手動觸發）===
+QString EditorWidget::pathFragmentBefore(const QString &text, int pos)
+{
+    const int clamped = qBound(0, pos, text.size());
+    int start = clamped;
+    while (start > 0 && isPathChar(text.at(start - 1)))
+        --start;
+    return text.mid(start, clamped - start);
+}
+
+void EditorWidget::triggerPathCompletion()
+{
+    // 游標為位元組偏移（setUtf8(true)）；先換算為字元索引，才能與 text() 的 QString 對齊。
+    const long cur = SendScintilla(SCI_GETCURRENTPOS);
+    const int charPos = static_cast<int>(SendScintilla(SCI_COUNTCHARACTERS, 0UL, cur));
+    const QString fragment = pathFragmentBefore(text(), charPos);
+    if (fragment.isEmpty())
+        return;
+
+    const QStringList results = macpad::features::ApiDatabase::completePath(fragment);
+    if (results.isEmpty())
+        return;
+
+    // completePath 回傳的是候選「檔名」（不含目錄），選取後只需取代已輸入的檔名前綴部分。
+    const QString prefix = QFileInfo(fragment).fileName();
+    m_pathCompletionPrefixLen = prefix.size();
+    showUserList(kPathCompletionListId, results);
+}
+
+void EditorWidget::onUserListActivated(int id, const QString &string)
+{
+    if (id != kPathCompletionListId)
+        return;
+
+    const long pos = SendScintilla(SCI_GETCURRENTPOS);
+    if (m_pathCompletionPrefixLen > 0) {
+        const long delStart = pos - m_pathCompletionPrefixLen;
+        if (delStart >= 0)
+            SendScintilla(SCI_DELETERANGE, static_cast<unsigned long>(delStart),
+                          static_cast<long>(m_pathCompletionPrefixLen));
+    }
+    m_pathCompletionPrefixLen = 0;
+
+    const long insertPos = SendScintilla(SCI_GETCURRENTPOS);
+    const QByteArray bytes = string.toUtf8();
+    SendScintilla(SCI_INSERTTEXT, static_cast<unsigned long>(insertPos), bytes.constData());
+    SendScintilla(SCI_GOTOPOS, static_cast<unsigned long>(insertPos + bytes.size()));
 }
 
 }  // namespace macpad::core

@@ -4,6 +4,7 @@
 // 由 JSON 載入；純資料 + 解析，可單元測試。
 
 #include <QJsonObject>
+#include <QMap>
 #include <QSet>
 #include <QString>
 #include <QStringList>
@@ -13,6 +14,18 @@ namespace macpad::features {
 
 // 最多支援的關鍵字群組數（對齊 Notepad++ 8 組 KEYWORDx，FR-059）
 constexpr int kUdlMaxKeywordGroups = 8;
+
+// 單一樣式外觀（前景/背景色 + 粗體/斜體/底線），用於 UDL Styler（③a）。
+// fg/bg 為空字串代表「未設定，沿用內建預設色」，以維持向後相容。
+// 色碼格式如 "#RRGGBB"。styleId 對應 UdlLexer::Style 列舉值（此處以 int 儲存，
+// 避免 UdlDefinition 反向依賴 UdlLexer）。
+struct UdlStyle {
+    QString fg;
+    QString bg;
+    bool bold = false;
+    bool italic = false;
+    bool underline = false;
+};
 
 // 成對分隔符區塊（如自訂字串/區塊界定），可選跳脫字元（FR-059）
 struct UdlDelimiter {
@@ -42,6 +55,9 @@ struct UdlDefinition {
     QString blockCommentStart;   // 如 "/*"
     QString blockCommentEnd;     // 如 "*/"
     bool caseSensitive = true;
+    // 每個樣式（鍵為 UdlLexer::Style 列舉值）的外觀設定；未設定的樣式回退至
+    // UdlLexer::defaultColor() 內建預設色（向後相容，③a）。
+    QMap<int, UdlStyle> styles;
 
     bool isValid() const { return !name.isEmpty(); }
 

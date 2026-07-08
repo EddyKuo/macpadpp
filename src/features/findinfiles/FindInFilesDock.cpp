@@ -31,6 +31,9 @@ FindInFilesDock::FindInFilesDock(QWidget *parent)
     m_regex = new QCheckBox(tr("Regex"), root);
     m_caseSensitive = new QCheckBox(tr("Match case"), root);
     m_wholeWord = new QCheckBox(tr("Whole word"), root);
+    m_includeHidden = new QCheckBox(tr("Include hidden files/folders"), root);
+    m_exclude = new QLineEdit(root);
+    m_exclude->setPlaceholderText(tr("!*.min.js; !+\\node_modules"));
     m_searchBtn = new QPushButton(tr("Search"), root);
     m_replaceBtn = new QPushButton(tr("Replace in Files"), root);
     m_cancelBtn = new QPushButton(tr("Cancel"), root);
@@ -56,8 +59,11 @@ FindInFilesDock::FindInFilesDock(QWidget *parent)
     grid->addWidget(m_regex, 3, 2);
     grid->addWidget(m_caseSensitive, 3, 3);
     grid->addWidget(m_wholeWord, 3, 4);
-    grid->addWidget(m_status, 4, 0, 1, 5);
-    grid->addWidget(m_results, 5, 0, 1, 5);
+    grid->addWidget(new QLabel(tr("Exclude:"), root), 4, 0);
+    grid->addWidget(m_exclude, 4, 1, 1, 3);
+    grid->addWidget(m_includeHidden, 4, 4);
+    grid->addWidget(m_status, 5, 0, 1, 5);
+    grid->addWidget(m_results, 6, 0, 1, 5);
     setWidget(root);
 
     connect(m_searchBtn, &QPushButton::clicked, this, &FindInFilesDock::startSearch);
@@ -104,6 +110,18 @@ FindInFilesOptions FindInFilesDock::currentOptions() const
     if (!filterText.isEmpty())
         opts.fileFilters = filterText.split(QRegularExpression(QStringLiteral("[;, ]")),
                                             Qt::SkipEmptyParts);
+
+    opts.includeHidden = m_includeHidden->isChecked();
+
+    // Exclude 輸入以 ';' 或換行分隔多個 pattern（FR-045），逐一 trim 並去除空白項
+    const QString excludeText = m_exclude->text();
+    const QStringList rawExcludes = excludeText.split(QRegularExpression(QStringLiteral("[;\\n]")),
+                                                        Qt::SkipEmptyParts);
+    for (const QString &raw : rawExcludes) {
+        const QString trimmed = raw.trimmed();
+        if (!trimmed.isEmpty())
+            opts.excludeFilters.append(trimmed);
+    }
     return opts;
 }
 

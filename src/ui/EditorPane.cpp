@@ -21,6 +21,28 @@ EditorPane::EditorPane(QWidget *parent)
     layout->addWidget(m_splitter);
 }
 
+EditorPane *EditorPane::makeClone(macpad::core::EditorWidget *source, QWidget *parent)
+{
+    auto *pane = new EditorPane(parent);
+    if (!source)
+        return pane;
+    pane->m_isClone = true;
+    pane->m_cloneSource = source;
+    // 共享同一 QsciDocument（同源、游標/捲動獨立——複刻 Notepad++ Clone to Other View）
+    pane->m_primary->setDocument(source->document());
+    pane->m_primary->setUtf8(true);
+    // 注意：不在此共用來源 lexer 指標（來源分頁若先關閉會造成懸空）；
+    // 由呼叫端（MainWindow）以 LexerFactory 為 clone 建立獨立 lexer 實例。
+    return pane;
+}
+
+QString EditorPane::tabTitle() const
+{
+    if (m_isClone && !m_cloneSource.isNull())
+        return m_cloneSource->displayName();
+    return m_primary->displayName();
+}
+
 void EditorPane::toggleSplit()
 {
     if (m_secondary) {

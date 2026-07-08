@@ -1,5 +1,6 @@
 // 單元測試：UDL 定義解析/round-trip 與 Manager 查找（FR-032, FR-059）
 #include <QtTest>
+#include <QColor>
 #include <QStandardPaths>
 #include <QJsonObject>
 #include <QJsonArray>
@@ -138,6 +139,79 @@ private slots:
         QCOMPARE(d.keywordGroup(0), d.keywords);
         // 其他組別應為空
         QVERIFY(d.keywordGroup(1).isEmpty());
+    }
+
+    // --- ③a UDL Styler：使用者自訂樣式外觀（前景/背景色 + 粗體/斜體/底線） ---
+
+    void udlStyleRoundtrip()
+    {
+        UdlDefinition d;
+        d.name = "StyledLang";
+        d.extensions = {"sty"};
+        UdlStyle kw;
+        kw.fg = "#0000FF";
+        kw.bg = "#FFFFFF";
+        kw.bold = true;
+        d.styles.insert(1 /* Keyword */, kw);
+        UdlStyle cmt;
+        cmt.fg = "#008000";
+        cmt.italic = true;
+        cmt.underline = true;
+        d.styles.insert(2 /* Comment */, cmt);
+
+        const auto back = UdlDefinition::fromJson(d.toJson());
+        QCOMPARE(back.styles.size(), 2);
+        QVERIFY(back.styles.contains(1));
+        QCOMPARE(back.styles.value(1).fg, QStringLiteral("#0000FF"));
+        QCOMPARE(back.styles.value(1).bg, QStringLiteral("#FFFFFF"));
+        QVERIFY(back.styles.value(1).bold);
+        QVERIFY(!back.styles.value(1).italic);
+        QVERIFY(back.styles.contains(2));
+        QVERIFY(back.styles.value(2).italic);
+        QVERIFY(back.styles.value(2).underline);
+    }
+
+    void oldFormatNoStylesLoadsWithDefaults()
+    {
+        // 模擬舊版 JSON（無 "styles" 欄位）：styles 應保持空，
+        // 不影響其餘欄位的向後相容載入。
+        QJsonObject o;
+        o.insert("name", "NoStyleLang");
+        o.insert("extensions", QJsonArray{"nsl"});
+        o.insert("keywords", QJsonArray{"foo"});
+
+        const auto d = UdlDefinition::fromJson(o);
+        QVERIFY(d.isValid());
+        QVERIFY(d.styles.isEmpty());
+
+        // UdlLexer 應能正常建構並回退至內建 defaultColor()（不 crash、顏色非空）
+        QsciScintilla editor;
+        UdlLexer *lexer = new UdlLexer(d, &editor);
+        editor.setLexer(lexer);
+        QVERIFY(lexer->defaultColor(UdlLexer::Keyword).isValid());
+        QVERIFY(lexer->color(UdlLexer::Keyword) == lexer->defaultColor(UdlLexer::Keyword));
+    }
+
+    void lexerAppliesUserStyleColor()
+    {
+        UdlDefinition d;
+        d.name = QStringLiteral("ColoredLang");
+        d.extensions = {"col"};
+        d.keywordGroups.resize(kUdlMaxKeywordGroups);
+        d.keywordGroups[0] = {"if"};
+        UdlStyle kw;
+        kw.fg = "#123456";
+        kw.bold = true;
+        d.styles.insert(int(UdlLexer::Keyword), kw);
+
+        QsciScintilla editor;
+        UdlLexer *lexer = new UdlLexer(d, &editor);
+        editor.setLexer(lexer);
+
+        QCOMPARE(lexer->color(UdlLexer::Keyword), QColor("#123456"));
+        QVERIFY(lexer->font(UdlLexer::Keyword).bold());
+        // 未設定樣式的 style（如 Comment）仍回退至內建預設色
+        QCOMPARE(lexer->color(UdlLexer::Comment), lexer->defaultColor(UdlLexer::Comment));
     }
 
     void lexerStylesKeywordGroup1AndOperator()

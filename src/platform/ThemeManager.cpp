@@ -11,6 +11,17 @@
 
 #include <Qsci/qscilexer.h>
 
+// Scintilla 訊息常數：QScintilla 公開標頭未匯出，依專案慣例於此局部定義。
+#ifndef SCI_SETWHITESPACEFORE
+#define SCI_SETWHITESPACEFORE 2084
+#endif
+#ifndef STYLE_LINENUMBER
+#define STYLE_LINENUMBER 33
+#endif
+#ifndef SCI_STYLESETFORE
+#define SCI_STYLESETFORE 2051
+#endif
+
 namespace macpad::platform {
 
 bool ThemeManager::systemIsDark()
@@ -113,6 +124,47 @@ static void applyWithStyles(macpad::core::EditorWidget *editor, bool dark,
                 lex->setFont(f, ov.style);
             }
         }
+    }
+
+    // 疊上 Global Styles（③b）：編輯器整體、非 lexer 相關的顏色覆寫。
+    // 與 lexer 覆寫相同的規則：字串非空但無法解析成有效顏色時略過，沿用上方已套用的預設色。
+    const auto &gs = styleCfg.global;
+    if (!gs.indentGuide.isEmpty()) {
+        const QColor c(gs.indentGuide);
+        if (c.isValid())
+            editor->setIndentationGuidesForegroundColor(c);
+    }
+    if (!gs.caretLineBg.isEmpty()) {
+        const QColor c(gs.caretLineBg);
+        if (c.isValid())
+            editor->setCaretLineBackgroundColor(c);
+    }
+    if (!gs.selectionBg.isEmpty()) {
+        const QColor c(gs.selectionBg);
+        if (c.isValid())
+            editor->setSelectionBackgroundColor(c);
+    }
+    if (!gs.whitespaceFg.isEmpty()) {
+        const QColor c(gs.whitespaceFg);
+        if (c.isValid())
+            editor->SendScintilla(SCI_SETWHITESPACEFORE, 1UL, c);
+    }
+    if (!gs.marginBg.isEmpty()) {
+        const QColor c(gs.marginBg);
+        if (c.isValid())
+            editor->setMarginsBackgroundColor(c);
+    }
+    if (!gs.marginFg.isEmpty()) {
+        const QColor c(gs.marginFg);
+        if (c.isValid())
+            editor->setMarginsForegroundColor(c);
+    }
+    if (!gs.currentLineNumber.isEmpty()) {
+        const QColor c(gs.currentLineNumber);
+        // Scintilla 無原生「僅目前行行號」著色訊息；以 STYLE_LINENUMBER 前景色近似套用
+        // （會套用到整個行號邊界文字，非僅目前行），做為此設定在缺乏原生支援下的最佳近似。
+        if (c.isValid())
+            editor->SendScintilla(SCI_STYLESETFORE, static_cast<unsigned long>(STYLE_LINENUMBER), c);
     }
 }
 

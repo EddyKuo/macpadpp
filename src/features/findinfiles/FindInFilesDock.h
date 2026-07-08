@@ -46,6 +46,8 @@ private:
     QCheckBox *m_regex = nullptr;
     QCheckBox *m_caseSensitive = nullptr;
     QCheckBox *m_wholeWord = nullptr;
+    QCheckBox *m_includeHidden = nullptr;
+    QLineEdit *m_exclude = nullptr;
     QTreeWidget *m_results = nullptr;
     QPushButton *m_searchBtn = nullptr;
     QPushButton *m_replaceBtn = nullptr;

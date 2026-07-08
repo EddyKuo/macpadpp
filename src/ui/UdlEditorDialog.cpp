@@ -1,17 +1,22 @@
 #include "ui/UdlEditorDialog.h"
 
 #include "features/udl/UdlDefinition.h"
+#include "features/udl/UdlLexer.h"
 #include "features/udl/UdlManager.h"
 
 #include <QCheckBox>
+#include <QColorDialog>
 #include <QDialogButtonBox>
 #include <QFileDialog>
 #include <QFormLayout>
+#include <QHBoxLayout>
+#include <QLabel>
 #include <QLineEdit>
 #include <QMessageBox>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QRegularExpression>
+#include <QScrollArea>
 #include <QTabWidget>
 #include <QVBoxLayout>
 #include <QWidget>
@@ -19,6 +24,8 @@
 namespace macpad::ui {
 
 using macpad::features::kUdlMaxKeywordGroups;
+using macpad::features::UdlLexer;
+using macpad::features::UdlStyle;
 
 UdlEditorDialog::UdlEditorDialog(macpad::features::UdlManager *manager, QWidget *parent)
     : QDialog(parent), m_manager(manager)
@@ -88,6 +95,9 @@ UdlEditorDialog::UdlEditorDialog(macpad::features::UdlManager *manager, QWidget 
     advForm->addRow(tr("Folder close:"), m_folderClose);
     tabs->addTab(advancedPage, tr("Operators / Delimiters / Folding"));
 
+    // --- 樣式分頁（③a UDL Styler：每個樣式的前景/背景色 + 粗體/斜體/底線） ---
+    buildStylesPage(tabs);
+
     root->addWidget(tabs);
 
     auto *box = new QDialogButtonBox(QDialogButtonBox::Save | QDialogButtonBox::Cancel, this);
@@ -96,6 +106,94 @@ UdlEditorDialog::UdlEditorDialog(macpad::features::UdlManager *manager, QWidget 
     connect(box, &QDialogButtonBox::accepted, this, &UdlEditorDialog::saveDefinition);
     connect(box, &QDialogButtonBox::rejected, this, &QDialog::reject);
     connect(exportBtn, &QPushButton::clicked, this, &UdlEditorDialog::exportDefinition);
+}
+
+void UdlEditorDialog::updateColorButton(QPushButton *btn, const QColor &color)
+{
+    if (color.isValid()) {
+        btn->setText(color.name());
+        btn->setStyleSheet(QStringLiteral("background-color:%1;").arg(color.name()));
+    } else {
+        btn->setText(QObject::tr("(default)"));
+        btn->setStyleSheet(QString());
+    }
+}
+
+void UdlEditorDialog::pickColor(QPushButton *btn, QColor *target)
+{
+    const QColor initial = target->isValid() ? *target : Qt::black;
+    const QColor chosen = QColorDialog::getColor(initial, this, tr("Choose Color"));
+    if (!chosen.isValid())
+        return;  // 使用者取消：保持原狀（含未設定）
+    *target = chosen;
+    updateColorButton(btn, *target);
+}
+
+void UdlEditorDialog::buildStylesPage(QTabWidget *tabs)
+{
+    auto *stylesPage = new QWidget(tabs);
+    auto *outer = new QVBoxLayout(stylesPage);
+    auto *scroll = new QScrollArea(stylesPage);
+    scroll->setWidgetResizable(true);
+    auto *inner = new QWidget(scroll);
+    auto *grid = new QFormLayout(inner);
+
+    static const struct { int id; const char *label; } kStyles[] = {
+        { UdlLexer::Default,   "Default" },
+        { UdlLexer::Keyword,   "Keyword group 1" },
+        { UdlLexer::Keyword2,  "Keyword group 2" },
+        { UdlLexer::Keyword3,  "Keyword group 3" },
+        { UdlLexer::Keyword4,  "Keyword group 4" },
+        { UdlLexer::Keyword5,  "Keyword group 5" },
+        { UdlLexer::Keyword6,  "Keyword group 6" },
+        { UdlLexer::Keyword7,  "Keyword group 7" },
+        { UdlLexer::Keyword8,  "Keyword group 8" },
+        { UdlLexer::Comment,   "Comment" },
+        { UdlLexer::String,    "String" },
+        { UdlLexer::Number,    "Number" },
+        { UdlLexer::Operator,  "Operator" },
+        { UdlLexer::Delimiter, "Delimiter" },
+    };
+
+    for (const auto &s : kStyles) {
+        StyleRow row;
+        row.styleId = s.id;
+        auto *rowWidget = new QWidget(inner);
+        auto *rowLayout = new QHBoxLayout(rowWidget);
+        rowLayout->setContentsMargins(0, 0, 0, 0);
+
+        row.fgButton = new QPushButton(rowWidget);
+        updateColorButton(row.fgButton, QColor());
+        connect(row.fgButton, &QPushButton::clicked, this, [this, idx = m_styleRows.size()]() {
+            pickColor(m_styleRows[idx].fgButton, &m_styleRows[idx].fg);
+        });
+
+        row.bgButton = new QPushButton(rowWidget);
+        updateColorButton(row.bgButton, QColor());
+        connect(row.bgButton, &QPushButton::clicked, this, [this, idx = m_styleRows.size()]() {
+            pickColor(m_styleRows[idx].bgButton, &m_styleRows[idx].bg);
+        });
+
+        row.bold = new QCheckBox(tr("B"), rowWidget);
+        row.italic = new QCheckBox(tr("I"), rowWidget);
+        row.underline = new QCheckBox(tr("U"), rowWidget);
+
+        rowLayout->addWidget(new QLabel(tr("FG:"), rowWidget));
+        rowLayout->addWidget(row.fgButton);
+        rowLayout->addWidget(new QLabel(tr("BG:"), rowWidget));
+        rowLayout->addWidget(row.bgButton);
+        rowLayout->addWidget(row.bold);
+        rowLayout->addWidget(row.italic);
+        rowLayout->addWidget(row.underline);
+
+        grid->addRow(tr(s.label), rowWidget);
+        m_styleRows.push_back(row);
+    }
+
+    inner->setLayout(grid);
+    scroll->setWidget(inner);
+    outer->addWidget(scroll);
+    tabs->addTab(stylesPage, tr("Styles"));
 }
 
 macpad::features::UdlDefinition UdlEditorDialog::collectDefinition() const
@@ -136,6 +234,19 @@ macpad::features::UdlDefinition UdlEditorDialog::collectDefinition() const
     def.blockCommentStart = m_blockStart->text();
     def.blockCommentEnd = m_blockEnd->text();
     def.caseSensitive = m_caseSensitive->isChecked();
+
+    // 樣式外觀（③a UDL Styler）：僅收錄使用者實際設定過的欄位；
+    // fg/bg 皆未設定且未勾選任何粗體/斜體/底線者，不寫入 styles（維持預設）。
+    for (const StyleRow &row : m_styleRows) {
+        UdlStyle st;
+        st.fg = row.fg.isValid() ? row.fg.name() : QString();
+        st.bg = row.bg.isValid() ? row.bg.name() : QString();
+        st.bold = row.bold->isChecked();
+        st.italic = row.italic->isChecked();
+        st.underline = row.underline->isChecked();
+        if (!st.fg.isEmpty() || !st.bg.isEmpty() || st.bold || st.italic || st.underline)
+            def.styles.insert(row.styleId, st);
+    }
     return def;
 }
 

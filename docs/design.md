@@ -1067,3 +1067,29 @@ Sprint 2 完成後，`docs/parity-audit.md` 的 B 組（FR-053..060）由 missin
 - **當機復原真實化**：原本 `writeSnapshot` 從未被呼叫（機制空轉）。新增 30 秒週期 `QTimer`，對 dirty 分頁 `BackupService::writeSnapshot`；啟動時若 `pendingSnapshots()` 非空，開 `SnapshotRecoveryDialog`（多選還原/全部丟棄），取代原資訊框；`closeEvent` 正常關閉清空快照。
 - **大檔守衛**（`largeFileMB`）：`openFile` 超過門檻先確認。**失焦自存**（`autosaveOnFocusLoss`）：`applicationStateChanged` 非 active 時存已命名之未存分頁。
 - 驗證：CTest 30/30、-Werror 零警告、功能覆蓋率 90.5%。
+
+---
+
+## 14. Sprint 4 — 結構性缺口（FR-061..FR-064）
+
+> 對應 PRD v1.3.0 C 組、SRS §11、`docs/parity-audit.md`（2026-07-08 複核）。攻投報率最高的結構性缺口。
+
+### 14.1 各項設計
+- **FR-061 Find in Files UI + 路徑補全**：複核發現 `FindInFilesEngine` 的 `includeHidden`/`excludeFilters` 早已實作並測試，但 `FindInFilesDock` UI 從未暴露（「白做工」）。補上勾選框/輸入框並於 `currentOptions()` 讀取。另 `ApiDatabase::completePath()` 亦為未接線函式，於 `EditorWidget` 加快捷鍵觸發 + `showUserList` 顯示。
+- **FR-062 雙 View 架構**（最大結構性缺口）：MainWindow 中央改為 `QSplitter{ m_tabs, m_tabs2 }`，第二檢視預設隱藏；追蹤 active view，`currentPane/currentEditor/狀態列/面板` 跟隨；「Move to Other View」搬移分頁、「Clone to Other View」建立共享同一 `QsciDocument` 的檢視；空檢視自動隱藏。單一檢視時行為與原本一致。
+- **FR-063 UDL Styler**：`UdlDefinition` 增各樣式 `UdlStyle{fg,bg,bold,italic,underline}`，`UdlLexer` 套用（無設定回退 `defaultColor`），`UdlEditorDialog` 提供色彩/字型編輯。fromJson/toJson 向後相容。
+- **FR-064 Global Styles**：`StyleSettings` 增 `GlobalStyles`（縮排參考線/caret line/選取/空白/邊欄色彩），`ThemeManager::applyToEditor` 於套用 lexer 色後疊加（無效色略過），`StyleConfiguratorDialog` 增「Global Styles」分類。
+
+### 14.2 雙 View 架構圖
+```mermaid
+flowchart TB
+    MW[MainWindow] --> SP[QSplitter 中央]
+    SP --> V1["View 1: QTabWidget m_tabs"]
+    SP --> V2["View 2: QTabWidget m_tabs2（預設隱藏）"]
+    V1 --> P1[EditorPane…]
+    V2 --> P2[EditorPane…]
+    MW -. active view 追蹤 .-> V1
+    MW -. Move/Clone to Other View .-> V2
+```
+
+> Sprint 4 完成後，parity 複核之結構性缺口（雙 View、UDL 樣式、Global Styles、Find in Files UI）由 missing/partial 轉為 full；細粒度長尾（Volatile Find、Smart Highlighting、Redact、Extended 搜尋、Base64…）待後續評估。
