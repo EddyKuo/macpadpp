@@ -1,5 +1,16 @@
 # macpad++
 
+[![CI](https://github.com/EddyKuo/macpadpp/actions/workflows/ci.yml/badge.svg)](https://github.com/EddyKuo/macpadpp/actions/workflows/ci.yml)
+[![Release](https://github.com/EddyKuo/macpadpp/actions/workflows/release.yml/badge.svg)](https://github.com/EddyKuo/macpadpp/actions/workflows/release.yml)
+[![Latest release](https://img.shields.io/github/v/release/EddyKuo/macpadpp?sort=semver)](https://github.com/EddyKuo/macpadpp/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/EddyKuo/macpadpp/total)](https://github.com/EddyKuo/macpadpp/releases)
+[![License: MIT](https://img.shields.io/github/license/EddyKuo/macpadpp)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-macOS%20(Apple%20Silicon)-000000?logo=apple&logoColor=white)](#下載安裝發佈版)
+[![C++17](https://img.shields.io/badge/C%2B%2B-17-00599C?logo=cplusplus&logoColor=white)](CMakeLists.txt)
+[![Qt6](https://img.shields.io/badge/Qt-6-41CD52?logo=qt&logoColor=white)](https://www.qt.io/)
+[![Tests](https://img.shields.io/badge/tests-34%20passing-brightgreen)](tests/)
+[![Coverage](https://img.shields.io/badge/coverage-90%25-brightgreen)](docs/design.md)
+
 **Notepad++ 對等的原生 macOS 文字/程式碼編輯器。** 以 C++17 + Qt6 + QScintilla 打造,
 單機、無後端、無網路、無資料庫 —— 一個乾淨、快速、貼近 Mac 慣例的日常編輯器。
 

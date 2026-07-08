@@ -1,0 +1,34 @@
+name: CI
+
+# 每次 push 到 main 或 PR 時，在 macOS 上建置（-Werror）並跑 CTest，作為「build passing」依據。
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# 同一分支的新 push 會取消尚在跑的舊 CI，省執行器時間。
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    name: Build & Test (macOS arm64)
+    runs-on: macos-14
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安裝相依（Homebrew）
+        run: brew install cmake qt qscintilla2
+
+      - name: 設定（Release，-Werror 由 STRICT_WARNINGS 預設開啟）
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$(brew --prefix qt)"
+
+      - name: 建置
+        run: cmake --build build -j
+
+      - name: 測試（CTest）
+        run: ctest --test-dir build --output-on-failure
