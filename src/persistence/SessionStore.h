@@ -3,6 +3,7 @@
 // SessionStore — session.json：開啟分頁、游標/捲動位置、作用分頁（FR-016, DR-002）
 // 檔案損毀時 load 回傳空 session（不崩潰）。
 
+#include <QList>
 #include <QString>
 #include <QStringList>
 #include <QVector>
@@ -14,6 +15,10 @@ struct TabState {
     int line = 0;
     int index = 0;             // 游標欄
     int firstVisibleLine = 0;  // 捲動位置
+    // FR-052：選取範圍，編碼為 "anchorLine,anchorIndex,caretLine,caretIndex"，無選取則為空字串
+    QString selection;
+    QList<int> bookmarks;      // FR-052：已加書籤的行號
+    QString languageOverride;  // FR-052：詞法分析器 key，空字串表示自動偵測
 };
 
 struct SessionState {

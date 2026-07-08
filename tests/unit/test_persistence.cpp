@@ -35,6 +35,44 @@ private slots:
         QCOMPARE(out.tabs[1].firstVisibleLine, 8);
     }
 
+    void sessionRoundtripNewFields()
+    {
+        // FR-052：selection/bookmarks/languageOverride round-trip
+        SessionState in;
+        in.activeIndex = 0;
+        TabState t;
+        t.path = QStringLiteral("/tmp/c.cpp");
+        t.line = 1;
+        t.index = 2;
+        t.firstVisibleLine = 0;
+        t.selection = QStringLiteral("1,0,3,5");
+        t.bookmarks = {2, 7, 9};
+        t.languageOverride = QStringLiteral("python");
+        in.tabs = {t};
+        QVERIFY(SessionStore::save(in));
+
+        const SessionState out = SessionStore::load();
+        QCOMPARE(out.tabs.size(), 1);
+        QCOMPARE(out.tabs[0].selection, QStringLiteral("1,0,3,5"));
+        QCOMPARE(out.tabs[0].bookmarks, (QList<int>{2, 7, 9}));
+        QCOMPARE(out.tabs[0].languageOverride, QStringLiteral("python"));
+    }
+
+    void sessionMissingNewFieldsDefaultEmpty()
+    {
+        // 舊格式（缺新欄位）載入時應預設為空，back-compat
+        SessionState in;
+        in.activeIndex = 0;
+        in.tabs = {{QStringLiteral("/tmp/old.txt"), 1, 2, 0}};
+        QVERIFY(SessionStore::save(in));
+
+        const SessionState out = SessionStore::load();
+        QCOMPARE(out.tabs.size(), 1);
+        QVERIFY(out.tabs[0].selection.isEmpty());
+        QVERIFY(out.tabs[0].bookmarks.isEmpty());
+        QVERIFY(out.tabs[0].languageOverride.isEmpty());
+    }
+
     void corruptSessionIsSafe()
     {
         // 寫入損毀 JSON → load 應回空 session 不崩潰（FR-016 AC3）

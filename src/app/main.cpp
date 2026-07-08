@@ -6,6 +6,7 @@
 #include <QTranslator>
 
 #include "app/MainWindow.h"
+#include "core/EditorWidget.h"
 #include "features/cli/CliArgs.h"
 #include "persistence/SettingsStore.h"
 #include "platform/SingleInstance.h"
@@ -22,14 +23,28 @@ static QString resolveLanguage(const QString &configured)
     return QStringLiteral("en");
 }
 
-static void openArgs(MainWindow &window, const QStringList &fileArgs)
+// 依解析結果開啟所有檔案，並套用 -ro / -n<line> / -c<col>（FR-033, FR-051）
+static void openParsedArgs(MainWindow &window, const macpad::features::ParsedArgs &parsed)
 {
-    for (const QString &a : fileArgs) {
-        const auto fa = macpad::features::CliArgs::parseFileArg(a);
+    for (const auto &fa : parsed.files) {
         if (fa.line > 0)
-            window.openFileAtLine(fa.path, fa.line, 1);
+            window.openFileAtLine(fa.path, fa.line, qMax(1, fa.column));
         else
             window.openFile(fa.path);
+        if (parsed.readOnly) {
+            if (auto *e = window.activeEditor())
+                e->setReadOnly(true);
+        }
+    }
+    // -n<line>/-c<col>：對開啟後的作用中編輯器跳至指定行/欄（1-based）
+    if (parsed.gotoLine > 0) {
+        if (auto *e = window.activeEditor()) {
+            const int line = qMax(0, parsed.gotoLine - 1);
+            const int col = qMax(0, parsed.gotoColumn - 1);
+            e->setCursorPosition(line, col);
+            e->ensureLineVisible(line);
+            e->setFocus();
+        }
     }
 }
 
@@ -40,7 +55,8 @@ int main(int argc, char *argv[])
     // 不設 organizationName：讓設定路徑為 ~/Library/Application Support/macpad++/（不重複巢狀）
     app.setApplicationDisplayName("macpad++");
 
-    const QStringList fileArgs = app.arguments().mid(1);
+    const QStringList rawArgs = app.arguments().mid(1);
+    const macpad::features::ParsedArgs parsed = macpad::features::CliArgs::parse(rawArgs);
 
     const auto settings = macpad::persistence::SettingsStore::load();
 
@@ -52,27 +68,28 @@ int main(int argc, char *argv[])
     if (translator.load(QStringLiteral(":/i18n/macpad_%1.qm").arg(lang)))
         app.installTranslator(&translator);
 
-    // 單一/多執行個體（FR-034）
+    // 單一/多執行個體（FR-034, FR-051 -multiInst：一律以 primary 執行，略過轉送）
     macpad::platform::SingleInstance instance(QStringLiteral("macpad++.instance"));
-    if (settings.singleInstance && !instance.isPrimary()) {
-        // 已有實例在跑：把檔案參數轉交後結束
-        instance.sendToPrimary(fileArgs);
+    if (settings.singleInstance && !parsed.multiInstance && !instance.isPrimary()) {
+        // 已有實例在跑：把原始參數轉交後結束
+        instance.sendToPrimary(rawArgs);
         return 0;
     }
 
-    MainWindow window;
+    // -nosession：略過本次啟動的 session 還原（FR-051）
+    MainWindow window(nullptr, /*restoreSessionOnLaunch=*/!parsed.noSession);
 
     // primary：收到後續實例的參數時開檔並前景
     QObject::connect(&instance, &macpad::platform::SingleInstance::messageReceived,
                      &window, [&window](const QStringList &args) {
-        openArgs(window, args);
+        openParsedArgs(window, macpad::features::CliArgs::parse(args));
         window.show();
         window.raise();
         window.activateWindow();
     });
 
     window.show();
-    openArgs(window, fileArgs);
+    openParsedArgs(window, parsed);
 
     return app.exec();
 }

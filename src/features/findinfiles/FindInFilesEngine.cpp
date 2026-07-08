@@ -2,6 +2,7 @@
 
 #include "core/FileEncoding.h"
 
+#include <QDir>
 #include <QDirIterator>
 #include <QFile>
 #include <QFileInfo>
@@ -9,6 +10,65 @@
 #include <QSaveFile>
 
 namespace macpad::features {
+
+// FR-045：判斷檔案是否符合任一排除規則。
+// 支援 Notepad++ 風格：
+// 相對路徑中任一層級（資料夾或檔名）以 '.' 開頭 → 視為隱藏（Unix 慣例）。
+// QDirIterator 即使未加 QDir::Hidden 仍會遞迴進入隱藏資料夾並列出其中「非隱藏」檔案，
+// 故需以路徑層級明確判斷（FR-045：includeHidden=false 應排除隱藏夾內容）。
+static bool hasHiddenComponent(const QString &relativePath)
+{
+    const QStringList parts = relativePath.split(QLatin1Char('/'), Qt::SkipEmptyParts);
+    for (const QString &p : parts)
+        if (p.startsWith(QLatin1Char('.')))
+            return true;
+    return false;
+}
+
+//   "!pattern"       → 萬用字元比對檔名/相對路徑，符合則排除
+//   "!+\\dir" / "!dir\\" → 排除整個子目錄（比對路徑中任一層級名稱）
+bool FindInFilesEngine::isExcluded(const QString &relativePath, const QString &fileName,
+                                   const QStringList &excludeFilters)
+{
+    for (const QString &raw : excludeFilters) {
+        QString e = raw.trimmed();
+        if (e.isEmpty())
+            continue;
+        if (e.startsWith(QLatin1Char('!')))
+            e.remove(0, 1);
+
+        bool folder = false;
+        if (e.startsWith(QLatin1Char('+'))) {
+            e.remove(0, 1);
+            folder = true;
+        }
+        if (e.endsWith(QLatin1Char('\\')) || e.endsWith(QLatin1Char('/'))) {
+            e.chop(1);
+            folder = true;
+        }
+        e.replace(QLatin1Char('\\'), QLatin1Char('/'));
+        while (e.startsWith(QLatin1Char('/')))  // "!+\dir" 轉換後會殘留前導 '/'
+            e.remove(0, 1);
+        if (e.isEmpty())
+            continue;
+
+        if (folder) {
+            QString normRel = relativePath;
+            normRel.replace(QLatin1Char('\\'), QLatin1Char('/'));
+            const QStringList segments = normRel.split(QLatin1Char('/'), Qt::SkipEmptyParts);
+            for (const QString &seg : segments) {
+                if (seg.compare(e, Qt::CaseInsensitive) == 0)
+                    return true;
+            }
+        } else {
+            const QRegularExpression re(QRegularExpression::wildcardToRegularExpression(e),
+                                        QRegularExpression::CaseInsensitiveOption);
+            if (re.match(fileName).hasMatch() || re.match(relativePath).hasMatch())
+                return true;
+        }
+    }
+    return false;
+}
 
 static QRegularExpression buildRegex(const FindInFilesOptions &o, bool *ok)
 {
@@ -90,15 +150,23 @@ FindInFilesEngine::ReplaceResult FindInFilesEngine::replaceInFiles(
     if (!ok || opts.pattern.isEmpty())
         return result;
 
-    const QDir::Filters filters = QDir::Files | QDir::NoDotAndDotDot;
+    QDir::Filters filters = QDir::Files | QDir::NoDotAndDotDot;
+    if (opts.includeHidden)
+        filters |= QDir::Hidden;
     const QDirIterator::IteratorFlags flags =
         opts.recursive ? QDirIterator::Subdirectories : QDirIterator::NoIteratorFlags;
+    const QDir root(rootDir);
     QDirIterator it(rootDir, opts.fileFilters, filters, flags);
     while (it.hasNext()) {
         if (cancel && cancel->load())
             break;
         const QString path = it.next();
         if (QFileInfo(path).size() > opts.maxFileBytes)
+            continue;
+        if (!opts.includeHidden && hasHiddenComponent(root.relativeFilePath(path)))
+            continue;
+        if (!opts.excludeFilters.isEmpty() &&
+            isExcluded(root.relativeFilePath(path), QFileInfo(path).fileName(), opts.excludeFilters))
             continue;
         QFile f(path);
         if (!f.open(QIODevice::ReadOnly))
@@ -138,10 +206,13 @@ QVector<FindMatch> FindInFilesEngine::search(const QString &rootDir,
     if (!ok || opts.pattern.isEmpty())
         return out;
 
-    const QDir::Filters filters = QDir::Files | QDir::NoDotAndDotDot;
+    QDir::Filters filters = QDir::Files | QDir::NoDotAndDotDot;
+    if (opts.includeHidden)
+        filters |= QDir::Hidden;
     const QDirIterator::IteratorFlags flags =
         opts.recursive ? QDirIterator::Subdirectories : QDirIterator::NoIteratorFlags;
 
+    const QDir root(rootDir);
     QStringList nameFilters = opts.fileFilters;
     QDirIterator it(rootDir, nameFilters, filters, flags);
     while (it.hasNext()) {
@@ -150,6 +221,11 @@ QVector<FindMatch> FindInFilesEngine::search(const QString &rootDir,
         const QString path = it.next();
         const QFileInfo fi(path);
         if (fi.size() > opts.maxFileBytes)
+            continue;
+        if (!opts.includeHidden && hasHiddenComponent(root.relativeFilePath(path)))
+            continue;
+        if (!opts.excludeFilters.isEmpty() &&
+            isExcluded(root.relativeFilePath(path), fi.fileName(), opts.excludeFilters))
             continue;
 
         QFile f(path);

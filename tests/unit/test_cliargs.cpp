@@ -43,6 +43,91 @@ private slots:
         QCOMPARE(a.line, 0);
         QCOMPARE(a.path, QStringLiteral("f.txt:0"));
     }
+
+    void fileArgColumnDefaultsToZero()
+    {
+        const auto a = CliArgs::parseFileArg("f.txt:10");
+        QCOMPARE(a.column, 0);
+    }
+
+    // --- FR-051: ParsedArgs / parse() ---
+
+    void parsePlainFiles()
+    {
+        const auto p = CliArgs::parse({"a.txt", "b.txt:12"});
+        QCOMPARE(p.files.size(), 2);
+        QCOMPARE(p.files.at(0).path, QStringLiteral("a.txt"));
+        QCOMPARE(p.files.at(0).line, 0);
+        QCOMPARE(p.files.at(1).path, QStringLiteral("b.txt"));
+        QCOMPARE(p.files.at(1).line, 12);
+        QVERIFY(!p.readOnly);
+        QVERIFY(!p.noSession);
+        QVERIFY(!p.multiInstance);
+        QCOMPARE(p.gotoLine, 0);
+        QCOMPARE(p.gotoColumn, 0);
+    }
+
+    void parseGotoLineFlag()
+    {
+        const auto p = CliArgs::parse({"-n42", "file.txt"});
+        QCOMPARE(p.gotoLine, 42);
+        QCOMPARE(p.files.size(), 1);
+        QCOMPARE(p.files.at(0).path, QStringLiteral("file.txt"));
+    }
+
+    void parseGotoColumnFlag()
+    {
+        const auto p = CliArgs::parse({"-c7", "file.txt"});
+        QCOMPARE(p.gotoColumn, 7);
+        QCOMPARE(p.files.size(), 1);
+    }
+
+    void parseReadOnlyFlag()
+    {
+        const auto p = CliArgs::parse({"-ro", "file.txt"});
+        QVERIFY(p.readOnly);
+        QCOMPARE(p.files.size(), 1);
+    }
+
+    void parseNoSessionFlag()
+    {
+        const auto p = CliArgs::parse({"-nosession", "file.txt"});
+        QVERIFY(p.noSession);
+        QCOMPARE(p.files.size(), 1);
+    }
+
+    void parseMultiInstFlag()
+    {
+        const auto p = CliArgs::parse({"-multiInst", "file.txt"});
+        QVERIFY(p.multiInstance);
+        QCOMPARE(p.files.size(), 1);
+    }
+
+    void parseAllFlagsCombined()
+    {
+        const auto p = CliArgs::parse(
+            {"-ro", "-nosession", "-multiInst", "-n10", "-c3", "src/main.cpp:5", "other.txt"});
+        QVERIFY(p.readOnly);
+        QVERIFY(p.noSession);
+        QVERIFY(p.multiInstance);
+        QCOMPARE(p.gotoLine, 10);
+        QCOMPARE(p.gotoColumn, 3);
+        QCOMPARE(p.files.size(), 2);
+        QCOMPARE(p.files.at(0).path, QStringLiteral("src/main.cpp"));
+        QCOMPARE(p.files.at(0).line, 5);
+        QCOMPARE(p.files.at(1).path, QStringLiteral("other.txt"));
+    }
+
+    void parseEmptyArgsYieldsDefaults()
+    {
+        const auto p = CliArgs::parse({});
+        QVERIFY(p.files.isEmpty());
+        QVERIFY(!p.readOnly);
+        QVERIFY(!p.noSession);
+        QVERIFY(!p.multiInstance);
+        QCOMPARE(p.gotoLine, 0);
+        QCOMPARE(p.gotoColumn, 0);
+    }
 };
 
 QTEST_APPLESS_MAIN(TestCliArgs)

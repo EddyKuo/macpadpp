@@ -91,6 +91,86 @@ private slots:
         QCOMPARE(T::spacesToTabs("a   b", 4), QStringLiteral("a\tb"));
     }
 
+    // --- 隨機大小寫 / 打亂 ---
+    void randomCaseIsDeterministicWithSeed()
+    {
+        const QString a = T::toRandomCase("hello world", 42);
+        const QString b = T::toRandomCase("hello world", 42);
+        QCOMPARE(a, b);
+        // 大小寫不敏感比對後內容應相同（只變大小寫）
+        QCOMPARE(a.toLower(), QStringLiteral("hello world"));
+    }
+
+    void shuffleLinesIsDeterministicWithSeed()
+    {
+        const QString input = "a\nb\nc\nd\ne";
+        const QString a = T::shuffleLines(input, 7);
+        const QString b = T::shuffleLines(input, 7);
+        QCOMPARE(a, b);
+        // 內容集合不變
+        QStringList sortedA = a.split('\n');
+        QStringList sortedB = QStringList{"a", "b", "c", "d", "e"};
+        sortedA.sort();
+        sortedB.sort();
+        QCOMPARE(sortedA, sortedB);
+    }
+
+    // --- 相鄰重複行去除 ---
+    void removeConsecutiveDuplicates()
+    {
+        QCOMPARE(T::removeConsecutiveDuplicateLines("a\na\nb\na\nb\nb"),
+                 QStringLiteral("a\nb\na\nb"));
+    }
+
+    // --- 地區化排序 / 長度排序 / 十進位排序 ---
+    void localeSort()
+    {
+        QCOMPARE(T::sortLinesLocale("banana\napple\ncherry"),
+                 QStringLiteral("apple\nbanana\ncherry"));
+        QCOMPARE(T::sortLinesLocale("apple\nbanana\ncherry", false),
+                 QStringLiteral("cherry\nbanana\napple"));
+    }
+
+    void sortByLength()
+    {
+        QCOMPARE(T::sortLinesByLength("ccc\na\nbb"),
+                 QStringLiteral("a\nbb\nccc"));
+        QCOMPARE(T::sortLinesByLength("ccc\na\nbb", false),
+                 QStringLiteral("ccc\nbb\na"));
+    }
+
+    void sortDecimals()
+    {
+        QCOMPARE(T::sortLinesAsDecimals("10.5\n2.3\n3"),
+                 QStringLiteral("2.3\n3\n10.5"));
+        QCOMPARE(T::sortLinesAsDecimals("10,5\n2,3\n3", true, true),
+                 QStringLiteral("2,3\n3\n10,5"));
+    }
+
+    // --- 空白（新增）---
+    void trimBothSides()
+    {
+        QCOMPARE(T::trimBoth("  abc  \n\tdef\t\n  ghi"),
+                 QStringLiteral("abc\ndef\nghi"));
+    }
+
+    void eolToSpaceConversion()
+    {
+        QCOMPARE(T::eolToSpace("a\nb\nc"), QStringLiteral("a b c"));
+    }
+
+    void spacesToTabsLeadingOnly()
+    {
+        // 行首縮排轉 tab，行內空白不動
+        QCOMPARE(T::spacesToTabsLeading("    abc def", 4),
+                 QStringLiteral("\tabc def"));
+        QCOMPARE(T::spacesToTabsLeading("      abc", 4),
+                 QStringLiteral("\t  abc"));
+        // 無縮排不受影響
+        QCOMPARE(T::spacesToTabsLeading("abc   def", 4),
+                 QStringLiteral("abc   def"));
+    }
+
     // --- 註解切換 ---
     void commentToggle()
     {

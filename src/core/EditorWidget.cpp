@@ -2,11 +2,13 @@
 
 #include "core/LexerFactory.h"
 
+#include <QClipboard>
 #include <QColor>
 #include <QFile>
 #include <QFileInfo>
 #include <QFont>
 #include <QFontMetrics>
+#include <QGuiApplication>
 #include <QKeyEvent>
 #include <QPair>
 #include <QRegularExpression>
@@ -283,6 +285,34 @@ bool EditorWidget::reinterpretWithCodec(const QString &codecName, QString *error
     return true;
 }
 
+bool EditorWidget::reinterpretAsEncoding(Encoding enc, QString *errorMessage)
+{
+    // 與 reinterpretWithCodec 對稱，但走內建 Encoding enum（Unicode 系列），不查 codec（FR-048）
+    if (m_filePath.isEmpty()) {
+        // 未存檔：無原始位元組可重讀 → 僅設為目標編碼
+        setEncoding(enc);
+        return true;
+    }
+    QFile file(m_filePath);
+    if (!file.open(QIODevice::ReadOnly)) {
+        if (errorMessage)
+            *errorMessage = file.errorString();
+        return false;
+    }
+    const QByteArray raw = file.readAll();
+    file.close();
+
+    const DetectResult det = FileEncoding::detect(raw.left(65536));
+    m_eol = det.eol;
+    setText(FileEncoding::decode(raw, enc));
+    applyEolMode(m_eol);
+    m_encoding = enc;
+    m_codecName.clear();   // 改以內建 enum 編碼存檔，清掉先前手選的傳統 codec
+    clearDirty();   // 純重新解讀磁碟內容，視為未變更
+    emit metaChanged();
+    return true;
+}
+
 void EditorWidget::convertEol(Eol eol)
 {
     m_eol = eol;
@@ -294,6 +324,12 @@ void EditorWidget::convertEol(Eol eol)
 
 int EditorWidget::replaceAll(const QString &find, const QString &replaceStr,
                              bool regex, bool caseSensitive, bool wholeWord)
+{
+    return replaceAll(find, replaceStr, regex, caseSensitive, wholeWord, /*dotAll=*/false);
+}
+
+int EditorWidget::replaceAll(const QString &find, const QString &replaceStr,
+                             bool regex, bool caseSensitive, bool wholeWord, bool dotAll)
 {
     if (find.isEmpty())
         return 0;
@@ -310,6 +346,8 @@ int EditorWidget::replaceAll(const QString &find, const QString &replaceStr,
         QRegularExpression::PatternOptions opts = QRegularExpression::NoPatternOption;
         if (!caseSensitive)
             opts |= QRegularExpression::CaseInsensitiveOption;
+        if (regex && dotAll)
+            opts |= QRegularExpression::DotMatchesEverythingOption;  // 「. matches newline」（FR-047）
         const QRegularExpression re(pattern, opts);
         if (!re.isValid())
             return 0;
@@ -383,6 +421,37 @@ void EditorWidget::clearMarks()
 {
     SendScintilla(SCI_SETINDICATORCURRENT, static_cast<unsigned long>(kMarkIndicator));
     SendScintilla(SCI_INDICATORCLEARRANGE, 0UL, static_cast<unsigned long>(length()));
+}
+
+int EditorWidget::countMatches(const QString &find, bool regex, bool caseSensitive, bool wholeWord)
+{
+    // 僅操作 SCI target（SCI_SEARCHINTARGET），不觸碰選取/游標，故天然不移動游標、不變更選取（FR-047）
+    if (find.isEmpty())
+        return 0;
+
+    const QByteArray fb = find.toUtf8();
+    int flags = 0;
+    if (caseSensitive) flags |= SCFIND_MATCHCASE;
+    if (wholeWord)     flags |= SCFIND_WHOLEWORD;
+    if (regex)         flags |= SCFIND_REGEXP | SCFIND_CXX11REGEX;
+    SendScintilla(SCI_SETSEARCHFLAGS, flags);
+
+    int count = 0;
+    long start = 0;
+    const long end = length();
+    while (start <= end) {
+        SendScintilla(SCI_SETTARGETSTART, static_cast<unsigned long>(start));
+        SendScintilla(SCI_SETTARGETEND, static_cast<unsigned long>(end));
+        const long found = SendScintilla(SCI_SEARCHINTARGET,
+                                         static_cast<unsigned long>(fb.size()), fb.constData());
+        if (found < 0)
+            break;
+        const long ms = SendScintilla(SCI_GETTARGETSTART);
+        const long me = SendScintilla(SCI_GETTARGETEND);
+        ++count;
+        start = (me > ms) ? me : me + 1;  // 空匹配前進一位
+    }
+    return count;
 }
 
 // --- 書籤（FR-008）-------------------------------------------------------
@@ -559,6 +628,7 @@ void EditorWidget::removeBookmarkedLines()
     beginUndoAction();
     for (int i = lines.size() - 1; i >= 0; --i) {  // 由下往上刪，位置不位移
         const int ln = lines.at(i);
+        markerDelete(ln, kBookmarkMarker);  // 先清書籤標記，避免刪行後 Scintilla 殘留 marker
         const long start = SendScintilla(SCI_POSITIONFROMLINE, static_cast<unsigned long>(ln));
         const long end = SendScintilla(SCI_POSITIONFROMLINE, static_cast<unsigned long>(ln + 1));
         SendScintilla(SCI_DELETERANGE, static_cast<unsigned long>(start),
@@ -607,6 +677,39 @@ QString EditorWidget::bookmarkedText() const
     return parts.join(QChar('\n'));
 }
 
+void EditorWidget::cutBookmarkedLines()
+{
+    // 先複製書籤行文字到剪貼簿，再刪除（FR-049）
+    const QString txt = bookmarkedText();
+    if (!txt.isEmpty())
+        QGuiApplication::clipboard()->setText(txt);
+    removeBookmarkedLines();
+}
+
+void EditorWidget::pasteReplaceBookmarkedLines()
+{
+    // 以剪貼簿文字逐行依序取代各書籤行內容（FR-049）。
+    // 剪貼簿行數不足時，多出的書籤行清空（簡化行為，於此註記說明）。
+    const QList<int> marks = bookmarkedLines();
+    if (marks.isEmpty())
+        return;
+    const QStringList clipLines = QGuiApplication::clipboard()->text().split(QChar('\n'));
+
+    beginUndoAction();
+    for (int i = 0; i < marks.size(); ++i) {
+        const int ln = marks.at(i);
+        const QString replacement = (i < clipLines.size()) ? clipLines.at(i) : QString();
+        const long start = SendScintilla(SCI_POSITIONFROMLINE, static_cast<unsigned long>(ln));
+        const long lineEnd = SendScintilla(SCI_GETLINEENDPOSITION, static_cast<unsigned long>(ln));
+        SendScintilla(SCI_SETTARGETSTART, static_cast<unsigned long>(start));
+        SendScintilla(SCI_SETTARGETEND, static_cast<unsigned long>(lineEnd));
+        const QByteArray bytes = replacement.toUtf8();
+        SendScintilla(SCI_REPLACETARGET,
+                      static_cast<unsigned long>(bytes.size()), bytes.constData());
+    }
+    endUndoAction();
+}
+
 // === 選取括號之間 ===
 void EditorWidget::selectBetweenBraces()
 {
@@ -647,11 +750,52 @@ void EditorWidget::cancelCallTip()
     SendScintilla(SCI_CALLTIPCANCEL);
 }
 
+QChar EditorWidget::closerFor(QChar opener)
+{
+    // 供 keyPressEvent 與測試共用（自動配對符號，FR-050）
+    switch (opener.unicode()) {
+    case '(': return QChar(u')');
+    case '[': return QChar(u']');
+    case '{': return QChar(u'}');
+    case '"': return QChar(u'"');
+    case '\'': return QChar(u'\'');
+    default:  return QChar();
+    }
+}
+
 void EditorWidget::keyPressEvent(QKeyEvent *event)
 {
+    const QString typed = event->text();
     QsciScintilla::keyPressEvent(event);
+
+    // 自動配對符號（FR-050）：鍵入開符號後，緊接插入對應閉符號並讓游標留在中間
+    if (m_autoClose && typed.size() == 1) {
+        const QChar opener = typed.at(0);
+        const QChar closer = closerFor(opener);
+        if (!closer.isNull()) {
+            bool insertCloser = true;
+            if (opener == QLatin1Char('"') || opener == QLatin1Char('\'')) {
+                // 引號：若開引號前一字元是文字/數字/底線，視為在字詞內部，不自動配對
+                const long pos = SendScintilla(SCI_GETCURRENTPOS);
+                const long beforeOpener = pos - 2;  // pos-1 為剛輸入的開引號本身
+                if (beforeOpener >= 0) {
+                    const char c = static_cast<char>(
+                        SendScintilla(SCI_GETCHARAT, static_cast<unsigned long>(beforeOpener)));
+                    if (QChar(QLatin1Char(c)).isLetterOrNumber() || c == '_')
+                        insertCloser = false;
+                }
+            }
+            if (insertCloser) {
+                const long pos = SendScintilla(SCI_GETCURRENTPOS);
+                const QByteArray cb = QString(closer).toUtf8();
+                SendScintilla(SCI_INSERTTEXT, static_cast<unsigned long>(pos), cb.constData());
+                SendScintilla(SCI_GOTOPOS, static_cast<unsigned long>(pos));  // 游標留在兩符號之間
+            }
+        }
+    }
+
     // 鍵入 '(' → 取其前的識別字，請上層查函式簽名顯示 call tip
-    if (event->text() == QLatin1String("(")) {
+    if (typed == QLatin1String("(")) {
         const long pos = SendScintilla(SCI_GETCURRENTPOS);
         const long paren = pos - 1;
         if (paren <= 0)

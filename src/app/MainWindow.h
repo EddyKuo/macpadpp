@@ -38,7 +38,8 @@ namespace macpad::persistence { struct SessionState; }
 class MainWindow : public QMainWindow, public macpad::extension::IHostServices {
     Q_OBJECT
 public:
-    explicit MainWindow(QWidget *parent = nullptr);
+    // restoreSessionOnLaunch=false 供命令列 -nosession（FR-051）略過本次啟動的 session 還原
+    explicit MainWindow(QWidget *parent = nullptr, bool restoreSessionOnLaunch = true);
     ~MainWindow() override;
 
     // IHostServices（extension protocol，FR-035）

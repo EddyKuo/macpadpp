@@ -1,8 +1,10 @@
 #include "features/textops/TextOps.h"
 
+#include <QCollator>
 #include <QSet>
 #include <QStringList>
 #include <algorithm>
+#include <random>
 
 namespace macpad::features {
 
@@ -51,6 +53,27 @@ QString TextOps::invertCase(const QString &s)
     return out;
 }
 
+static std::mt19937 makeRng(qint64 seed)
+{
+    if (seed < 0) {
+        std::random_device rd;
+        return std::mt19937(rd());
+    }
+    return std::mt19937(static_cast<std::mt19937::result_type>(seed));
+}
+
+QString TextOps::toRandomCase(const QString &s, qint64 seed)
+{
+    std::mt19937 rng = makeRng(seed);
+    std::uniform_int_distribution<int> dist(0, 1);
+    QString out = s;
+    for (QChar &c : out) {
+        if (c.isLetter())
+            c = dist(rng) == 0 ? c.toLower() : c.toUpper();
+    }
+    return out;
+}
+
 QString TextOps::sortLinesAscending(const QString &s, bool caseSensitive)
 {
     QStringList lines = splitLines(s);
@@ -92,6 +115,66 @@ QString TextOps::removeDuplicateLines(const QString &s)
         }
     }
     return joinBack(out);
+}
+
+QString TextOps::removeConsecutiveDuplicateLines(const QString &s)
+{
+    QStringList lines = splitLines(s);
+    QStringList out;
+    for (const QString &l : lines) {
+        if (out.isEmpty() || out.last() != l)
+            out << l;
+    }
+    return joinBack(out);
+}
+
+QString TextOps::shuffleLines(const QString &s, qint64 seed)
+{
+    QStringList lines = splitLines(s);
+    std::mt19937 rng = makeRng(seed);
+    for (int i = lines.size() - 1; i > 0; --i) {
+        std::uniform_int_distribution<int> dist(0, i);
+        const int j = dist(rng);
+        std::swap(lines[i], lines[j]);
+    }
+    return joinBack(lines);
+}
+
+QString TextOps::sortLinesLocale(const QString &s, bool ascending, bool caseSensitive)
+{
+    QStringList lines = splitLines(s);
+    QCollator collator;
+    collator.setCaseSensitivity(caseSensitive ? Qt::CaseSensitive : Qt::CaseInsensitive);
+    std::stable_sort(lines.begin(), lines.end(), [&collator, ascending](const QString &a, const QString &b) {
+        return ascending ? collator(a, b) : collator(b, a);
+    });
+    return joinBack(lines);
+}
+
+QString TextOps::sortLinesByLength(const QString &s, bool ascending)
+{
+    QStringList lines = splitLines(s);
+    std::stable_sort(lines.begin(), lines.end(), [ascending](const QString &a, const QString &b) {
+        return ascending ? a.size() < b.size() : a.size() > b.size();
+    });
+    return joinBack(lines);
+}
+
+QString TextOps::sortLinesAsDecimals(const QString &s, bool ascending, bool commaDecimal)
+{
+    QStringList lines = splitLines(s);
+    std::stable_sort(lines.begin(), lines.end(), [ascending, commaDecimal](const QString &a, const QString &b) {
+        QString ta = a.trimmed();
+        QString tb = b.trimmed();
+        if (commaDecimal) {
+            ta.replace(QLatin1Char(','), QLatin1Char('.'));
+            tb.replace(QLatin1Char(','), QLatin1Char('.'));
+        }
+        const double da = ta.toDouble();
+        const double db = tb.toDouble();
+        return ascending ? da < db : da > db;
+    });
+    return joinBack(lines);
 }
 
 QString TextOps::removeEmptyLines(const QString &s, bool blankMeansWhitespace)
@@ -238,6 +321,35 @@ QString TextOps::spacesToTabs(const QString &s, int tabWidth)
             }
         }
         line = out;
+    }
+    return joinBack(lines);
+}
+
+QString TextOps::trimBoth(const QString &s)
+{
+    return trimLeading(trimTrailing(s));
+}
+
+QString TextOps::eolToSpace(const QString &s)
+{
+    return splitLines(s).join(QLatin1Char(' '));
+}
+
+QString TextOps::spacesToTabsLeading(const QString &s, int tabWidth)
+{
+    if (tabWidth < 1) tabWidth = 4;
+    QStringList lines = splitLines(s);
+    for (QString &line : lines) {
+        int indentEnd = 0;
+        while (indentEnd < line.size() && line[indentEnd] == QLatin1Char(' '))
+            ++indentEnd;
+        if (indentEnd == 0)
+            continue;
+        const QString rest = line.mid(indentEnd);
+        const int numTabs = indentEnd / tabWidth;
+        const int numSpaces = indentEnd % tabWidth;
+        QString newIndent = QString(numTabs, QLatin1Char('\t')) + QString(numSpaces, QLatin1Char(' '));
+        line = newIndent + rest;
     }
     return joinBack(lines);
 }

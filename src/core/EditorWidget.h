@@ -68,6 +68,11 @@ public:
     int replaceAll(const QString &find, const QString &replaceStr,
                    bool regex, bool caseSensitive, bool wholeWord);
 
+    // 多載：額外接受 dotAll（regex 下 . 是否匹配換行，FR-047「. matches newline」）。
+    // 保留原簽名不變，供既有呼叫端相容；新呼叫端可用本多載開啟 dotAll。
+    int replaceAll(const QString &find, const QString &replaceStr,
+                   bool regex, bool caseSensitive, bool wholeWord, bool dotAll);
+
     // Mark：高亮所有匹配（FR-012），回傳匹配數；clearMarks 清除。
     int markAll(const QString &find, bool regex, bool caseSensitive, bool wholeWord);
     void clearMarks();
@@ -122,6 +127,24 @@ public:
     void showCallTip(const QString &text);   // 於游標處顯示 call tip
     void cancelCallTip();
 
+    // === 尋找計數（FR-047，供 Find/Replace 對話框「Count」按鈕）===
+    // 計算全文匹配數，不移動游標、不改變選取（以 SCI_SEARCHINTARGET 掃描後還原游標）。
+    int countMatches(const QString &find, bool regex, bool caseSensitive, bool wholeWord);
+
+    // === 以內建 Encoding 重新解讀磁碟內容（FR-048，類 reinterpretWithCodec 但用 enum）===
+    // 有檔路徑時：重讀原始位元組並以 enc 解碼取代內容；無檔時：僅設為目標編碼。
+    bool reinterpretAsEncoding(Encoding enc, QString *errorMessage = nullptr);
+
+    // === 書籤剪貼簿操作（FR-049）===
+    void cutBookmarkedLines();              // 複製書籤行文字到剪貼簿後刪除
+    void pasteReplaceBookmarkedLines();      // 以剪貼簿逐行文字依序取代各書籤行內容
+
+    // === 自動配對符號（FR-050）===
+    void setAutoClose(bool enabled) { m_autoClose = enabled; }
+    bool autoClose() const { return m_autoClose; }
+    // 依開符號回傳對應閉符號；不支援則回傳空字元（供測試與 keyPressEvent 共用）
+    static QChar closerFor(QChar opener);
+
 signals:
     void dirtyChanged(bool dirty);
     void metaChanged();     // 編碼/EOL 變更（狀態列更新）
@@ -151,6 +174,7 @@ private:
     QString m_codecName;   // 非空 = 用具名 codec 存檔（Character sets 選的傳統編碼）
     Eol m_eol = Eol::Lf;
     bool m_metaDirty = false;  // 編碼/EOL/codec 變更造成的 dirty（文字內容未變）
+    bool m_autoClose = true;  // 自動配對符號 ( [ { " '（FR-050）
 };
 
 }  // namespace macpad::core

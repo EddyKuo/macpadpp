@@ -49,6 +49,7 @@
 #include "features/columneditor/ColumnEditor.h"
 
 #include <QCryptographicHash>
+#include <QHash>
 #include <QLineEdit>
 #include <QRegularExpression>
 #include <QToolBar>
@@ -82,7 +83,7 @@ using macpad::ui::EditorPane;
 
 using macpad::core::EditorWidget;
 
-MainWindow::MainWindow(QWidget *parent)
+MainWindow::MainWindow(QWidget *parent, bool restoreSessionOnLaunch)
     : QMainWindow(parent)
 {
     m_tabs = new QTabWidget(this);
@@ -215,7 +216,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     // 還原上次 session（FR-016）；若無則開空白分頁
     const auto settings = macpad::persistence::SettingsStore::load();
-    if (settings.restoreOnLaunch)
+    if (settings.restoreOnLaunch && restoreSessionOnLaunch)
         restoreSession();
     if (m_tabs->count() == 0)
         newFile();
@@ -586,6 +587,33 @@ void MainWindow::createMenus()
                 statusBar()->showMessage(tr("已以 %1 重新解讀").arg(codec), 3000);
             });
         }
+    }
+
+    // Reinterpret（不重新編碼，僅以指定編碼重讀磁碟內容——FR-048）
+    QMenu *reinterpretMenu = encMenu->addMenu(tr("Reinterpret as"));
+    const struct { const char *label; Encoding enc; } reinterprets[] = {
+        {"UTF-8", Encoding::Utf8}, {"UTF-16 LE", Encoding::Utf16LE}, {"UTF-16 BE", Encoding::Utf16BE},
+    };
+    for (const auto &r : reinterprets) {
+        const Encoding enc = r.enc;
+        QString label;
+        switch (enc) {
+        case Encoding::Utf8:    label = tr("Reinterpret as UTF-8"); break;
+        case Encoding::Utf16LE: label = tr("Reinterpret as UTF-16 LE"); break;
+        case Encoding::Utf16BE: label = tr("Reinterpret as UTF-16 BE"); break;
+        default: break;
+        }
+        reinterpretMenu->addAction(label, this, [this, enc] {
+            EditorWidget *e = currentEditor();
+            if (!e) return;
+            QString err;
+            if (!e->reinterpretAsEncoding(enc, &err)) {
+                QMessageBox::warning(this, tr("Reinterpret as"), err);
+                return;
+            }
+            updateStatusBar();
+            statusBar()->showMessage(tr("已重新解讀"), 3000);
+        });
     }
 
     QMenu *eolMenu = formatMenu->addMenu(tr("End of Line"));
@@ -1440,6 +1468,8 @@ void MainWindow::createEditMenuOps(QMenu *editMenu)
     caseMenu->addAction(tr("Title Case"), this, [this] { applyTextOp(&TextOps::toTitleCase); });
     caseMenu->addAction(tr("Sentence case"), this, [this] { applyTextOp(&TextOps::toSentenceCase); });
     caseMenu->addAction(tr("iNVERT cASE"), this, [this] { applyTextOp(&TextOps::invertCase); });
+    caseMenu->addAction(tr("rAnDoM CaSe"), this,
+                        [this] { applyTextOp([](const QString &s){ return TextOps::toRandomCase(s); }); });
 
     // 行操作
     QMenu *lineMenu = editMenu->addMenu(tr("Line Operations"));
@@ -1449,10 +1479,24 @@ void MainWindow::createEditMenuOps(QMenu *editMenu)
                         [this] { applyTextOp([](const QString &s){ return TextOps::sortLinesDescending(s); }); });
     lineMenu->addAction(tr("Sort Numeric"), this,
                         [this] { applyTextOp([](const QString &s){ return TextOps::sortLinesNumeric(s); }); });
+    lineMenu->addAction(tr("Sort Lines by Length (Ascending)"), this,
+                        [this] { applyTextOp([](const QString &s){ return TextOps::sortLinesByLength(s, true); }); });
+    lineMenu->addAction(tr("Sort Lines by Length (Descending)"), this,
+                        [this] { applyTextOp([](const QString &s){ return TextOps::sortLinesByLength(s, false); }); });
+    lineMenu->addAction(tr("Sort Lines as Decimals"), this,
+                        [this] { applyTextOp([](const QString &s){ return TextOps::sortLinesAsDecimals(s, true, false); }); });
+    lineMenu->addAction(tr("Sort Lines (Locale)"), this,
+                        [this] { applyTextOp([](const QString &s){ return TextOps::sortLinesLocale(s, true, true); }); });
+    lineMenu->addAction(tr("Shuffle Lines"), this,
+                        [this] { applyTextOp([](const QString &s){ return TextOps::shuffleLines(s); }); });
     lineMenu->addAction(tr("Remove Duplicate Lines"), this,
                         [this] { applyTextOp(&TextOps::removeDuplicateLines); });
+    lineMenu->addAction(tr("Remove Consecutive Duplicate Lines"), this,
+                        [this] { applyTextOp(&TextOps::removeConsecutiveDuplicateLines); });
     lineMenu->addAction(tr("Remove Empty Lines"), this,
-                        [this] { applyTextOp([](const QString &s){ return TextOps::removeEmptyLines(s); }); });
+                        [this] { applyTextOp([](const QString &s){ return TextOps::removeEmptyLines(s, /*blankMeansWhitespace=*/false); }); });
+    lineMenu->addAction(tr("Remove Empty Lines (Containing Blank Chars)"), this,
+                        [this] { applyTextOp([](const QString &s){ return TextOps::removeEmptyLines(s, /*blankMeansWhitespace=*/true); }); });
     lineMenu->addAction(tr("Reverse Line Order"), this,
                         [this] { applyTextOp(&TextOps::reverseLines); });
     lineMenu->addAction(tr("Duplicate Lines"), this,
@@ -1487,6 +1531,14 @@ void MainWindow::createEditMenuOps(QMenu *editMenu)
                          [this] { applyTextOp([](const QString &s){ return TextOps::tabsToSpaces(s, 4); }); });
     blankMenu->addAction(tr("Space to TAB"), this,
                          [this] { applyTextOp([](const QString &s){ return TextOps::spacesToTabs(s, 4); }); });
+    blankMenu->addAction(tr("Trim Leading and Trailing Space"), this,
+                         [this] { applyTextOp(&TextOps::trimBoth); });
+    blankMenu->addAction(tr("EOL to Space"), this,
+                         [this] { applyTextOp(&TextOps::eolToSpace); });
+    blankMenu->addAction(tr("Leading Spaces to TAB"), this, [this] {
+        const int tabWidth = macpad::persistence::SettingsStore::load().tabWidth;
+        applyTextOp([tabWidth](const QString &s){ return TextOps::spacesToTabsLeading(s, tabWidth); });
+    });
 
     // 註解切換
     editMenu->addAction(tr("Toggle Line Comment"), QKeySequence(Qt::CTRL | Qt::Key_Slash),
@@ -1646,6 +1698,33 @@ void MainWindow::createSearchMenu(QMenu *searchMenu)
                   [this] { if (auto *e = currentEditor()) e->removeNonBookmarkedLines(); });
     bm->addAction(tr("Inverse Bookmark"), this,
                   [this] { if (auto *e = currentEditor()) e->inverseBookmarks(); });
+    bm->addAction(tr("Cut Bookmarked Lines"), this,
+                  [this] { if (auto *e = currentEditor()) e->cutBookmarkedLines(); });
+    bm->addAction(tr("Paste to (Replace) Bookmarked Lines"), this,
+                  [this] { if (auto *e = currentEditor()) e->pasteReplaceBookmarkedLines(); });
+
+    searchMenu->addSeparator();
+    searchMenu->addAction(tr("Replace All in All Opened Documents…"), this, [this] {
+        bool ok = false;
+        const QString findText = QInputDialog::getText(this, tr("Replace All in All Opened Documents"),
+                                                        tr("Find what:"), QLineEdit::Normal,
+                                                        QString(), &ok);
+        if (!ok || findText.isEmpty())
+            return;
+        const QString replText = QInputDialog::getText(this, tr("Replace All in All Opened Documents"),
+                                                        tr("Replace with:"), QLineEdit::Normal,
+                                                        QString(), &ok);
+        if (!ok)
+            return;
+        int total = 0;
+        for (int i = 0; i < m_tabs->count(); ++i) {
+            EditorWidget *e = editorAt(i);
+            if (!e || e->isReadOnly())
+                continue;
+            total += e->replaceAll(findText, replText, /*regex=*/false, /*cs=*/false, /*wholeWord=*/false);
+        }
+        statusBar()->showMessage(tr("已在所有開啟文件中取代 %1 處").arg(total), 3000);
+    });
 }
 
 void MainWindow::showFind()
@@ -2131,6 +2210,27 @@ void MainWindow::closeEvent(QCloseEvent *event)
 
 // --- Session / Recent（FR-016/017）--------------------------------------
 
+// 依目前 lexer 反查 LexerFactory 語言鍵（FR-052 languageOverride）。
+// 以 LexerFactory::languages() 逐一建立範例 lexer 比對 language() 字串，
+// 避免另建一份與 LexerFactory 內部映射重複、容易漂移的硬編表。
+static QString languageKeyForLexer(QsciLexer *lex)
+{
+    if (!lex)
+        return QString();
+    static const QHash<QString, QString> nameToKey = [] {
+        QHash<QString, QString> map;
+        for (const auto &entry : macpad::core::LexerFactory::languages()) {
+            if (entry.key.isEmpty())
+                continue;
+            std::unique_ptr<QsciLexer> tmp(macpad::core::LexerFactory::createForLanguage(entry.key, nullptr));
+            if (tmp)
+                map.insert(QString::fromLatin1(tmp->language()), entry.key);
+        }
+        return map;
+    }();
+    return nameToKey.value(QString::fromLatin1(lex->language()));
+}
+
 macpad::persistence::SessionState MainWindow::buildCurrentSession() const
 {
     using namespace macpad::persistence;
@@ -2147,6 +2247,16 @@ macpad::persistence::SessionState MainWindow::buildCurrentSession() const
         t.line = line;
         t.index = index;
         t.firstVisibleLine = e->firstVisibleLine();
+        // FR-052：選取範圍（無選取則留空字串）
+        if (e->hasSelectedText()) {
+            int aLine = 0, aIdx = 0, cLine = 0, cIdx = 0;
+            e->getSelection(&aLine, &aIdx, &cLine, &cIdx);
+            t.selection = QStringLiteral("%1,%2,%3,%4").arg(aLine).arg(aIdx).arg(cLine).arg(cIdx);
+        }
+        // FR-052：書籤行號
+        t.bookmarks = e->bookmarkedLines();
+        // FR-052：手動/自動判定出的語言鍵（無對應則留空，還原時以副檔名自動偵測）
+        t.languageOverride = languageKeyForLexer(e->lexer());
         state.tabs.push_back(t);
     }
     return state;
@@ -2176,8 +2286,28 @@ void MainWindow::openSessionState(const macpad::persistence::SessionState &state
             if (idx >= 0) { m_tabs->removeTab(idx); editor->deleteLater(); }
             continue;
         }
+        // FR-052：先還原書籤（逐行移動游標並切換，載入後全新分頁尚無書籤，切換即新增）
+        for (int ln : t.bookmarks) {
+            if (ln >= 0 && ln < editor->lines()) {
+                editor->setCursorPosition(ln, 0);
+                editor->toggleBookmark();
+            }
+        }
         editor->setCursorPosition(t.line, t.index);
         editor->SendScintilla(EditorWidget::SCI_SETFIRSTVISIBLELINE, t.firstVisibleLine);
+        // FR-052：選取範圍
+        if (!t.selection.isEmpty()) {
+            const QStringList parts = t.selection.split(QLatin1Char(','));
+            if (parts.size() == 4) {
+                editor->setSelection(parts[0].toInt(), parts[1].toInt(),
+                                     parts[2].toInt(), parts[3].toInt());
+            }
+        }
+        // FR-052：語言覆寫（空字串代表沿用副檔名自動偵測，loadFile 已處理）
+        if (!t.languageOverride.isEmpty()) {
+            if (QsciLexer *lex = macpad::core::LexerFactory::createForLanguage(t.languageOverride, editor))
+                editor->setLanguageLexer(lex);
+        }
     }
     if (state.activeIndex >= 0 && state.activeIndex < m_tabs->count())
         m_tabs->setCurrentIndex(state.activeIndex);

@@ -21,4 +21,44 @@ FileArg CliArgs::parseFileArg(const QString &arg)
     return out;
 }
 
+ParsedArgs CliArgs::parse(const QStringList &args)
+{
+    ParsedArgs out;
+
+    for (const QString &arg : args) {
+        if (arg == QLatin1String("-ro")) {
+            out.readOnly = true;
+            continue;
+        }
+        if (arg == QLatin1String("-nosession")) {
+            out.noSession = true;
+            continue;
+        }
+        if (arg == QLatin1String("-multiInst")) {
+            out.multiInstance = true;
+            continue;
+        }
+        if (arg.startsWith(QLatin1String("-n")) && arg.size() > 2) {
+            bool ok = false;
+            const int line = arg.mid(2).toInt(&ok);
+            if (ok) {
+                out.gotoLine = line;
+                continue;
+            }
+        }
+        if (arg.startsWith(QLatin1String("-c")) && arg.size() > 2) {
+            bool ok = false;
+            const int col = arg.mid(2).toInt(&ok);
+            if (ok) {
+                out.gotoColumn = col;
+                continue;
+            }
+        }
+        // 其餘視為檔案路徑（仍支援 path:line 後綴）
+        out.files.append(parseFileArg(arg));
+    }
+
+    return out;
+}
+
 }  // namespace macpad::features

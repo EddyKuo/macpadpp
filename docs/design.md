@@ -964,3 +964,56 @@ tests/      unit/（17 套件）、benchmark/
 ---
 
 *本設計文件由六個平行程式碼探勘 agent 從實際原始碼抽取結構後合成，反映 commit `17f10cc` 之後的狀態。程式碼演進時應同步更新本檔。*
+
+---
+
+## 12. Sprint 1 — Parity 缺口實作設計
+
+> 對應 PRD v1.1.0 附錄 A（FR-038..FR-052）、SRS §9、ModuleInterfaces §7。本節記錄 Sprint 1 為縮小
+> 與 Notepad++ 差距而新增的設計。所有變更皆為**加法式**，不改既有模組邊界。
+
+### 12.1 設計原則
+- **純邏輯優先**：文字/排序/欄位/CLI/Session 等以無狀態 static 函式或純資料 struct 實作，維持高可測性（延續既有 65%→91% 覆蓋策略）。
+- **加法相容**：新方法/新欄位帶預設值；既有公開簽章與 25 個測試不動。
+- **UI 接線集中於 app 層**：核心方法由 `MainWindow` 於選單/對話框接線曝光，核心模組不反向依賴 app。
+
+### 12.2 各模組新增
+
+| 模組 | 新增 | FR |
+|------|------|----|
+| `TextOps` | toRandomCase / removeConsecutiveDuplicateLines / shuffleLines / sortLinesLocale / sortLinesByLength / sortLinesAsDecimals / trimBoth / eolToSpace / spacesToTabsLeading | 038–041 |
+| `ColumnEditor` | insertTextColumn 接線 + formatNumber 遵循 upperHex | 042 |
+| `FindInFilesEngine` | FindInFilesOptions.includeHidden / excludeFilters + isExcluded() | 045 |
+| `EditorWidget` | countMatches / reinterpretAsEncoding / cutBookmarkedLines / pasteReplaceBookmarkedLines / setAutoClose+closerFor / replaceAll(dotAll) 多載 / AcsDocument 自動完成 | 043/044/047/048/049/050 |
+| `FindReplaceDialog` | Count 按鈕 / Swap 欄位 / In-selection / dot-all 勾選 | 043/044 |
+| `CliArgs` | FileArg.column + ParsedArgs + parse() | 051 |
+| `SessionStore` | TabState.selection / bookmarks / languageOverride | 052 |
+| `MainWindow` | Edit/Search/Encoding 選單接線；main.cpp 套 CliArgs::parse；跨文件取代迴圈 | 040–052 |
+
+### 12.3 關鍵設計決策（Sprint 1）
+- **隨機類函式帶 seed**（`toRandomCase`/`shuffleLines`）：以 `std::mt19937` + 可選種子參數（預設隨機），讓單元測試以固定種子斷言決定性輸出。
+- **`reinterpretAsEncoding` vs `reinterpretWithCodec`**：前者用內建 `Encoding` enum（UTF-8/16）只重新解碼不轉碼（FR-050，對映 Notepad++「Encode in…」）；後者用 `QTextCodec` 處理傳統編碼（既有 FR-019）。兩者並存、語意不同。
+- **自動配對可測試化**：把「輸入字元 → 對應閉合字元」的決策抽為 `static QChar EditorWidget::closerFor(QChar)`，讓邏輯不必透過 `keyPressEvent` 也能單元測試；`m_autoClose` 開關保留既有 `(` 觸發 call tip 行為。
+- **`replaceAll` dot-all 以多載加入**：不動既有 `replaceAll` 簽章，新增帶 `bool dotAll` 的多載，僅在該路徑改變 `.` 的換行匹配語意（std::regex `match_not_dotall` 反向）。
+- **Session 向後相容**：新欄位缺省即回退（舊 session 檔無 `selection`/`bookmarks`/`language_override` 鍵時採空值），維持既有 `activeIndex` 跳空重映射修正。
+
+### 12.4 自動配對時序
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant EW as EditorWidget
+    User->>EW: keyPressEvent（輸入 '('）
+    EW->>EW: closerFor('(') → ')'
+    alt m_autoClose 且情境允許
+        EW->>EW: 插入 "()"、游標置中
+    end
+    EW-->>EW: emit callTipRequested（保留既有行為）
+```
+
+### 12.5 尚未納入（FR-053..FR-060，後續 Sprint）
+完整 Preferences 分類、非破壞性備份/當機復原、進階自動完成引擎（API/函式/路徑 + XML 定義）、具名多主題系統、Change History margin、文件內 Find All 結果視窗、UDL 進階（多關鍵字組/Operators/Delimiters/Export/Styler）、Paste Special / Multi-Select 指令集 / Virtual Space。這些屬大型子系統，已於 PRD/SRS 文件化，待後續迭代。
+
+---
+
+*Sprint 1 增補（§12）反映 Parity 缺口第一波實作；`docs/parity-audit.md` 之狀態於實作後同步更新。*

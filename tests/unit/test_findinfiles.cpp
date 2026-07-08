@@ -131,6 +131,64 @@ private slots:
         QVERIFY(f.open(QIODevice::ReadOnly));
         QCOMPARE(QString::fromUtf8(f.readAll()), QStringLiteral("X beta X"));
     }
+
+    // FR-045：includeHidden + excludeFilters
+    void hiddenAndExcludeFilters()
+    {
+        writeFile(".hidden/secret.txt", "TODO hidden");
+        writeFile("node_modules/pkg/index.js", "TODO in node_modules");
+        writeFile("keep.min.js", "TODO minified");
+
+        // 預設：隱藏目錄不納入
+        {
+            FindInFilesOptions o;
+            o.pattern = "TODO";
+            o.fileFilters = {"*.txt"};
+            const auto r = FindInFilesEngine::search(m_dir.path(), o);
+            for (const auto &m : r)
+                QVERIFY(!m.filePath.contains(".hidden"));
+        }
+
+        // includeHidden=true：隱藏目錄的檔案應被找到
+        {
+            FindInFilesOptions o;
+            o.pattern = "TODO";
+            o.includeHidden = true;
+            o.fileFilters = {"*.txt"};
+            const auto r = FindInFilesEngine::search(m_dir.path(), o);
+            bool foundHidden = false;
+            for (const auto &m : r)
+                if (m.filePath.contains(".hidden"))
+                    foundHidden = true;
+            QVERIFY(foundHidden);
+        }
+
+        // excludeFilters：排除整個 node_modules 子目錄
+        {
+            FindInFilesOptions o;
+            o.pattern = "TODO";
+            o.excludeFilters = {"!+\\node_modules"};
+            const auto r = FindInFilesEngine::search(m_dir.path(), o);
+            for (const auto &m : r)
+                QVERIFY(!m.filePath.contains("node_modules"));
+        }
+
+        // excludeFilters：萬用字元排除特定檔名樣式
+        {
+            FindInFilesOptions o;
+            o.pattern = "TODO";
+            o.excludeFilters = {"!*.min.js"};
+            const auto r = FindInFilesEngine::search(m_dir.path(), o);
+            for (const auto &m : r)
+                QVERIFY(!m.filePath.endsWith("keep.min.js"));
+        }
+
+        // isExcluded 直接單元測試
+        QVERIFY(FindInFilesEngine::isExcluded("node_modules/pkg/index.js", "index.js",
+                                              {"!+\\node_modules"}));
+        QVERIFY(FindInFilesEngine::isExcluded("keep.min.js", "keep.min.js", {"!*.min.js"}));
+        QVERIFY(!FindInFilesEngine::isExcluded("a.txt", "a.txt", {"!*.min.js"}));
+    }
 };
 
 QTEST_APPLESS_MAIN(TestFindInFiles)

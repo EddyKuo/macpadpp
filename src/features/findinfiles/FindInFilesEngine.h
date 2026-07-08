@@ -26,6 +26,11 @@ struct FindInFilesOptions {
     QStringList fileFilters;   // 如 {"*.cpp","*.h"}；空 = 全部
     bool recursive = true;
     int maxFileBytes = 20 * 1024 * 1024;  // 單檔上限，避免吃爆記憶體
+    bool includeHidden = false;  // FR-045：是否納入隱藏檔/隱藏目錄
+    // FR-045：排除規則（Notepad++ 風格）。例：
+    //   "!*.min.js"    → 排除檔名符合萬用字元的檔案
+    //   "!+\\node_modules" 或 "!node_modules\\" → 排除整個子目錄
+    QStringList excludeFilters;
 };
 
 class FindInFilesEngine {
@@ -53,6 +58,10 @@ public:
     // 對單一內容取代，回傳新內容與取代次數（供測試）
     static QString replaceInText(const QString &content, const FindInFilesOptions &opts,
                                  const QString &replacement, int *count);
+
+    // FR-045：判斷檔案是否應被排除。relativePath 為相對 rootDir 的路徑（以 '/' 分隔）。
+    static bool isExcluded(const QString &relativePath, const QString &fileName,
+                           const QStringList &excludeFilters);
 };
 
 }  // namespace macpad::features

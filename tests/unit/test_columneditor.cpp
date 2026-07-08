@@ -55,6 +55,23 @@ private slots:
         const QString out = ColumnEditor::insertTextColumn("a\nb\nc", 0, 2, 0, "// ");
         QCOMPARE(out, QStringLiteral("// a\n// b\n// c"));
     }
+
+    void insertTextColumnPadsShortLines()
+    {
+        // 短行（"a"、空行）在欄位 3 插入固定文字時應先補空白至該欄位
+        const QString out = ColumnEditor::insertTextColumn("abcdef\na\n", 0, 2, 3, "|X|");
+        QCOMPARE(out, QStringLiteral("abc|X|def\na  |X|\n   |X|"));
+    }
+
+    void formatHexBaseRespectsUpperHexFlag()
+    {
+        // 確認 formatNumber 對 base 16 依 upperHex 旗標輸出大小寫（非固定大寫）
+        NumberSeqSpec lower; lower.base = 16; lower.upperHex = false;
+        QCOMPARE(ColumnEditor::formatNumber(0xBEEF, lower), QStringLiteral("beef"));
+
+        NumberSeqSpec upper; upper.base = 16; upper.upperHex = true;
+        QCOMPARE(ColumnEditor::formatNumber(0xBEEF, upper), QStringLiteral("BEEF"));
+    }
 };
 
 QTEST_APPLESS_MAIN(TestColumnEditor)

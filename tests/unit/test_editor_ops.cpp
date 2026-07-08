@@ -1,6 +1,8 @@
 // 單元測試：EditorWidget 進階操作（stats/折疊/縮排/行操作/區塊註解/書籤進階/
 // replaceAll 書籤保留/括號選取/編碼與 codec）——補強覆蓋率 (FR-004/007/008/010/011/019/020)
 #include <QtTest>
+#include <QApplication>
+#include <QClipboard>
 #include <QTemporaryDir>
 
 #include <Qsci/qscilexercpp.h>
@@ -276,6 +278,134 @@ private slots:
         QString err2;
         QVERIFY(!e.reinterpretWithCodec(QStringLiteral("no-such-codec"), &err2));
         QVERIFY(!err2.isEmpty());
+    }
+
+    void countMatchesDoesNotMoveCaretOrSelection()
+    {
+        // FR-047：countMatches 只計數，不移動游標、不改變選取
+        EditorWidget e;
+        e.setText(QStringLiteral("foo bar foo baz foo"));
+        e.setSelection(0, 0, 0, 3);  // 選取 "foo"（setSelection 會把游標移到選取端 col=3）
+
+        const int n = e.countMatches(QStringLiteral("foo"), false, true, false);
+        QCOMPARE(n, 3);
+
+        int line = -1, col = -1;
+        e.getCursorPosition(&line, &col);
+        QCOMPARE(line, 0);
+        QCOMPARE(col, 3);   // countMatches 未移動游標（游標仍在選取端）
+
+        int lf = -1, if_ = -1, lt = -1, it = -1;
+        e.getSelection(&lf, &if_, &lt, &it);
+        QCOMPARE(lf, 0);
+        QCOMPARE(if_, 0);
+        QCOMPARE(lt, 0);
+        QCOMPARE(it, 3);    // 選取未被改變
+
+        QCOMPARE(e.countMatches(QStringLiteral("nope"), false, true, false), 0);
+        QCOMPARE(e.countMatches(QString(), false, true, false), 0);  // 空字串直接回 0
+    }
+
+    void reinterpretAsEncodingRoundTrip()
+    {
+        // FR-048：以內建 Encoding enum 重新解讀磁碟位元組（不重新編碼）
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.path() + QStringLiteral("/t2.txt");
+
+        EditorWidget e;
+        e.setText(QStringLiteral("hello world"));
+        QString err;
+        QVERIFY2(e.saveFile(path, &err), qPrintable(err));
+        QCOMPARE(e.encoding(), Encoding::Utf8);
+
+        QVERIFY2(e.reinterpretAsEncoding(Encoding::Utf16LE, &err), qPrintable(err));
+        QCOMPARE(e.encoding(), Encoding::Utf16LE);
+        QVERIFY(!e.isDirty());  // 純重新解讀磁碟內容，視為未變更
+
+        // 未存檔（無原始位元組）時，僅設定目標編碼
+        EditorWidget e2;
+        e2.setText(QStringLiteral("untitled content"));
+        QVERIFY(e2.isUntitled());
+        QVERIFY(e2.reinterpretAsEncoding(Encoding::Utf16BE, nullptr));
+        QCOMPARE(e2.encoding(), Encoding::Utf16BE);
+        QVERIFY(e2.isDirty());
+    }
+
+    void cutAndPasteReplaceBookmarkedLines()
+    {
+        // FR-049：cutBookmarkedLines 複製書籤行到剪貼簿後刪除；
+        // pasteReplaceBookmarkedLines 以剪貼簿行依序取代各書籤行內容
+        EditorWidget e;
+        e.setText(QStringLiteral("l0\nl1\nl2\nl3\nl4\n"));
+        e.setCursorPosition(1, 0);
+        e.toggleBookmark();
+        e.setCursorPosition(3, 0);
+        e.toggleBookmark();
+
+        e.cutBookmarkedLines();
+        QCOMPARE(e.text(), QStringLiteral("l0\nl2\nl4\n"));
+        QCOMPARE(qApp->clipboard()->text(), QStringLiteral("l1\nl3"));
+        QVERIFY(e.bookmarkedLines().isEmpty());  // 書籤行已被刪除
+
+        // 重新標記兩行書籤，貼上剪貼簿內容（3 行）逐一取代
+        EditorWidget e2;
+        e2.setText(QStringLiteral("a0\na1\na2\n"));
+        e2.setCursorPosition(0, 0);
+        e2.toggleBookmark();
+        e2.setCursorPosition(2, 0);
+        e2.toggleBookmark();
+
+        qApp->clipboard()->setText(QStringLiteral("X\nY\nZ"));
+        e2.pasteReplaceBookmarkedLines();
+        QCOMPARE(e2.text(0), QStringLiteral("X\n"));
+        QCOMPARE(e2.text(1), QStringLiteral("a1\n"));
+        QCOMPARE(e2.text(2), QStringLiteral("Y\n"));
+
+        // 剪貼簿行數少於書籤數時，多出的書籤行清空
+        EditorWidget e3;
+        e3.setText(QStringLiteral("b0\nb1\nb2\n"));
+        e3.setCursorPosition(0, 0);
+        e3.toggleBookmark();
+        e3.setCursorPosition(1, 0);
+        e3.toggleBookmark();
+        e3.setCursorPosition(2, 0);
+        e3.toggleBookmark();
+
+        qApp->clipboard()->setText(QStringLiteral("only-one"));
+        e3.pasteReplaceBookmarkedLines();
+        QCOMPARE(e3.text(0), QStringLiteral("only-one\n"));
+        QCOMPARE(e3.text(1), QStringLiteral("\n"));
+        QCOMPARE(e3.text(2), QStringLiteral("\n"));
+    }
+
+    void autoCloseCloserForHelper()
+    {
+        // FR-050：closerFor() 為 keyPressEvent 自動配對的可測試決策核心
+        QCOMPARE(EditorWidget::closerFor(QChar('(')), QChar(')'));
+        QCOMPARE(EditorWidget::closerFor(QChar('[')), QChar(']'));
+        QCOMPARE(EditorWidget::closerFor(QChar('{')), QChar('}'));
+        QCOMPARE(EditorWidget::closerFor(QChar('"')), QChar('"'));
+        QCOMPARE(EditorWidget::closerFor(QChar('\'')), QChar('\''));
+        QVERIFY(EditorWidget::closerFor(QChar('x')).isNull());
+    }
+
+    void autoCloseInsertsPairViaKeyPress()
+    {
+        // 透過 QTest::keyClick 實際觸發 keyPressEvent，驗證括號自動配對與可關閉開關
+        EditorWidget e;
+        QVERIFY(e.autoClose());  // 預設開啟
+        QTest::keyClick(&e, '(');
+        QCOMPARE(e.text(), QStringLiteral("()"));
+        int line = -1, col = -1;
+        e.getCursorPosition(&line, &col);
+        QCOMPARE(col, 1);   // 游標停在兩符號之間
+
+        e.setAutoClose(false);
+        QVERIFY(!e.autoClose());
+        e.setText(QString());
+        QTest::keyClick(&e, '(');
+        QCOMPARE(e.text(), QStringLiteral("("));  // 關閉後不再自動配對
     }
 };
 
