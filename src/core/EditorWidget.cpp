@@ -6,6 +6,7 @@
 #include <QClipboard>
 #include <QColor>
 #include <QDateTime>
+#include <QEvent>
 #include <QFile>
 #include <QFileInfo>
 #include <QFont>
@@ -14,7 +15,9 @@
 #include <QKeyEvent>
 #include <QLocale>
 #include <QMimeData>
+#include <QMouseEvent>
 #include <QPair>
+#include <QVector>
 #include <QRegularExpression>
 #include <QSaveFile>
 #include <QStringList>
@@ -146,6 +149,9 @@ EditorWidget::EditorWidget(QWidget *parent)
     // 智慧高亮：游標移動時重標游標所在字詞的所有出現處（僅在開啟時作動）
     connect(this, &QsciScintilla::cursorPositionChanged,
             this, &EditorWidget::onCursorPositionChanged);
+
+    // 攔截 viewport 雙擊事件：支援 Ctrl/⌘+雙擊選整個字（ctrlDoubleClickWholeWord）
+    viewport()->installEventFilter(this);
 }
 
 EditorWidget::~EditorWidget()
@@ -231,6 +237,12 @@ void EditorWidget::applyDefaultConfig()
         SendScintilla(SCI_INDICSETFORE, static_cast<unsigned long>(ind), kTokenColors[i]);
         SendScintilla(SCI_INDICSETALPHA, static_cast<unsigned long>(ind), 90);
     }
+
+    // 標籤配對高亮指示器（kTagMatchIndicator）——實線外框，橘色，明顯區隔於智慧高亮
+    SendScintilla(SCI_INDICSETSTYLE, static_cast<unsigned long>(kTagMatchIndicator), INDIC_STRAIGHTBOX);
+    SendScintilla(SCI_INDICSETFORE, static_cast<unsigned long>(kTagMatchIndicator), 0x0000A5FFUL);
+    SendScintilla(SCI_INDICSETALPHA, static_cast<unsigned long>(kTagMatchIndicator), 70);
+    SendScintilla(SCI_INDICSETOUTLINEALPHA, static_cast<unsigned long>(kTagMatchIndicator), 180);
 
     // 書籤符號邊欄（margin 1，FR-008）
     setMarginType(1, QsciScintilla::SymbolMargin);
@@ -1445,13 +1457,244 @@ void EditorWidget::setSmartHighlight(bool enabled)
 
 void EditorWidget::onCursorPositionChanged()
 {
-    if (!m_smartHighlight)
-        return;  // 未開啟時不作動（避免無謂搜尋）
-    clearIndicatorRange(kSmartIndicator);
-    const QString word = wordUnderCaret();
-    if (word.isEmpty())
-        return;  // 游標不在字詞內：僅清除
-    fillWordOccurrences(word, kSmartIndicator);
+    // 智慧高亮與標籤配對高亮為獨立開關，各自處理（避免其一關閉時影響另一）。
+    if (m_smartHighlight) {
+        clearIndicatorRange(kSmartIndicator);
+        const QString word = wordUnderCaret();
+        if (!word.isEmpty())  // 游標不在字詞內：僅清除
+            fillWordOccurrences(word, kSmartIndicator);
+    }
+    if (m_highlightMatchingTags)
+        updateTagMatchHighlight();
+}
+
+// === 標示相符標籤（Highlight Matching Tags）===
+void EditorWidget::setHighlightMatchingTags(bool enabled)
+{
+    m_highlightMatchingTags = enabled;
+    if (enabled)
+        updateTagMatchHighlight();  // 立即依目前游標標記一次
+    else
+        clearIndicatorRange(kTagMatchIndicator);  // 關閉時清除既有標記
+}
+
+void EditorWidget::updateTagMatchHighlight()
+{
+    clearIndicatorRange(kTagMatchIndicator);
+    const QString content = text();
+    const QByteArray bytes = content.toUtf8();
+    const long caretByte = SendScintilla(SCI_GETCURRENTPOS);
+    // Scintilla 位置以位元組計、matchingTagRanges 以字元計：先把游標位元組位置轉為字元索引。
+    const long clamped = qBound<long>(0, caretByte, static_cast<long>(bytes.size()));
+    const int caretChar = QString::fromUtf8(bytes.constData(), static_cast<int>(clamped)).size();
+
+    int os = 0, oe = 0, cs = 0, ce = 0;
+    if (!matchingTagRanges(content, caretChar, &os, &oe, &cs, &ce))
+        return;
+
+    SendScintilla(SCI_SETINDICATORCURRENT, static_cast<unsigned long>(kTagMatchIndicator));
+    // 字元範圍 → 位元組範圍後填色
+    auto fill = [&](int cStart, int cEnd) {
+        if (cEnd <= cStart)
+            return;
+        const int bStart = content.left(cStart).toUtf8().size();
+        const int bLen = content.mid(cStart, cEnd - cStart).toUtf8().size();
+        SendScintilla(SCI_INDICATORFILLRANGE, static_cast<unsigned long>(bStart),
+                      static_cast<unsigned long>(bLen));
+    };
+    fill(os, oe);
+    if (cs != os || ce != oe)  // 自閉合標籤兩範圍相同：只填一次
+        fill(cs, ce);
+}
+
+bool EditorWidget::matchingTagRanges(const QString &text, int caretChar,
+                                     int *openStart, int *openEnd,
+                                     int *closeStart, int *closeEnd)
+{
+    // 標籤 token：[start,end) 為含 '<' 與 '>' 的字元範圍；kind：0=開啟 1=閉合 2=自閉合/其他（不配對）
+    struct Tag { int start; int end; QString name; int kind; };
+
+    auto tagName = [](const QString &s) -> QString {
+        int j = 0;
+        while (j < s.size() && s.at(j).isSpace())
+            ++j;
+        int k = j;
+        if (k < s.size() && (s.at(k).isLetter() || s.at(k) == QLatin1Char('_'))) {
+            ++k;
+            while (k < s.size()) {
+                const QChar c = s.at(k);
+                if (c.isLetterOrNumber() || c == QLatin1Char('-') || c == QLatin1Char('_')
+                    || c == QLatin1Char(':'))
+                    ++k;
+                else
+                    break;
+            }
+        }
+        return s.mid(j, k - j);
+    };
+
+    QVector<Tag> tags;
+    const int n = text.size();
+    int i = 0;
+    while (i < n) {
+        if (text.at(i) != QLatin1Char('<')) {
+            ++i;
+            continue;
+        }
+        const int lt = i;
+        // 略過註解 <!-- -->（其內部的 '<'/'>' 不視為標籤）
+        if (text.mid(lt, 4) == QLatin1String("<!--")) {
+            const int endc = text.indexOf(QLatin1String("-->"), lt + 4);
+            i = (endc < 0) ? n : endc + 3;
+            continue;
+        }
+        const int gt = text.indexOf(QLatin1Char('>'), lt + 1);
+        if (gt < 0)
+            break;
+        const QString inner = text.mid(lt + 1, gt - lt - 1);
+        int kind;
+        QString name;
+        if (inner.startsWith(QLatin1Char('!')) || inner.startsWith(QLatin1Char('?'))) {
+            kind = 2;  // 宣告/PI：不配對
+        } else if (inner.startsWith(QLatin1Char('/'))) {
+            kind = 1;  // 閉合標籤
+            name = tagName(inner.mid(1));
+        } else if (inner.trimmed().endsWith(QLatin1Char('/'))) {
+            kind = 2;  // 自閉合標籤：只標示自身
+            name = tagName(inner);
+        } else {
+            kind = 0;  // 開啟標籤
+            name = tagName(inner);
+        }
+        tags.append({lt, gt + 1, name, kind});
+        i = gt + 1;
+    }
+
+    // 找出游標所在標籤（範圍不重疊；允許游標剛好落在 '>' 之後）
+    int cur = -1;
+    for (int t = 0; t < tags.size(); ++t) {
+        if (tags.at(t).start <= caretChar && caretChar <= tags.at(t).end) {
+            cur = t;
+            break;
+        }
+    }
+    if (cur < 0 || tags.at(cur).name.isEmpty())
+        return false;
+
+    const Tag ct = tags.at(cur);
+    auto setResult = [&](const Tag &open, const Tag &close) {
+        *openStart = open.start;
+        *openEnd = open.end;
+        *closeStart = close.start;
+        *closeEnd = close.end;
+    };
+
+    if (ct.kind == 2) {  // 自閉合：開啟/閉合範圍相同
+        setResult(ct, ct);
+        return true;
+    }
+    if (ct.kind == 0) {  // 開啟標籤：往後找配對閉合，計深度
+        int depth = 0;
+        for (int t = cur; t < tags.size(); ++t) {
+            if (tags.at(t).name != ct.name)
+                continue;
+            if (tags.at(t).kind == 0) {
+                ++depth;
+            } else if (tags.at(t).kind == 1) {
+                --depth;
+                if (depth == 0) {
+                    setResult(ct, tags.at(t));
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+    // ct.kind == 1 閉合標籤：往前找配對開啟，計深度
+    int depth = 0;
+    for (int t = cur; t >= 0; --t) {
+        if (tags.at(t).name != ct.name)
+            continue;
+        if (tags.at(t).kind == 1) {
+            ++depth;
+        } else if (tags.at(t).kind == 0) {
+            --depth;
+            if (depth == 0) {
+                setResult(tags.at(t), ct);
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+// === Ctrl/⌘+雙擊選整個字 / 摺疊邊界樣式 ===
+bool EditorWidget::eventFilter(QObject *watched, QEvent *event)
+{
+    if (watched == viewport() && event->type() == QEvent::MouseButtonDblClick) {
+        auto *me = static_cast<QMouseEvent *>(event);
+        const bool wantWholeWord =
+            m_ctrlDoubleClickWholeWord && me->button() == Qt::LeftButton
+            && (me->modifiers() & (Qt::ControlModifier | Qt::MetaModifier));
+        if (wantWholeWord) {
+            const QPoint p = me->position().toPoint();
+            const long pos = SendScintilla(SCI_POSITIONFROMPOINT,
+                                           static_cast<unsigned long>(p.x()),
+                                           static_cast<long>(p.y()));
+            if (pos >= 0) {
+                // 以「預設字元集」（英數 + '_'，忽略 delimiter 覆寫）於字元空間計算整詞邊界。
+                const QString content = text();
+                const QByteArray bytes = content.toUtf8();
+                const long clamped = qBound<long>(0, pos, static_cast<long>(bytes.size()));
+                const int caretChar =
+                    QString::fromUtf8(bytes.constData(), static_cast<int>(clamped)).size();
+                auto isWord = [](QChar c) {
+                    return c.isLetterOrNumber() || c == QLatin1Char('_');
+                };
+                int ws = caretChar;
+                int we = caretChar;
+                while (ws > 0 && isWord(content.at(ws - 1)))
+                    --ws;
+                while (we < content.size() && isWord(content.at(we)))
+                    ++we;
+                if (we > ws) {
+                    const int bws = content.left(ws).toUtf8().size();
+                    const int bwe = content.left(we).toUtf8().size();
+                    SendScintilla(SCI_SETSELECTION, static_cast<unsigned long>(bws),
+                                  static_cast<long>(bwe));
+                    return true;  // 已自行處理，消化事件避免預設雙擊覆寫選取
+                }
+            }
+        }
+    }
+    return QsciScintilla::eventFilter(watched, event);
+}
+
+void EditorWidget::setFoldMarginStyle(int style)
+{
+    // 對應 persistence::FoldMarginStyle 序位；折疊邊欄固定為 margin 2（見 applyDefaultConfig）。
+    switch (style) {
+    case 0:  // None：停用折疊邊欄
+        setFolding(QsciScintilla::NoFoldStyle, 2);
+        break;
+    case 2:  // Arrow：以箭頭符號覆寫折疊 marker
+        setFolding(QsciScintilla::PlainFoldStyle, 2);
+        SendScintilla(SCI_MARKERDEFINE, static_cast<unsigned long>(SC_MARKNUM_FOLDER),
+                      static_cast<long>(SC_MARK_ARROW));
+        SendScintilla(SCI_MARKERDEFINE, static_cast<unsigned long>(SC_MARKNUM_FOLDEROPEN),
+                      static_cast<long>(SC_MARK_ARROWDOWN));
+        break;
+    case 3:  // Circle：圓形樹狀
+        setFolding(QsciScintilla::CircledTreeFoldStyle, 2);
+        break;
+    case 4:  // Box：方框樹狀
+        setFolding(QsciScintilla::BoxedTreeFoldStyle, 2);
+        break;
+    case 1:  // Simple：加減號
+    default:
+        setFolding(QsciScintilla::PlainFoldStyle, 2);
+        break;
+    }
 }
 
 // === 詞彙上色（5 色）===

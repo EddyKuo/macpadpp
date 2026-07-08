@@ -31,6 +31,11 @@ public:
     void refresh(const QStringList &names, const QStringList &paths, int current,
                  const QList<QColor> &colors = QList<QColor>());
 
+    // 文件預覽（docPeekerEnabled）：啟用後滑鼠停在某列時，以 tooltip 顯示該文件前幾行內容。
+    // previews 依「原始索引」對齊 refresh 的 names。由 MainWindow 於 refreshDocList 時提供即時內容。
+    void setPeekEnabled(bool enabled) { m_peekEnabled = enabled; }
+    void setPreviews(const QStringList &previews) { m_previews = previews; }
+
 signals:
     void activated(int index);        // 點選（顯示列 → 原始索引已轉換）
     void closeRequested(int index);   // 中鍵點擊或右鍵選單「Close」（原始索引）
@@ -47,6 +52,8 @@ private:
 
     QStringList m_names;
     QStringList m_paths;
+    QStringList m_previews;     // 每列文件前幾行預覽（docPeekerEnabled）
+    bool m_peekEnabled = false; // 文件預覽開關
     QList<QColor> m_colors;
     int m_current = -1;
     bool m_sortAsc = false;

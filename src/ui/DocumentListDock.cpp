@@ -5,10 +5,12 @@
 #include <QCheckBox>
 #include <QClipboard>
 #include <QEvent>
+#include <QHelpEvent>
 #include <QListWidget>
 #include <QListWidgetItem>
 #include <QMenu>
 #include <QMouseEvent>
+#include <QToolTip>
 #include <QVBoxLayout>
 #include <QWidget>
 
@@ -104,6 +106,20 @@ int DocumentListDock::displayRowToOriginal(int displayRow) const
 
 bool DocumentListDock::eventFilter(QObject *watched, QEvent *event)
 {
+    // 文件預覽（docPeekerEnabled）：滑鼠停留時以 tooltip 顯示該列文件前幾行。
+    if (m_peekEnabled && watched == m_list->viewport() && event->type() == QEvent::ToolTip) {
+        auto *helpEvent = static_cast<QHelpEvent *>(event);
+        QListWidgetItem *item = m_list->itemAt(helpEvent->pos());
+        if (item) {
+            const int origIdx = displayRowToOriginal(m_list->row(item));
+            if (origIdx >= 0 && origIdx < m_previews.size() && !m_previews.at(origIdx).isEmpty()) {
+                QToolTip::showText(helpEvent->globalPos(), m_previews.at(origIdx), m_list);
+                return true;
+            }
+        }
+        QToolTip::hideText();
+        return true;  // 開啟預覽時抑制預設（空）tooltip
+    }
     if (watched == m_list->viewport() && event->type() == QEvent::MouseButtonRelease) {
         auto *mouseEvent = static_cast<QMouseEvent *>(event);
         if (mouseEvent->button() == Qt::MiddleButton) {

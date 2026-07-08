@@ -225,6 +225,28 @@ public:
     void setSmartHighlight(bool enabled);
     bool smartHighlight() const { return m_smartHighlight; }
 
+    // === 標示相符標籤（Highlight Matching Tags）===
+    // 開啟後，游標移入 HTML/XML 標籤時，以專用指示器同時標示開啟與閉合標籤配對
+    // （自閉合標籤只標示自身）。每次游標移動先清除再重標。
+    void setHighlightMatchingTags(bool enabled);
+    bool highlightMatchingTags() const { return m_highlightMatchingTags; }
+
+    // 純函式：由全文與游標「字元位置」找出游標所在標籤及其配對標籤的字元範圍。
+    // 命中回傳 true，並以 [start,end) 字元範圍填入開啟/閉合標籤（自閉合時兩者相同）；
+    // 未落在可配對標籤上回傳 false。供 onCursorPositionChanged 與單元測試共用。
+    static bool matchingTagRanges(const QString &text, int caretChar,
+                                  int *openStart, int *openEnd,
+                                  int *closeStart, int *closeEnd);
+
+    // === Ctrl（macOS ⌘）+雙擊選整個字（Delimiter 頁 ctrlDoubleClickWholeWord）===
+    // 開啟後，按住 Ctrl/⌘ 雙擊時以「預設字元集」（忽略 delimiter 覆寫）選取整個字；
+    // 未按修飾鍵或關閉時維持預設雙擊（依 delimiterChars 斷字）行為。
+    void setCtrlDoubleClickWholeWord(bool enabled) { m_ctrlDoubleClickWholeWord = enabled; }
+    bool ctrlDoubleClickWholeWord() const { return m_ctrlDoubleClickWholeWord; }
+
+    // 摺疊邊界樣式（對應 persistence::FoldMarginStyle 序位：0=None 1=Simple 2=Arrow 3=Circle 4=Box）
+    void setFoldMarginStyle(int style);
+
     // === 詞彙上色（5 色 Style Token）===
     // 以 5 種不同指示器（kTokenIndicatorBase..+4）標記目前字詞（或選取）的所有出現處。
     // 與 markAll 不同，這些標記持續存在直到 clearStyledTokens 清除。
@@ -234,6 +256,8 @@ public:
     // 智慧高亮專用指示器；詞彙上色指示器基底（連續 5 個：base..base+4）。
     static constexpr int kSmartIndicator = 2;
     static constexpr int kTokenIndicatorBase = 3;
+    // 標籤配對高亮指示器（避開 kTokenIndicatorBase..+4 = 3..7）
+    static constexpr int kTagMatchIndicator = 8;
 
     // 查詢某指示器目前標記了幾個獨立範圍（供測試/UI 統計）。
     int indicatorRangeCount(int indicator) const;
@@ -271,6 +295,8 @@ signals:
 
 protected:
     void keyPressEvent(QKeyEvent *event) override;
+    // 攔截 viewport 的雙擊事件以支援 Ctrl/⌘+雙擊選整個字（見 m_ctrlDoubleClickWholeWord）。
+    bool eventFilter(QObject *watched, QEvent *event) override;
 
 private slots:
     void onMarginClicked(int margin, int line, Qt::KeyboardModifiers state);
@@ -286,6 +312,8 @@ private:
     // 取游標所在字詞（無字詞回空字串）。
     QString wordUnderCaret() const;
     void applyLexerForPath(const QString &path);
+    // 依 m_highlightMatchingTags 標示游標所在標籤與其配對標籤（清除舊標記後重標）。
+    void updateTagMatchHighlight();
     void applyEolMode(Eol eol);
     void toggleBookmarkAtLine(int line);
     // 依 m_columnSelectionToMultiEdit 開關，將 [anchorPos, caretPos] 矩形涵蓋的每一行、
@@ -309,6 +337,8 @@ private:
     long m_selectAnchorPos = 0;
     bool m_hasSelectAnchor = false;
     bool m_smartHighlight = false;  // 智慧高亮開關
+    bool m_highlightMatchingTags = false;  // 標示相符 HTML/XML 標籤開關
+    bool m_ctrlDoubleClickWholeWord = true;  // Ctrl/⌘+雙擊選整個字開關
     bool m_changeHistoryEnabled = false;  // 變更歷史開關狀態（FR-057）
     bool m_virtualSpace = false;          // 虛擬空間開關狀態（FR-060）
 

@@ -91,6 +91,45 @@ private slots:
         QVERIFY(e.isDirty());
         QVERIFY(e.displayName().startsWith(QStringLiteral("●")));
     }
+
+    // 標籤配對（highlightMatchingTags 引擎邏輯）——純函式，字元索引空間
+    void matchingTagRanges()
+    {
+        // 游標落在開啟標籤 <b> 內 → 配對到閉合 </b>
+        const QString html = QStringLiteral("<a><b>text</b></a>");
+        //                                    0123456789...
+        int os = 0, oe = 0, cs = 0, ce = 0;
+        // caret 在 <b>（index 3..5）
+        QVERIFY(EditorWidget::matchingTagRanges(html, 4, &os, &oe, &cs, &ce));
+        QCOMPARE(html.mid(os, oe - os), QStringLiteral("<b>"));
+        QCOMPARE(html.mid(cs, ce - cs), QStringLiteral("</b>"));
+
+        // 游標落在閉合標籤 </a> → 往前配對到開啟 <a>
+        const int closeAPos = html.indexOf(QStringLiteral("</a>")) + 1;
+        QVERIFY(EditorWidget::matchingTagRanges(html, closeAPos, &os, &oe, &cs, &ce));
+        QCOMPARE(html.mid(os, oe - os), QStringLiteral("<a>"));
+        QCOMPARE(html.mid(cs, ce - cs), QStringLiteral("</a>"));
+
+        // 巢狀同名標籤：深度計數需正確配對
+        const QString nested = QStringLiteral("<div><div>x</div></div>");
+        QVERIFY(EditorWidget::matchingTagRanges(nested, 1, &os, &oe, &cs, &ce));
+        QCOMPARE(os, 0);                       // 外層 <div>
+        QCOMPARE(ce, nested.size());           // 配對到最後的 </div>
+
+        // 自閉合標籤 <br/>：開啟/閉合範圍相同
+        const QString selfClose = QStringLiteral("a<br/>b");
+        QVERIFY(EditorWidget::matchingTagRanges(selfClose, 2, &os, &oe, &cs, &ce));
+        QCOMPARE(os, cs);
+        QCOMPARE(oe, ce);
+        QCOMPARE(selfClose.mid(os, oe - os), QStringLiteral("<br/>"));
+
+        // 游標不在任何標籤內（純文字）→ 不配對
+        QVERIFY(!EditorWidget::matchingTagRanges(html, 8, &os, &oe, &cs, &ce));
+
+        // 沒有配對的孤立開啟標籤 → 不配對
+        const QString unmatched = QStringLiteral("<p>hello");
+        QVERIFY(!EditorWidget::matchingTagRanges(unmatched, 1, &os, &oe, &cs, &ce));
+    }
 };
 
 QTEST_MAIN(TestEditor)

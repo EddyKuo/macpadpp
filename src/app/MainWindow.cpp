@@ -276,7 +276,8 @@ MainWindow::MainWindow(QWidget *parent, bool restoreSessionOnLaunch)
     rebuildRunShortcuts();
 
     // 文件切換器（MISC 頁 docSwitcherEnabled）：Ctrl+Tab / Ctrl+Shift+Tab 前後切換分頁。
-    // 於觸發時讀取即時設定，關閉時不動作（docPeekerEnabled 的即時預覽尚未實作，見報告）。
+    // 於觸發時讀取即時設定，關閉時不動作。
+    // docPeekerEnabled 的文件預覽由 Document List（DocumentListDock）hover tooltip 實作，見 refreshDocList。
     {
         auto *nextDoc = new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_Tab), this);
         connect(nextDoc, &QShortcut::activated, this, [this] {
@@ -1792,7 +1793,27 @@ void MainWindow::applyEditorPrefs(EditorWidget *editor, const macpad::persistenc
         if (s.edgeColumn > 0)
             editor->SendScintilla(QsciScintillaBase::SCI_SETEDGECOLUMN,
                                   static_cast<unsigned long>(s.edgeColumn));
+        // 多重邊界線（multiEdgeEnabled）：於單一 edge 之外，在數個常用欄位加畫垂直參考線。
+        editor->SendScintilla(QsciScintillaBase::SCI_MULTIEDGECLEARALL);
+        if (s.multiEdgeEnabled) {
+            const long colour = editor->SendScintilla(QsciScintillaBase::SCI_GETEDGECOLOUR);
+            QList<int> cols;
+            if (s.edgeColumn > 0)
+                cols << s.edgeColumn;
+            for (int c : {72, 80, 120}) {  // 合理預設欄位（去重）
+                if (!cols.contains(c))
+                    cols << c;
+            }
+            for (int c : cols)
+                editor->SendScintilla(QsciScintillaBase::SCI_MULTIEDGEADDLINE,
+                                      static_cast<unsigned long>(c), colour);
+        }
     }
+    // 摺疊邊界樣式（foldMarginStyle）：對應 Notepad++ Fold Margin Style
+    editor->setFoldMarginStyle(static_cast<int>(s.foldMarginStyle));
+    // Ctrl/⌘+雙擊選整個字（Delimiter 頁）與標示相符標籤（Highlighting 頁）
+    editor->setCtrlDoubleClickWholeWord(s.ctrlDoubleClickWholeWord);
+    editor->setHighlightMatchingTags(s.highlightMatchingTags);
     editor->setAutoClose(s.autoInsertPairs);          // 括號/引號自動配對
     editor->setWordCompletionEnabled(s.wordAutoComplete);
     editor->setAutoCompletionThreshold(s.acThreshold);
@@ -3729,7 +3750,27 @@ void MainWindow::refreshDocList()
     if (!m_docList)
         return;
     // 文件清單合併兩個檢視（FR-062）；m_docListMap 記錄每列對應的 (檢視, 分頁索引) 供跳轉。
+    // 前幾行預覽（docPeekerEnabled）：取即時文字（含未存/未命名），限行數與每行長度避免過大 tooltip。
+    auto previewOf = [](const QString &content) -> QString {
+        const QStringList lines = content.split(QLatin1Char('\n'));
+        const int n = qMin(15, int(lines.size()));
+        QStringList head;
+        head.reserve(n);
+        for (int i = 0; i < n; ++i) {
+            QString ln = lines.at(i);
+            if (ln.size() > 200)
+                ln = ln.left(200) + QStringLiteral("…");
+            head << ln;
+        }
+        QString out = head.join(QLatin1Char('\n'));
+        if (lines.size() > 15)
+            out += QStringLiteral("\n…");
+        return out;
+    };
+
     QStringList names;
+    QStringList paths;
+    QStringList previews;
     m_docListMap.clear();
     int current = -1;
     int viewIdx = 0;
@@ -3737,8 +3778,11 @@ void MainWindow::refreshDocList()
         if (w && (w == m_tabs || w->count() > 0)) {  // 第二檢視空則不列
             for (int i = 0; i < w->count(); ++i) {
                 EditorPane *p = paneIn(w, i);
+                EditorWidget *ed = p ? p->primary() : nullptr;
                 const QString prefix = (viewIdx == 1) ? QStringLiteral("② ") : QString();
                 names << prefix + (p ? p->tabTitle() : tr("Untitled"));
+                paths << (ed ? ed->filePath() : QString());
+                previews << (ed ? previewOf(ed->text()) : QString());
                 if (w == currentTabWidget() && i == w->currentIndex())
                     current = int(m_docListMap.size());
                 m_docListMap.append({w, i});
@@ -3746,7 +3790,9 @@ void MainWindow::refreshDocList()
         }
         ++viewIdx;
     }
-    m_docList->refresh(names, current);
+    m_docList->setPeekEnabled(macpad::persistence::SettingsStore::load().docPeekerEnabled);
+    m_docList->setPreviews(previews);
+    m_docList->refresh(names, paths, current);
 }
 
 void MainWindow::refreshPanels()
