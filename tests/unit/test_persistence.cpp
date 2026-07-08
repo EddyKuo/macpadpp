@@ -48,6 +48,7 @@ private slots:
         t.selection = QStringLiteral("1,0,3,5");
         t.bookmarks = {2, 7, 9};
         t.languageOverride = QStringLiteral("python");
+        t.view = 1;   // FR-062：分頁所屬檢視
         in.tabs = {t};
         QVERIFY(SessionStore::save(in));
 
@@ -56,6 +57,7 @@ private slots:
         QCOMPARE(out.tabs[0].selection, QStringLiteral("1,0,3,5"));
         QCOMPARE(out.tabs[0].bookmarks, (QList<int>{2, 7, 9}));
         QCOMPARE(out.tabs[0].languageOverride, QStringLiteral("python"));
+        QCOMPARE(out.tabs[0].view, 1);   // FR-062 round-trip
     }
 
     void sessionMissingNewFieldsDefaultEmpty()

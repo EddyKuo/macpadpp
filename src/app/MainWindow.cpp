@@ -94,6 +94,10 @@ using macpad::core::EditorWidget;
 // 前置宣告：定義見檔案後段（Session 還原也會用到），addEditorTab 的 lexerChanged 處理提前需要。
 static QString languageKeyForLexer(QsciLexer *lex);
 
+// Dual-View（FR-062）：Find All 結果的 docId 以 view*kViewDocIdBase + tabIndex 複合編碼，
+// 供結果面板跳轉時解碼回（檢視, 分頁）。單一檢視分頁數遠小於此基數，不會溢位重疊。
+static constexpr int kViewDocIdBase = 100000;
+
 // 將設定檔的備份模式（persistence::BackupMode）轉為 BackupService 使用的 features::BackupMode
 // （兩者列舉語意一致但屬不同模組，避免 persistence 直接依賴 features）。
 static macpad::features::BackupMode toFeatureBackupMode(macpad::persistence::BackupMode m)
@@ -151,9 +155,15 @@ MainWindow::MainWindow(QWidget *parent, bool restoreSessionOnLaunch)
     addDockWidget(Qt::LeftDockWidgetArea, m_docList);
     m_docList->hide();  // 預設隱藏，由 View 選單開啟
     connect(m_docList, &macpad::ui::DocumentListDock::activated, this, [this](int idx) {
-        QTabWidget *w = currentTabWidget();
-        if (idx >= 0 && idx < w->count())
-            w->setCurrentIndex(idx);
+        // 合併清單的列索引→(檢視, 分頁索引)（FR-062）
+        if (idx < 0 || idx >= m_docListMap.size())
+            return;
+        QTabWidget *w = m_docListMap[idx].first;
+        const int tab = m_docListMap[idx].second;
+        if (w && tab >= 0 && tab < w->count()) {
+            setActiveTabWidget(w);
+            w->setCurrentIndex(tab);
+        }
     });
 
     // 停靠面板（FR-029）：Function List / Clipboard History / Document Map
@@ -2050,16 +2060,22 @@ void MainWindow::createSearchMenu(QMenu *searchMenu)
             return;
         m_lastFindText = pattern;
 
-        // TODO(sprint4): 目前僅搜尋作用中檢視；跨兩個檢視彙整需為 docId 設計 (view,index) 複合鍵。
-        QTabWidget *searchView = currentTabWidget();
+        // FR-062：跨兩個檢視彙整搜尋。docId 以複合鍵編碼 (view, tabIndex)：view*kViewDocIdBase + i。
         QVector<macpad::features::FindAllMatch> all;
-        for (int i = 0; i < searchView->count(); ++i) {
-            EditorWidget *e = editorIn(searchView, i);
-            if (!e)
-                continue;
-            all += macpad::features::FindAllEngine::searchInText(
-                i, searchView->tabText(i), e->text(), pattern,
-                /*regex=*/false, /*cs=*/false, /*wholeWord=*/false);
+        int viewIdx = 0;
+        for (QTabWidget *sv : {m_tabs, m_tabs2}) {
+            if (sv) {
+                for (int i = 0; i < sv->count(); ++i) {
+                    EditorWidget *e = editorIn(sv, i);
+                    if (!e)
+                        continue;
+                    const QString title = (viewIdx == 1 ? QStringLiteral("② ") : QString()) + sv->tabText(i);
+                    all += macpad::features::FindAllEngine::searchInText(
+                        viewIdx * kViewDocIdBase + i, title, e->text(), pattern,
+                        /*regex=*/false, /*cs=*/false, /*wholeWord=*/false);
+                }
+            }
+            ++viewIdx;
         }
 
         if (!m_findAllDock) {
@@ -2067,10 +2083,12 @@ void MainWindow::createSearchMenu(QMenu *searchMenu)
             addDockWidget(Qt::BottomDockWidgetArea, m_findAllDock);
             connect(m_findAllDock, &macpad::features::FindAllDock::openLocation, this,
                     [this](int docId, int line, int column) {
-                QTabWidget *w = currentTabWidget();
-                if (docId < 0 || docId >= w->count())
+                QTabWidget *w = (docId >= kViewDocIdBase) ? m_tabs2 : m_tabs;  // 解碼檢視
+                const int idx = docId % kViewDocIdBase;
+                if (!w || idx < 0 || idx >= w->count())
                     return;
-                w->setCurrentIndex(docId);
+                setActiveTabWidget(w);
+                w->setCurrentIndex(idx);
                 if (EditorWidget *e = currentEditor()) {
                     e->setCursorPosition(qMax(0, line - 1), qMax(0, column - 1));
                     e->ensureLineVisible(qMax(0, line - 1));
@@ -2784,8 +2802,8 @@ static QString languageKeyForLexer(QsciLexer *lex)
 macpad::persistence::SessionState MainWindow::buildCurrentSession() const
 {
     using namespace macpad::persistence;
-    // TODO(sprint4): session 尚未記錄「分頁位於哪個檢視」；還原時全部落在主檢視。
-    // 兩個檢視的已命名檔攤平成單一清單（clone 為 untitled 自動略過，不會重覆）。
+    // 兩個檢視的已命名檔攤平成單一清單（clone 為 untitled 自動略過，不會重覆）；
+    // 每筆記錄所屬檢視（FR-062），還原時歸位。
     SessionState state;
     EditorWidget *active = currentEditor();
     state.activeIndex = 0;
@@ -2815,6 +2833,7 @@ macpad::persistence::SessionState MainWindow::buildCurrentSession() const
             t.bookmarks = e->bookmarkedLines();
             // FR-052：手動/自動判定出的語言鍵（無對應則留空，還原時以副檔名自動偵測）
             t.languageOverride = languageKeyForLexer(e->lexer());
+            t.view = (w == m_tabs2) ? 1 : 0;   // FR-062：記錄所屬檢視
             state.tabs.push_back(t);
         }
     }
@@ -2834,17 +2853,23 @@ void MainWindow::restoreSession()
 void MainWindow::openSessionState(const macpad::persistence::SessionState &state)
 {
     using namespace macpad::persistence;
+    QVector<QPair<QTabWidget *, EditorPane *>> restored;  // 依序記錄（供 activeIndex 歸位）
     for (const TabState &t : state.tabs) {
         if (!QFileInfo::exists(t.path))
             continue;  // 檔案已刪除則略過（FR-016 AC2）
+        // FR-062：把分頁還原到它原本所屬的檢視；view==1 但第二檢視尚未建立時退回主檢視。
+        QTabWidget *target = (t.view == 1 && m_tabs2) ? m_tabs2 : m_tabs;
+        setActiveTabWidget(target);         // addEditorTab 會加入作用中檢視
         EditorWidget *editor = addEditorTab();
         QString err;
         if (!editor->loadFile(t.path, &err)) {
             // 讀取失敗略過該分頁，不中斷還原
-            const int idx = m_tabs->indexOf(editor);
-            if (idx >= 0) { m_tabs->removeTab(idx); editor->deleteLater(); }
+            const int idx = target->indexOf(target->widget(target->count() - 1));
+            if (idx >= 0) { EditorPane *p = paneIn(target, idx); target->removeTab(idx);
+                            if (p) p->deleteLater(); }
             continue;
         }
+        restored.append({target, paneIn(target, target->count() - 1)});
         // FR-052：先還原書籤（逐行移動游標並切換，載入後全新分頁尚無書籤，切換即新增）
         for (int ln : t.bookmarks) {
             if (ln >= 0 && ln < editor->lines()) {
@@ -2868,8 +2893,15 @@ void MainWindow::openSessionState(const macpad::persistence::SessionState &state
                 editor->setLanguageLexer(lex);
         }
     }
-    if (state.activeIndex >= 0 && state.activeIndex < m_tabs->count())
-        m_tabs->setCurrentIndex(state.activeIndex);
+    updateSecondViewVisibility();   // 第二檢視有還原分頁才顯示（FR-062）
+    // 作用中分頁歸位：activeIndex 對應 buildCurrentSession 的攤平順序，取還原成功者中的對應項。
+    if (!restored.isEmpty()) {
+        const int ai = qBound(0, state.activeIndex, int(restored.size()) - 1);
+        QTabWidget *w = restored[ai].first;
+        setActiveTabWidget(w);
+        if (restored[ai].second)
+            w->setCurrentIndex(w->indexOf(restored[ai].second));
+    }
 }
 
 void MainWindow::rebuildRecentMenu()
@@ -2949,14 +2981,25 @@ void MainWindow::refreshDocList()
 {
     if (!m_docList)
         return;
-    // 文件清單顯示作用中檢視的分頁（Dual-View；TODO(sprint4) 可合併兩檢視）
-    QTabWidget *w = currentTabWidget();
+    // 文件清單合併兩個檢視（FR-062）；m_docListMap 記錄每列對應的 (檢視, 分頁索引) 供跳轉。
     QStringList names;
-    for (int i = 0; i < w->count(); ++i) {
-        EditorPane *p = paneIn(w, i);
-        names << (p ? p->tabTitle() : tr("Untitled"));
+    m_docListMap.clear();
+    int current = -1;
+    int viewIdx = 0;
+    for (QTabWidget *w : {m_tabs, m_tabs2}) {
+        if (w && (w == m_tabs || w->count() > 0)) {  // 第二檢視空則不列
+            for (int i = 0; i < w->count(); ++i) {
+                EditorPane *p = paneIn(w, i);
+                const QString prefix = (viewIdx == 1) ? QStringLiteral("② ") : QString();
+                names << prefix + (p ? p->tabTitle() : tr("Untitled"));
+                if (w == currentTabWidget() && i == w->currentIndex())
+                    current = int(m_docListMap.size());
+                m_docListMap.append({w, i});
+            }
+        }
+        ++viewIdx;
     }
-    m_docList->refresh(names, w->currentIndex());
+    m_docList->refresh(names, current);
 }
 
 void MainWindow::refreshPanels()

@@ -19,6 +19,7 @@ struct TabState {
     QString selection;
     QList<int> bookmarks;      // FR-052：已加書籤的行號
     QString languageOverride;  // FR-052：詞法分析器 key，空字串表示自動偵測
+    int view = 0;              // FR-062：分頁所屬檢視（0=主檢視、1=第二檢視），還原時歸位
 };
 
 struct SessionState {

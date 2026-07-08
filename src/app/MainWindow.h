@@ -171,6 +171,7 @@ private:
     macpad::features::RunDock *m_runDock = nullptr;
     macpad::features::FindAllDock *m_findAllDock = nullptr;  // Search ▸ Find All in Opened Documents…
     macpad::ui::DocumentListDock *m_docList = nullptr;
+    QVector<QPair<QTabWidget *, int>> m_docListMap;  // 文件清單合併兩檢視：列索引→(檢視, 分頁索引)
     macpad::ui::FunctionListDock *m_funcList = nullptr;
     macpad::ui::ClipboardHistoryDock *m_clipHistory = nullptr;
     macpad::ui::DocumentMapDock *m_docMap = nullptr;

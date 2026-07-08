@@ -51,6 +51,7 @@ static QJsonObject stateToJson(const SessionState &state)
             bookmarks.append(b);
         o.insert(QStringLiteral("bookmarks"), bookmarks);
         o.insert(QStringLiteral("language_override"), t.languageOverride);
+        o.insert(QStringLiteral("view"), t.view);
         tabs.append(o);
     }
     root.insert(QStringLiteral("tabs"), tabs);
@@ -83,6 +84,7 @@ static SessionState jsonToState(const QJsonObject &root)
         for (const QJsonValue &bv : bookmarks)
             t.bookmarks.append(bv.toInt(0));
         t.languageOverride = o.value(QStringLiteral("language_override")).toString();
+        t.view = o.value(QStringLiteral("view")).toInt(0);
         state.tabs.push_back(t);
     }
     state.activeIndex = rawActive - skippedBeforeActive;  // 依過濾後的陣列重新映射
