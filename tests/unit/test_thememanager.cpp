@@ -254,8 +254,9 @@ private slots:
         cfg.global.foldMargin = QStringLiteral("#070809");
         cfg.global.bookmarkMargin = QStringLiteral("#0a0b0c");
         cfg.global.markColor = QStringLiteral("#0d0e0f");
-        // 目前 ThemeManager 尚未讀取以下欄位（僅存於 StyleSettings，供未來使用）；
-        // 設定後套用不可 crash。
+        // 以下欄位由 ThemeManager 套用至對應 Scintilla 訊息（Bad Brace/Fold active/
+        // Change History 邊界/URL hotspot）；多為 marker/hotspot 態，QsciScintilla 無 getter
+        // 可直接查詢，故此處驗證套用不 crash 且可重複套用。
         cfg.global.badBrace = QStringLiteral("#101112");
         cfg.global.foldActive = QStringLiteral("#131415");
         cfg.global.changeHistoryModifiedMargin = QStringLiteral("#161718");

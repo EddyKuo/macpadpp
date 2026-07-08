@@ -21,6 +21,34 @@
 #ifndef SCI_STYLESETFORE
 #define SCI_STYLESETFORE 2051
 #endif
+// 括號/摺疊/Change History/URL hotspot 相關訊息與 marker 編號（Scintilla 官方值）
+#ifndef STYLE_BRACEBAD
+#define STYLE_BRACEBAD 35
+#endif
+#ifndef SCI_MARKERSETBACK
+#define SCI_MARKERSETBACK 2042
+#endif
+#ifndef SCI_MARKERSETBACKSELECTED
+#define SCI_MARKERSETBACKSELECTED 2292
+#endif
+#ifndef SCI_SETHOTSPOTACTIVEFORE
+#define SCI_SETHOTSPOTACTIVEFORE 2410
+#endif
+#ifndef SC_MARKNUM_HISTORY_REVERTED_TO_ORIGIN
+#define SC_MARKNUM_HISTORY_REVERTED_TO_ORIGIN 21
+#endif
+#ifndef SC_MARKNUM_HISTORY_SAVED
+#define SC_MARKNUM_HISTORY_SAVED 22
+#endif
+#ifndef SC_MARKNUM_HISTORY_MODIFIED
+#define SC_MARKNUM_HISTORY_MODIFIED 23
+#endif
+#ifndef SC_MARKNUM_FOLDEREND
+#define SC_MARKNUM_FOLDEREND 25   // 摺疊 marker 範圍 25..31（FOLDEREND..FOLDEROPEN）
+#endif
+#ifndef SC_MARKNUM_FOLDEROPEN
+#define SC_MARKNUM_FOLDEROPEN 31
+#endif
 
 namespace macpad::platform {
 
@@ -212,6 +240,46 @@ static void applyWithStyles(macpad::core::EditorWidget *editor, bool dark,
         const QColor c(gs.markColor);
         if (c.isValid())
             editor->SendScintilla(QsciScintillaBase::SCI_INDICSETFORE, 0UL, c);
+    }
+    // 不匹配括號（Bad Brace）顏色——STYLE_BRACEBAD 前景（對應 Notepad++「Bad brace colour」）
+    if (!gs.badBrace.isEmpty()) {
+        const QColor c(gs.badBrace);
+        if (c.isValid())
+            editor->SendScintilla(SCI_STYLESETFORE,
+                                  static_cast<unsigned long>(STYLE_BRACEBAD), c);
+    }
+    // 摺疊邊界「作用中」狀態顏色——摺疊 marker 的選取態底色（caret 位於該摺疊區塊時）
+    if (!gs.foldActive.isEmpty()) {
+        const QColor c(gs.foldActive);
+        if (c.isValid())
+            for (int m = SC_MARKNUM_FOLDEREND; m <= SC_MARKNUM_FOLDEROPEN; ++m)
+                editor->SendScintilla(SCI_MARKERSETBACKSELECTED,
+                                      static_cast<unsigned long>(m), c);
+    }
+    // Change History 邊界標記顏色（已修改／已存檔／已還原至原點）
+    if (!gs.changeHistoryModifiedMargin.isEmpty()) {
+        const QColor c(gs.changeHistoryModifiedMargin);
+        if (c.isValid())
+            editor->SendScintilla(SCI_MARKERSETBACK,
+                                  static_cast<unsigned long>(SC_MARKNUM_HISTORY_MODIFIED), c);
+    }
+    if (!gs.changeHistorySavedMargin.isEmpty()) {
+        const QColor c(gs.changeHistorySavedMargin);
+        if (c.isValid())
+            editor->SendScintilla(SCI_MARKERSETBACK,
+                                  static_cast<unsigned long>(SC_MARKNUM_HISTORY_SAVED), c);
+    }
+    if (!gs.changeHistoryRevertedMargin.isEmpty()) {
+        const QColor c(gs.changeHistoryRevertedMargin);
+        if (c.isValid())
+            editor->SendScintilla(SCI_MARKERSETBACK,
+                                  static_cast<unsigned long>(SC_MARKNUM_HISTORY_REVERTED_TO_ORIGIN), c);
+    }
+    // URL 連結滑鼠停留顏色——hotspot 作用中前景（Scintilla 無獨立「URL hovered」訊息，以 hotspot 近似）
+    if (!gs.urlHovered.isEmpty()) {
+        const QColor c(gs.urlHovered);
+        if (c.isValid())
+            editor->SendScintilla(SCI_SETHOTSPOTACTIVEFORE, 1UL, c);
     }
 }
 
