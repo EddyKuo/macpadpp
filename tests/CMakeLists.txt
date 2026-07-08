@@ -27,6 +27,10 @@ set(MACPAD_TESTS
     test_wordcount
     test_udlmanager
     test_singleinstance
+    test_apidb
+    test_backup
+    test_findall
+    test_themestore
 )
 
 foreach(t ${MACPAD_TESTS})

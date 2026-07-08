@@ -26,6 +26,14 @@ set(MACPAD_LIB_SOURCES
     features/run/RunDock.h
     features/cli/CliArgs.cpp
     features/cli/CliArgs.h
+    features/autocomplete/ApiDatabase.cpp
+    features/autocomplete/ApiDatabase.h
+    features/backup/BackupService.cpp
+    features/backup/BackupService.h
+    features/findall/FindAllEngine.cpp
+    features/findall/FindAllEngine.h
+    features/findall/FindAllDock.cpp
+    features/findall/FindAllDock.h
     features/udl/UdlDefinition.cpp
     features/udl/UdlDefinition.h
     features/udl/UdlLexer.cpp
@@ -50,6 +58,8 @@ set(MACPAD_LIB_SOURCES
     persistence/SessionStore.h
     persistence/RecentFiles.cpp
     persistence/RecentFiles.h
+    persistence/ThemeStore.cpp
+    persistence/ThemeStore.h
     platform/ThemeManager.cpp
     platform/ThemeManager.h
     platform/SingleInstance.cpp
@@ -68,6 +78,8 @@ set(MACPAD_LIB_SOURCES
     ui/ShortcutMapperDialog.h
     ui/UdlEditorDialog.cpp
     ui/UdlEditorDialog.h
+    ui/ThemePickerDialog.cpp
+    ui/ThemePickerDialog.h
     ui/WorkspaceDock.cpp
     ui/WorkspaceDock.h
     ui/PreferencesDialog.cpp

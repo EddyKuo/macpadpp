@@ -37,6 +37,27 @@
 > 文件內 Find All 視窗、UDL 進階）已於 PRD/SRS 文件化為 **FR-053..FR-060**，屬後續 Sprint。
 > 以下原始稽核表反映稽核當下（Sprint 1 實作前）狀態，保留為基線。
 
+### Sprint 2（2026-07-08）— 大型子系統補完
+
+> **Sprint 2** 補完先前延後的大型子系統（PRD/SRS v1.2.0、FR-053..FR-060、design.md §13），
+> 功能範圍覆蓋率維持 90.1%、CTest 29/29 綠燈：
+
+| FR | 子系統 | 交付 |
+|----|--------|------|
+| FR-053 | 完整 Preferences | 分類頁對話框（General/Editing/New Document/Backup/Auto-Completion/Performance/Search）+ Settings 擴充欄位 |
+| FR-054 | 非破壞性備份/當機復原 | `BackupService`：Simple/Verbose .bak + 自訂目錄 + snapshot + 啟動復原提示 |
+| FR-055 | 進階自動完成引擎 | `ApiDatabase`（per-lang 關鍵字/函式/callTip/path）+ `EditorWidget::applyApiCompletions`（QsciAPIs） |
+| FR-056 | 具名多主題系統 | `ThemeStore`（themes/*.json）+ `ThemePickerDialog`（套用/匯入/匯出/刪除） |
+| FR-057 | Change History margin | Scintilla change-history 訊息封裝 + 前後變更跳轉（版本不支援時安全降級） |
+| FR-058 | 文件內 Find All 視窗 | `FindAllEngine` + `FindAllDock`（跨開啟文件搜尋、雙擊跳轉） |
+| FR-059 | UDL 進階 | 多關鍵字組(至8)/operators/delimiters/folder tokens/Export + Dialog 擴充 |
+| FR-060 | Virtual Space / Multi-Select / On-Selection / Paste Special | 虛擬空間、Multi-Select 指令、On-Selection 子選單、Paste as Plain Text |
+
+> **殘餘僅平台不可能項目（na_macos）**：載入 Windows `.dll` 外掛、Plugins Admin 線上市集、
+> 登錄檔 File Association、MIME tools、Windows 相容旗標與打字特效彩蛋。至此 macpad++ 已補完
+> **所有 macOS 上可實作的 Notepad++ 功能**。少數項目為近似實作（如 Paste Special 以純文字化處理 HTML/RTF、
+> Change History 視安裝之 Scintilla 版本能力），細節見對應 FR 與 `docs/design.md` §12/§13。
+
 ---
 
 ## 各領域覆蓋率

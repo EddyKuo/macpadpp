@@ -6,9 +6,12 @@
 
 #include <Qsci/qsciscintilla.h>
 #include <QString>
+#include <QStringList>
 #include <QList>
 
 #include "core/FileEncoding.h"
+
+class QsciAPIs;
 
 namespace macpad::core {
 
@@ -16,6 +19,7 @@ class EditorWidget : public QsciScintilla {
     Q_OBJECT
 public:
     explicit EditorWidget(QWidget *parent = nullptr);
+    ~EditorWidget() override;
 
     // 從磁碟載入檔案內容（UTF-8）；成功回傳 true。失敗時 errorMessage 帶原因（FR-014 邊界）。
     bool loadFile(const QString &path, QString *errorMessage = nullptr);
@@ -145,6 +149,27 @@ public:
     // 依開符號回傳對應閉符號；不支援則回傳空字元（供測試與 keyPressEvent 共用）
     static QChar closerFor(QChar opener);
 
+    // === 變更歷史（Edit ▸ Change History，FR-057）===
+    // 依 Scintilla build 是否支援優雅降級：不支援時 SendScintilla 對未知訊息一律 no-op，
+    // 標記位仍會更新，但邊欄/跳轉不會有實際效果。
+    void setChangeHistoryEnabled(bool enabled);
+    bool changeHistoryEnabled() const { return m_changeHistoryEnabled; }
+    void goToNextChange();   // 跳至下一處變更（依 change markers）
+    void goToPrevChange();   // 跳至上一處變更（依 change markers）
+
+    // === 虛擬空間（Edit ▸ Virtual Space，FR-060）===
+    void setVirtualSpace(bool enabled);
+    bool virtualSpace() const { return m_virtualSpace; }
+
+    // === 多重選取指令（Edit ▸ Multi-select，FR-060）===
+    void selectNextOccurrence();     // 將下一個相符項目加入選取
+    void selectAllOccurrences();     // 選取目前選取（或游標所在字詞）的所有相符項目
+    void skipAndSelectNext();        // 略過目前最後加入的選取，改選下一個相符項目
+
+    // === API 自動完成（FR-055 hook）===
+    // entries 由上層 ApiDatabase 模組提供；無 lexer 時安全跳過（無 lexer 即無語言可套 API）。
+    void applyApiCompletions(const QStringList &entries);
+
 signals:
     void dirtyChanged(bool dirty);
     void metaChanged();     // 編碼/EOL 變更（狀態列更新）
@@ -175,6 +200,12 @@ private:
     Eol m_eol = Eol::Lf;
     bool m_metaDirty = false;  // 編碼/EOL/codec 變更造成的 dirty（文字內容未變）
     bool m_autoClose = true;  // 自動配對符號 ( [ { " '（FR-050）
+    bool m_changeHistoryEnabled = false;  // 變更歷史開關狀態（FR-057）
+    bool m_virtualSpace = false;          // 虛擬空間開關狀態（FR-060）
+
+    // API 自動完成資料（FR-055）——由 EditorWidget 持有（parent 改為 this，與 lexer 生命週期解耦），
+    // 銷毀前主動收斂背景 prepare() 的 worker thread，避免 async 競態造成的懸空回呼（SIGBUS）。
+    QsciAPIs *m_apis = nullptr;
 };
 
 }  // namespace macpad::core

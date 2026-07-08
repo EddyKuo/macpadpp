@@ -2,6 +2,7 @@
 
 #include "core/EditorWidget.h"
 #include "persistence/StyleStore.h"
+#include "persistence/ThemeStore.h"
 
 #include <QApplication>
 #include <QColor>
@@ -37,7 +38,10 @@ static QColor soften(const QColor &c, bool dark)
     return out;
 }
 
-void ThemeManager::applyToEditor(macpad::core::EditorWidget *editor, bool dark)
+// 共用套用邏輯：applyToEditor()（樣式來源 StyleStore）與 applyNamedTheme()（樣式來源 ThemeStore
+// 具名主題）皆呼叫此函式，差別僅在 styleCfg 的來源。
+static void applyWithStyles(macpad::core::EditorWidget *editor, bool dark,
+                             const macpad::persistence::StyleSettings &styleCfg)
 {
     if (!editor)
         return;
@@ -59,8 +63,7 @@ void ThemeManager::applyToEditor(macpad::core::EditorWidget *editor, bool dark)
     editor->setSelectionBackgroundColor(selection);
     editor->setSelectionForegroundColor(text);
 
-    // 使用者在 Style Configurator 設定的樣式覆寫（全域字型 + 每語言每 style 顏色）
-    const auto styleCfg = macpad::persistence::StyleStore::load();
+    // 使用者在 Style Configurator 設定（或具名主題）的樣式覆寫（全域字型 + 每語言每 style 顏色）
     QFont overrideFont;
     const bool hasFont = !styleCfg.fontFamily.isEmpty() || styleCfg.fontSize > 0;
     if (hasFont) {
@@ -111,6 +114,21 @@ void ThemeManager::applyToEditor(macpad::core::EditorWidget *editor, bool dark)
             }
         }
     }
+}
+
+void ThemeManager::applyToEditor(macpad::core::EditorWidget *editor, bool dark)
+{
+    applyWithStyles(editor, dark, macpad::persistence::StyleStore::load());
+}
+
+void ThemeManager::applyNamedTheme(macpad::core::EditorWidget *editor, const QString &themeName)
+{
+    if (!editor || themeName.isEmpty())
+        return;
+    const macpad::persistence::Theme theme = macpad::persistence::ThemeStore::load(themeName);
+    if (theme.name.isEmpty())
+        return;  // 主題不存在：不做任何事
+    applyWithStyles(editor, theme.dark, theme.styles);
 }
 
 }  // namespace macpad::platform

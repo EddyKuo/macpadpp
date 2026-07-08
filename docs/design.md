@@ -1017,3 +1017,46 @@ sequenceDiagram
 ---
 
 *Sprint 1 增補（§12）反映 Parity 缺口第一波實作；`docs/parity-audit.md` 之狀態於實作後同步更新。*
+
+---
+
+## 13. Sprint 2 — 大型子系統（FR-053..FR-060）
+
+> 對應 PRD v1.2.0 B 組、SRS §10。Sprint 2 補完先前延後的大型子系統。設計延續「純邏輯優先、
+> 加法相容、UI 接線集中於 app 層」原則，並盡量以**新模組/新檔**承載，降低與既有碼耦合。
+
+### 13.1 新增模組與檔案
+
+| 子系統 | FR | 主要檔案（新增/擴充） |
+|--------|----|----------------------|
+| 進階自動完成引擎 | FR-055 | `features/autocomplete/ApiDatabase`（新，per-lang 關鍵字/函式/callTip/path）+ `core/EditorWidget::applyApiCompletions`（QsciAPIs） |
+| 具名多主題 | FR-056 | `persistence/ThemeStore`（新，themes/*.json）+ `platform/ThemeManager::applyNamedTheme` + `ui/ThemePickerDialog`（新） |
+| Find All 結果視窗 | FR-058 | `features/findall/FindAllEngine`（新，純搜尋）+ `features/findall/FindAllDock`（新，結果面板） |
+| 非破壞性備份/當機復原 | FR-054 | `features/backup/BackupService`（新，.bak + snapshot） |
+| 完整 Preferences | FR-053 | `ui/PreferencesDialog`（改為分類頁）+ `persistence/SettingsStore`（擴充欄位） |
+| UDL 進階 | FR-059 | `features/udl/*`（多關鍵字組/operators/delimiters/folder/export）+ `ui/UdlEditorDialog` |
+| Change History / Virtual Space / Multi-Select | FR-057/060 | `core/EditorWidget`（Scintilla 訊息封裝） |
+| On-Selection / Paste Special | FR-060 | `app/MainWindow`（選單接線） |
+
+### 13.2 關鍵設計決策（Sprint 2）
+- **Scintilla 進階功能封裝**（FR-057/060）：Change History、Virtual Space、Multiple-Selection-Add-Next 皆為 Scintilla 5 原生訊息；EditorWidget 以 `SendScintilla(SCI_...)` 封裝並提供高階方法，未由 QScintilla 匯出的常數就地 `constexpr` 定義；能力不足時安全 no-op（版本相容）。
+- **自動完成資料與引擎分離**（FR-055）：`ApiDatabase`（純資料/邏輯、可完整單元測試）與 `EditorWidget::applyApiCompletions`（QsciAPIs 綁定、GUI）解耦；MainWindow 於 lexer 變更時把 `ApiDatabase::entriesFor(lang)` 餵給編輯器。
+- **主題檔化**（FR-056）：主題以 JSON（重用 `StyleSettings` 結構）存於 config `themes/`，可匯入匯出分享；`ThemeManager::applyNamedTheme` 套用。與既有即時深/淺色 soften 並存（主題覆寫優先）。
+- **備份決定性測試**（FR-054）：`BackupService` 的時間戳由呼叫端傳入（不呼叫 wall-clock），使 Verbose 檔名可被單元測試斷言；snapshot 走 config `snapshots/`，啟動掃描 `pendingSnapshots()` 實現當機復原。
+- **UDL 向後相容**（FR-059）：`UdlDefinition` schema 升版；舊單一 `keywords` 載入為群組 0，新增多群組/operators/delimiters/folder；`fromJson` 對缺欄位回退。
+
+### 13.3 Find All 資料流
+```mermaid
+flowchart LR
+    MW[MainWindow] -->|各開啟文件內容| ENG[FindAllEngine.searchInText]
+    ENG -->|QVector FindAllMatch| DOCK[FindAllDock.setResults]
+    DOCK -->|雙擊 openLocation docId,line,col| MW
+    MW -->|聚焦分頁 + 定位| EW[EditorWidget]
+```
+
+### 13.4 完成後狀態
+Sprint 2 完成後，`docs/parity-audit.md` 的 B 組（FR-053..060）由 missing/partial 轉為已實作；殘餘僅 `na_macos`（Windows DLL 外掛、登錄檔 File Association、MIME tools 等平台不可能項目）。
+
+---
+
+*Sprint 2 增補（§13）補完大型子系統；狀態於實作後同步至 `docs/parity-audit.md` 與 `sprint/current/status.md`。*

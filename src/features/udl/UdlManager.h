@@ -14,6 +14,7 @@ public:
     void loadAll();                              // 從設定 udl/ 目錄載入全部
     bool save(const UdlDefinition &def);         // 存至 udl/{name}.json 並加入記憶體
     bool importFromFile(const QString &path);    // 匯入外部 JSON UDL 檔並儲存
+    bool exportToFile(const QString &name, const QString &path);  // 匯出已存在的 UDL 至外部檔（FR-059）
     const UdlDefinition *findForExtension(const QString &suffix) const;
 
     const QVector<UdlDefinition> &definitions() const { return m_defs; }

@@ -1,25 +1,53 @@
 #pragma once
 
-// UdlDefinition — 使用者自訂語言定義（FR-032, DR-005）
+// UdlDefinition — 使用者自訂語言定義（FR-032, FR-059, DR-005）
 // 由 JSON 載入；純資料 + 解析，可單元測試。
 
 #include <QJsonObject>
 #include <QSet>
 #include <QString>
 #include <QStringList>
+#include <QVector>
 
 namespace macpad::features {
+
+// 最多支援的關鍵字群組數（對齊 Notepad++ 8 組 KEYWORDx，FR-059）
+constexpr int kUdlMaxKeywordGroups = 8;
+
+// 成對分隔符區塊（如自訂字串/區塊界定），可選跳脫字元（FR-059）
+struct UdlDelimiter {
+    QString open;
+    QString escape;   // 可為空：無跳脫字元
+    QString close;
+};
+
+// 摺疊符（開頭/中間/結尾字串），用於產生 fold points（FR-059）
+struct UdlFolderTokens {
+    QString open;
+    QString middle;
+    QString close;
+
+    bool isEmpty() const { return open.isEmpty() && middle.isEmpty() && close.isEmpty(); }
+};
 
 struct UdlDefinition {
     QString name;
     QStringList extensions;      // 不含點
-    QSet<QString> keywords;
+    QSet<QString> keywords;      // 向後相容欄位：未使用多組時等同第 0 組
+    QVector<QSet<QString>> keywordGroups;  // 最多 8 組（FR-059）；為空時退回 keywords
+    QSet<QString> operators;               // 運算子（FR-059）
+    QVector<UdlDelimiter> delimiters;       // 自訂分隔符區塊（FR-059）
+    UdlFolderTokens folderTokens;            // 摺疊符（FR-059）
     QString lineComment;         // 如 "#"、"//"
     QString blockCommentStart;   // 如 "/*"
     QString blockCommentEnd;     // 如 "*/"
     bool caseSensitive = true;
 
     bool isValid() const { return !name.isEmpty(); }
+
+    // 取得第 idx 組關鍵字（0-based）。未設定 keywordGroups 時，第 0 組回退至 keywords（向後相容）。
+    // 越界回傳空集合的參照。
+    const QSet<QString> &keywordGroup(int idx) const;
 
     static UdlDefinition fromJson(const QJsonObject &obj);
     QJsonObject toJson() const;

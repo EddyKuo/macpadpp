@@ -16,6 +16,12 @@
 #include "features/udl/UdlLexer.h"
 #include "features/export/HtmlExporter.h"
 #include "features/textops/TextOps.h"
+#include "features/autocomplete/ApiDatabase.h"
+#include "persistence/ThemeStore.h"
+#include "ui/ThemePickerDialog.h"
+#include "features/findall/FindAllEngine.h"
+#include "features/findall/FindAllDock.h"
+#include "features/backup/BackupService.h"
 
 #include <QDateTime>
 
@@ -82,6 +88,33 @@ using macpad::ui::EditorPane;
 #include <QTabWidget>
 
 using macpad::core::EditorWidget;
+
+// 前置宣告：定義見檔案後段（Session 還原也會用到），addEditorTab 的 lexerChanged 處理提前需要。
+static QString languageKeyForLexer(QsciLexer *lex);
+
+// 將設定檔的備份模式（persistence::BackupMode）轉為 BackupService 使用的 features::BackupMode
+// （兩者列舉語意一致但屬不同模組，避免 persistence 直接依賴 features）。
+static macpad::features::BackupMode toFeatureBackupMode(macpad::persistence::BackupMode m)
+{
+    using PM = macpad::persistence::BackupMode;
+    using FM = macpad::features::BackupMode;
+    switch (m) {
+    case PM::Simple:  return FM::Simple;
+    case PM::Verbose: return FM::Verbose;
+    default:          return FM::None;
+    }
+}
+
+// 儲存成功後的備份（FR-054，best-effort：失敗不阻擋儲存流程）
+static void backupAfterSave(const QString &path, const QByteArray &content)
+{
+    const auto s = macpad::persistence::SettingsStore::load();
+    if (s.backupMode == macpad::persistence::BackupMode::None)
+        return;
+    const QString timestamp = QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd_HHmmss"));
+    macpad::features::BackupService::backupOnSave(path, content, toFeatureBackupMode(s.backupMode),
+                                                  s.backupDir, timestamp);
+}
 
 MainWindow::MainWindow(QWidget *parent, bool restoreSessionOnLaunch)
     : QMainWindow(parent)
@@ -222,6 +255,16 @@ MainWindow::MainWindow(QWidget *parent, bool restoreSessionOnLaunch)
         newFile();
     rebuildRecentMenu();
     applyTheme();  // 還原後統一套用主題（含 lexer paper）
+
+    // 當機復原（FR-054 輕量版）：偵測上次未正常關閉遺留的快照，先揭露存在即可。
+    // TODO(sprint2)：完整的「選擇快照→還原內容」對話框待後續加入。
+    {
+        const QStringList pending = macpad::features::BackupService::pendingSnapshots();
+        if (!pending.isEmpty()) {
+            QMessageBox::information(this, tr("Crash Recovery"),
+                tr("偵測到 %1 份未正常關閉時遺留的快照。").arg(pending.size()));
+        }
+    }
 
     // 擴充協定 dogfood（FR-035）：內建 WordCount 擴充透過協定掛載，驗證可擴充性
     m_extensions = std::make_unique<macpad::extension::ExtensionRegistry>(this);
@@ -646,6 +689,93 @@ void MainWindow::createMenus()
         if (auto *ed = currentEditor()) ed->prevBookmark();
     });
 
+    // 變更歷史（FR-057）
+    editMenu->addSeparator();
+    QMenu *changeHistoryMenu = editMenu->addMenu(tr("Change History"));
+    QAction *chEnableAct = changeHistoryMenu->addAction(tr("Enable Change History"));
+    chEnableAct->setCheckable(true);
+    connect(chEnableAct, &QAction::toggled, this, [this](bool on) {
+        if (auto *e = currentEditor()) e->setChangeHistoryEnabled(on);
+    });
+    changeHistoryMenu->addAction(tr("Next Change"), this, [this] {
+        if (auto *e = currentEditor()) e->goToNextChange();
+    });
+    changeHistoryMenu->addAction(tr("Previous Change"), this, [this] {
+        if (auto *e = currentEditor()) e->goToPrevChange();
+    });
+
+    // 虛擬空間（FR-060）
+    QAction *virtualSpaceAct = editMenu->addAction(tr("Virtual Space"));
+    virtualSpaceAct->setCheckable(true);
+    connect(virtualSpaceAct, &QAction::toggled, this, [this](bool on) {
+        if (auto *e = currentEditor()) e->setVirtualSpace(on);
+    });
+
+    // 多重選取（FR-060）
+    QMenu *multiSelectMenu = editMenu->addMenu(tr("Multi-Select"));
+    multiSelectMenu->addAction(tr("Select Next Occurrence"), this, [this] {
+        if (auto *e = currentEditor()) e->selectNextOccurrence();
+    });
+    multiSelectMenu->addAction(tr("Select All Occurrences"), this, [this] {
+        if (auto *e = currentEditor()) e->selectAllOccurrences();
+    });
+    multiSelectMenu->addAction(tr("Skip and Select Next"), this, [this] {
+        if (auto *e = currentEditor()) e->skipAndSelectNext();
+    });
+
+    // On Selection（把選取內容當路徑/搜尋字串處理）
+    QMenu *onSelectionMenu = editMenu->addMenu(tr("On Selection"));
+    onSelectionMenu->addAction(tr("Open Selected File"), this, [this] {
+        EditorWidget *e = currentEditor();
+        if (!e || !e->hasSelectedText())
+            return;
+        const QString sel = e->selectedText().trimmed();
+        if (sel.isEmpty())
+            return;
+        QString path = sel;
+        // 相對路徑 → 以目前檔案所在目錄為基準（若目前分頁已存檔）
+        if (QFileInfo(path).isRelative() && !e->isUntitled())
+            path = QFileInfo(QDir(QFileInfo(e->filePath()).absolutePath()), path).absoluteFilePath();
+        if (QFileInfo::exists(path))
+            openFile(path);
+        else
+            QDesktopServices::openUrl(QUrl::fromUserInput(sel));
+    });
+    onSelectionMenu->addAction(tr("Open Containing Folder"), this, [this] {
+        EditorWidget *e = currentEditor();
+        if (!e || !e->hasSelectedText())
+            return;
+        const QString sel = e->selectedText().trimmed();
+        if (sel.isEmpty())
+            return;
+        QProcess::startDetached(QStringLiteral("open"), {QStringLiteral("-R"), sel});
+    });
+    onSelectionMenu->addAction(tr("Search on Internet"), this, [this] {
+        EditorWidget *e = currentEditor();
+        if (!e || !e->hasSelectedText())
+            return;
+        const QString sel = e->selectedText().trimmed();
+        if (sel.isEmpty())
+            return;
+        QString tmpl = macpad::persistence::SettingsStore::load().searchEngineUrl;
+        if (tmpl.isEmpty())
+            tmpl = QStringLiteral("https://www.google.com/search?q=%1");
+        const QString encoded = QString::fromUtf8(QUrl::toPercentEncoding(sel));
+        const QString url = tmpl.contains(QStringLiteral("%1")) ? tmpl.arg(encoded) : tmpl + encoded;
+        QDesktopServices::openUrl(QUrl(url));
+    });
+
+    // Paste Special（貼上時去除格式，只留純文字）
+    QMenu *pasteSpecialMenu = editMenu->addMenu(tr("Paste Special"));
+    pasteSpecialMenu->addAction(tr("Paste as Plain Text"), this, [this] {
+        EditorWidget *e = currentEditor();
+        if (!e || e->isReadOnly())
+            return;
+        const QString text = QApplication::clipboard()->text();
+        if (!text.isEmpty())
+            e->insert(text);
+    });
+
     // Plugins 選單（複刻 Notepad++ Plugins；Plugins Admin 列出內建擴充）
     pluginMenu->addAction(tr("Plugins Admin…"), this, [this] {
         QString msg;
@@ -688,6 +818,20 @@ void MainWindow::createMenus()
             applyTheme();  // 重建 lexer → 套主題 → 疊使用者覆寫
             statusBar()->showMessage(tr("樣式已更新"), 3000);
         }
+    });
+    // 具名主題選擇（FR-056）：套用到目前所有已開啟的分頁
+    settingsMenu->addAction(tr("Select Theme…"), this, [this] {
+        macpad::ui::ThemePickerDialog dlg(this);
+        if (dlg.exec() != QDialog::Accepted)
+            return;
+        const QString name = dlg.selectedTheme();
+        if (name.isEmpty())
+            return;
+        for (int i = 0; i < m_tabs->count(); ++i) {
+            if (EditorWidget *e = editorAt(i))
+                macpad::platform::ThemeManager::applyNamedTheme(e, name);
+        }
+        statusBar()->showMessage(tr("主題已套用：%1").arg(name), 3000);
     });
     settingsMenu->addAction(tr("Shortcut Mapper…"), this, [this] {
         // 蒐集所有具文字的可指定快捷鍵命令（排除子選單標題與分隔線）
@@ -741,6 +885,15 @@ void MainWindow::createMenus()
             macpad::persistence::SettingsStore::save(s);
             for (int i = 0; i < m_tabs->count(); ++i)
                 if (EditorWidget *e = editorAt(i)) e->setTabWidth(s.tabWidth);
+            // 直接可套用的編輯偏好：借道既有 View 選單同名可勾選動作，狀態與畫面自動同步。
+            if (m_wrapAct) m_wrapAct->setChecked(s.wordWrap);
+            if (m_wsAct) m_wsAct->setChecked(s.showWhitespace);
+            m_showIndentGuide = s.showIndentGuides;
+            for (int i = 0; i < m_tabs->count(); ++i) applyViewPrefs(editorAt(i));
+            // TODO(sprint2)：showLineNumbers 需 EditorWidget 增加行號邊欄寬度切換 API，尚未暴露。
+            // TODO(sprint2)：caretWidth/defaultEol/defaultEncoding/autosaveOnFocusLoss/
+            // autoInsertPairs/wordAutoComplete/acThreshold/showCallTips/largeFileMB/
+            // disableAutoCompleteOverMB 屬新分頁預設值或非文字即時屬性，套用時機不同於現有分頁，暫不即時套用。
             applyTheme();
             statusBar()->showMessage(tr("偏好設定已儲存（部分設定重啟後生效）"), 4000);
         }
@@ -1725,6 +1878,47 @@ void MainWindow::createSearchMenu(QMenu *searchMenu)
         }
         statusBar()->showMessage(tr("已在所有開啟文件中取代 %1 處").arg(total), 3000);
     });
+
+    // Find All in Opened Documents（FR-058）：逐分頁搜尋並彙整到結果面板
+    searchMenu->addAction(tr("Find All in Opened Documents…"), this, [this] {
+        bool ok = false;
+        const QString pattern = QInputDialog::getText(this, tr("Find All in Opened Documents"),
+                                                       tr("Find what:"), QLineEdit::Normal,
+                                                       m_lastFindText, &ok);
+        if (!ok || pattern.isEmpty())
+            return;
+        m_lastFindText = pattern;
+
+        QVector<macpad::features::FindAllMatch> all;
+        for (int i = 0; i < m_tabs->count(); ++i) {
+            EditorWidget *e = editorAt(i);
+            if (!e)
+                continue;
+            all += macpad::features::FindAllEngine::searchInText(
+                i, m_tabs->tabText(i), e->text(), pattern,
+                /*regex=*/false, /*cs=*/false, /*wholeWord=*/false);
+        }
+
+        if (!m_findAllDock) {
+            m_findAllDock = new macpad::features::FindAllDock(this);
+            addDockWidget(Qt::BottomDockWidgetArea, m_findAllDock);
+            connect(m_findAllDock, &macpad::features::FindAllDock::openLocation, this,
+                    [this](int docId, int line, int column) {
+                if (docId < 0 || docId >= m_tabs->count())
+                    return;
+                m_tabs->setCurrentIndex(docId);
+                if (EditorWidget *e = currentEditor()) {
+                    e->setCursorPosition(qMax(0, line - 1), qMax(0, column - 1));
+                    e->ensureLineVisible(qMax(0, line - 1));
+                    e->setFocus();
+                }
+            });
+        }
+        m_findAllDock->setResults(all);
+        m_findAllDock->show();
+        m_findAllDock->raise();
+        statusBar()->showMessage(tr("找到 %1 處符合").arg(all.size()), 3000);
+    });
 }
 
 void MainWindow::showFind()
@@ -2026,7 +2220,15 @@ EditorWidget *MainWindow::addEditorTab()
 
     connect(editor, &EditorWidget::dirtyChanged, this, &MainWindow::updateTabTitle);
     connect(editor, &EditorWidget::metaChanged, this, &MainWindow::updateStatusBar);
-    connect(editor, &EditorWidget::lexerChanged, this, [this, editor] { themeEditor(editor); });
+    connect(editor, &EditorWidget::lexerChanged, this, [this, editor] {
+        themeEditor(editor);
+        // API 自動完成（FR-055）：依 lexer 語言套用對應語言的自動完成字典（設定允許時）
+        if (macpad::persistence::SettingsStore::load().wordAutoComplete) {
+            const QString langKey = languageKeyForLexer(editor->lexer());
+            if (!langKey.isEmpty())
+                editor->applyApiCompletions(macpad::features::ApiDatabase::entriesFor(langKey));
+        }
+    });
     connect(editor, &QsciScintilla::cursorPositionChanged, this,
             [this](int, int) { updateStatusBar(); });
     // 長度/行數需隨編輯即時更新；選取需即時反映 Sel 欄與 INS/OVR
@@ -2125,6 +2327,7 @@ bool MainWindow::saveCurrent()
                              tr("無法儲存 %1：\n%2").arg(editor->filePath(), err));
         return false;
     }
+    backupAfterSave(editor->filePath(), editor->text().toUtf8());  // FR-054，best-effort
     updateTabTitle();
     return true;
 }
@@ -2146,6 +2349,7 @@ bool MainWindow::saveCurrentAs()
                              tr("無法儲存 %1：\n%2").arg(path, err));
         return false;
     }
+    backupAfterSave(path, editor->text().toUtf8());  // FR-054，best-effort
     updateTabTitle();
     return true;
 }
@@ -2205,6 +2409,7 @@ void MainWindow::closeEvent(QCloseEvent *event)
         }
     }
     saveSession();  // FR-016：關閉前保存 session
+    macpad::features::BackupService::clearSnapshots();  // 正常關閉 → 清空當機復原快照
     event->accept();
 }
 

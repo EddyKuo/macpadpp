@@ -6,6 +6,7 @@
 #include <QTemporaryDir>
 
 #include <Qsci/qscilexercpp.h>
+#include <Qsci/qsciapis.h>
 
 #include "core/EditorWidget.h"
 #include "core/FileEncoding.h"
@@ -406,6 +407,78 @@ private slots:
         e.setText(QString());
         QTest::keyClick(&e, '(');
         QCOMPARE(e.text(), QStringLiteral("("));  // 關閉後不再自動配對
+    }
+
+    void changeHistoryAndVirtualSpaceSetters()
+    {
+        // FR-057/FR-060：setter 立即反映於對應 getter；不論 Scintilla build 是否
+        // 實際支援 change history，狀態旗標本身都要能正確追蹤（優雅降級）。
+        EditorWidget e;
+        QVERIFY(!e.changeHistoryEnabled());
+        e.setChangeHistoryEnabled(true);
+        QVERIFY(e.changeHistoryEnabled());
+        e.setChangeHistoryEnabled(false);
+        QVERIFY(!e.changeHistoryEnabled());
+
+        QVERIFY(!e.virtualSpace());
+        e.setVirtualSpace(true);
+        QVERIFY(e.virtualSpace());
+        e.setVirtualSpace(false);
+        QVERIFY(!e.virtualSpace());
+
+        // goToNextChange/goToPrevChange 在未啟用時安全 no-op（不拋例外、不移動游標）
+        e.setText(QStringLiteral("l0\nl1\nl2\n"));
+        e.setCursorPosition(1, 0);
+        e.goToNextChange();
+        e.goToPrevChange();
+        int line = -1, col = -1;
+        e.getCursorPosition(&line, &col);
+        QCOMPARE(line, 1);
+    }
+
+    void selectAllOccurrencesSelectsMultiple()
+    {
+        // FR-060：selectAllOccurrences 對 "foo foo foo" 應產生多重選取
+        EditorWidget e;
+        e.setText(QStringLiteral("foo foo foo"));
+        e.setSelection(0, 0, 0, 3);  // 選取第一個 "foo"
+        e.selectAllOccurrences();
+        const long selections = e.SendScintilla(EditorWidget::SCI_GETSELECTIONS);
+        QVERIFY(selections > 1);
+    }
+
+    void selectAllOccurrencesFromCursorWord()
+    {
+        // 無選取時以游標所在字詞為依據
+        EditorWidget e;
+        e.setText(QStringLiteral("bar bar bar"));
+        e.setCursorPosition(0, 1);  // 游標落在第一個 "bar" 內
+        e.selectAllOccurrences();
+        const long selections = e.SendScintilla(EditorWidget::SCI_GETSELECTIONS);
+        QVERIFY(selections > 1);
+    }
+
+    void applyApiCompletionsNoLexerIsNoop()
+    {
+        // 無 lexer 時安全跳過，不崩潰
+        EditorWidget e;
+        e.applyApiCompletions({QStringLiteral("foo"), QStringLiteral("bar")});
+        QVERIFY(true);  // 未崩潰即通過
+    }
+
+    void applyApiCompletionsWithLexerEnablesAutoCompletion()
+    {
+        EditorWidget e;
+        e.setLanguageLexer(new QsciLexerCPP(&e));
+        e.applyApiCompletions({QStringLiteral("printf"), QStringLiteral("scanf")});
+        QCOMPARE(e.autoCompletionSource(), QsciScintilla::AcsAll);
+
+        // prepare() 於背景 thread 進行、透過 main-thread event 回報完成。
+        // 等待 apiPreparationFinished 後再讓 e 解構，避免 in-flight worker 造成不確定性。
+        auto *apis = qobject_cast<QsciAPIs *>(e.lexer()->apis());
+        QVERIFY(apis != nullptr);
+        QSignalSpy spy(apis, &QsciAPIs::apiPreparationFinished);
+        QVERIFY(spy.count() > 0 || spy.wait(5000));
     }
 };
 

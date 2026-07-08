@@ -70,6 +70,22 @@ bool UdlManager::importFromFile(const QString &path)
     return save(d);
 }
 
+bool UdlManager::exportToFile(const QString &name, const QString &path)
+{
+    const UdlDefinition *found = nullptr;
+    for (const auto &d : m_defs)
+        if (d.name == name) { found = &d; break; }
+    if (!found)
+        return false;
+
+    QFile file(path);
+    if (!file.open(QIODevice::WriteOnly))
+        return false;
+    file.write(QJsonDocument(found->toJson()).toJson(QJsonDocument::Indented));
+    file.close();
+    return true;
+}
+
 const UdlDefinition *UdlManager::findForExtension(const QString &suffix) const
 {
     const QString s = suffix.toLower();

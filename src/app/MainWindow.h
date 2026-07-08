@@ -32,7 +32,7 @@ namespace macpad::ui { class EditorPane; class DocumentListDock;
     class FunctionListDock; class ClipboardHistoryDock; class DocumentMapDock; class WorkspaceDock;
     class CharacterPanel; }
 namespace macpad::extension { class ExtensionRegistry; }
-namespace macpad::features { class FindInFilesDock; class RunDock; }
+namespace macpad::features { class FindInFilesDock; class RunDock; class FindAllDock; }
 namespace macpad::persistence { struct SessionState; }
 
 class MainWindow : public QMainWindow, public macpad::extension::IHostServices {
@@ -146,6 +146,7 @@ private:
     std::unique_ptr<macpad::extension::ExtensionRegistry> m_extensions;
     macpad::features::FindInFilesDock *m_findInFiles = nullptr;
     macpad::features::RunDock *m_runDock = nullptr;
+    macpad::features::FindAllDock *m_findAllDock = nullptr;  // Search ▸ Find All in Opened Documents…
     macpad::ui::DocumentListDock *m_docList = nullptr;
     macpad::ui::FunctionListDock *m_funcList = nullptr;
     macpad::ui::ClipboardHistoryDock *m_clipHistory = nullptr;

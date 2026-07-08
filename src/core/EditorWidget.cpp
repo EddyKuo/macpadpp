@@ -19,8 +19,31 @@
 #include <QTextStream>
 
 #include <Qsci/qscilexer.h>
+#include <Qsci/qsciapis.h>
 
 namespace macpad::core {
+
+namespace {
+// 變更歷史（Change History）——本專案鎖定之 QScintilla/Scintilla 版本未匯出這組常數，
+// 依 Scintilla 官方文件手動定義訊息碼與旗標值（FR-057）。若執行期的 Scintilla build
+// 不認得這些訊息，SendScintilla 對未知訊息一律安全地 no-op（回傳 0），故本機制可優雅降級。
+constexpr int kSciSetChangeHistory = 2780;   // SCI_SETCHANGEHISTORY
+constexpr int kScChangeHistoryDisabled  = 0x0;  // SC_CHANGE_HISTORY_DISABLED
+constexpr int kScChangeHistoryEnabled   = 0x1;  // SC_CHANGE_HISTORY_ENABLED
+constexpr int kScChangeHistoryMarkers   = 0x2;  // SC_CHANGE_HISTORY_MARKERS
+constexpr int kScChangeHistoryIndicators = 0x4; // SC_CHANGE_HISTORY_INDICATORS
+
+// 變更歷史 marker 編號（依 Scintilla 文件保留區段，避開本檔已用的書籤(1)/折疊(25-31)）
+constexpr int kMarkerHistoryRevertedToOrigin = 21;
+constexpr int kMarkerHistorySaved            = 22;
+constexpr int kMarkerHistoryModified         = 23;
+constexpr int kMarkerHistoryRevertedToModified = 24;
+constexpr int kChangeHistoryMarkerMask =
+    (1 << kMarkerHistoryRevertedToOrigin) | (1 << kMarkerHistorySaved)
+    | (1 << kMarkerHistoryModified) | (1 << kMarkerHistoryRevertedToModified);
+
+constexpr int kChangeHistoryMargin = 2;  // margin 0=行號、1=書籤、2=變更歷史
+}  // namespace
 
 EditorWidget::EditorWidget(QWidget *parent)
     : QsciScintilla(parent)
@@ -30,6 +53,18 @@ EditorWidget::EditorWidget(QWidget *parent)
     // dirty 狀態變化轉發（FR-014：分頁未存標記 ●）
     connect(this, &QsciScintilla::modificationChanged,
             this, &EditorWidget::dirtyChanged);
+}
+
+EditorWidget::~EditorWidget()
+{
+    // 銷毀前先收斂 API 準備：cancelPreparation() 通知背景 worker 提早中止，
+    // 再 delete（~QsciAPIs 會等待 worker thread 結束）——確保沒有 in-flight 的
+    // worker 於物件釋放後回呼造成 SIGBUS。必須在 QsciScintilla base dtor 之前完成。
+    if (m_apis) {
+        m_apis->cancelPreparation();
+        delete m_apis;
+        m_apis = nullptr;
+    }
 }
 
 void EditorWidget::applyDefaultConfig()
@@ -847,6 +882,121 @@ EditorWidget::DocStats EditorWidget::stats()
 
     s.overtype = SendScintilla(SCI_GETOVERTYPE) != 0;
     return s;
+}
+
+// === 變更歷史（FR-057）===
+void EditorWidget::setChangeHistoryEnabled(bool enabled)
+{
+    m_changeHistoryEnabled = enabled;
+    if (enabled) {
+        SendScintilla(kSciSetChangeHistory,
+                      static_cast<unsigned long>(kScChangeHistoryEnabled
+                                                  | kScChangeHistoryMarkers
+                                                  | kScChangeHistoryIndicators));
+        // 變更歷史邊欄：以符號邊欄顯示異動標記；不支援的 build 下邊欄僅維持空白，無害。
+        setMarginType(kChangeHistoryMargin, QsciScintilla::SymbolMargin);
+        setMarginWidth(kChangeHistoryMargin, 4);
+        setMarginSensitivity(kChangeHistoryMargin, false);
+        setMarginMarkerMask(kChangeHistoryMargin,
+                             static_cast<unsigned int>(kChangeHistoryMarkerMask));
+    } else {
+        SendScintilla(kSciSetChangeHistory,
+                      static_cast<unsigned long>(kScChangeHistoryDisabled));
+        setMarginWidth(kChangeHistoryMargin, 0);
+    }
+}
+
+void EditorWidget::goToNextChange()
+{
+    if (!m_changeHistoryEnabled)
+        return;  // 未啟用時安全跳過（優雅降級）
+    int line = 0, col = 0;
+    getCursorPosition(&line, &col);
+    int found = markerFindNext(line + 1, kChangeHistoryMarkerMask);
+    if (found >= 0)
+        setCursorPosition(found, 0);
+}
+
+void EditorWidget::goToPrevChange()
+{
+    if (!m_changeHistoryEnabled)
+        return;
+    int line = 0, col = 0;
+    getCursorPosition(&line, &col);
+    int found = markerFindPrevious(line - 1, kChangeHistoryMarkerMask);
+    if (found >= 0)
+        setCursorPosition(found, 0);
+}
+
+// === 虛擬空間（FR-060）===
+void EditorWidget::setVirtualSpace(bool enabled)
+{
+    m_virtualSpace = enabled;
+    SendScintilla(SCI_SETVIRTUALSPACEOPTIONS,
+                  enabled ? (SCVS_RECTANGULARSELECTION | SCVS_USERACCESSIBLE) : SCVS_NONE);
+}
+
+// === 多重選取指令（FR-060）===
+void EditorWidget::selectNextOccurrence()
+{
+    SendScintilla(SCI_MULTIPLESELECTADDNEXT);
+}
+
+void EditorWidget::selectAllOccurrences()
+{
+    if (!hasSelectedText()) {
+        // 無選取：以游標所在字詞為搜尋依據
+        const long pos = SendScintilla(SCI_GETCURRENTPOS);
+        const long wordStart = SendScintilla(SCI_WORDSTARTPOSITION, static_cast<unsigned long>(pos), 1L);
+        const long wordEnd = SendScintilla(SCI_WORDENDPOSITION, static_cast<unsigned long>(pos), 1L);
+        if (wordEnd <= wordStart)
+            return;  // 游標不在字詞內，無可選取目標
+        int lf = 0, iff = 0, lt = 0, it = 0;
+        lineIndexFromPosition(static_cast<int>(wordStart), &lf, &iff);
+        lineIndexFromPosition(static_cast<int>(wordEnd), &lt, &it);
+        setSelection(lf, iff, lt, it);
+    }
+    SendScintilla(SCI_SETSEARCHFLAGS, SCFIND_MATCHCASE);
+    SendScintilla(SCI_SETTARGETSTART, 0UL);
+    SendScintilla(SCI_SETTARGETEND, static_cast<unsigned long>(length()));
+    SendScintilla(SCI_MULTIPLESELECTADDEACH);
+}
+
+void EditorWidget::skipAndSelectNext()
+{
+    // 類似 VSCode 的「skip」：丟棄目前（最後加入的）選取，改選下一個相符項目
+    const int n = static_cast<int>(SendScintilla(SCI_GETSELECTIONS));
+    if (n > 1)
+        SendScintilla(SCI_DROPSELECTIONN, static_cast<unsigned long>(n - 1));
+    SendScintilla(SCI_MULTIPLESELECTADDNEXT);
+}
+
+// === API 自動完成（FR-055 hook）===
+void EditorWidget::applyApiCompletions(const QStringList &entries)
+{
+    QsciLexer *lex = lexer();
+    if (!lex)
+        return;  // 無 lexer 時無語言可套用 API，安全跳過
+
+    // 先取消並刪除前一組 QsciAPIs（避免多次呼叫累積洩漏、以及舊 worker thread 懸空）。
+    // ~QsciAPIs 會等待背景 worker 收斂，delete 前先 cancelPreparation() 讓其提早中止。
+    if (m_apis) {
+        m_apis->cancelPreparation();
+        delete m_apis;
+        m_apis = nullptr;
+    }
+
+    auto *apis = new QsciAPIs(lex);  // 建構時 parent 為 lex
+    // 改由 EditorWidget 持有：與 lexer 生命週期解耦，換 lexer/刪舊 lexer 時 m_apis 不會被連帶刪除而懸空。
+    apis->setParent(this);
+    for (const QString &entry : entries)
+        apis->add(entry);
+    apis->prepare();       // 於背景 thread 進行；銷毀時由 dtor 負責收斂，避免 SIGBUS
+    lex->setAPIs(apis);
+    m_apis = apis;
+
+    setAutoCompletionSource(QsciScintilla::AcsAll);  // 文件字詞 + API 合併來源
+    setAutoCompletionThreshold(2);
 }
 
 }  // namespace macpad::core
