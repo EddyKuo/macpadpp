@@ -243,6 +243,78 @@ void MainWindow::createMenus()
     pluginMenu->setObjectName(QStringLiteral("Plugins"));
     m_windowMenu->setObjectName(QStringLiteral("Window"));
 
+    createFileMenu(fileMenu);
+    createEditMenu(editMenu);
+    createSearchMenu(searchMenu);  // Notepad++ Search 選單（Find Next/Prev、Mark、書籤進階等）
+    createEncodingMenu(formatMenu);
+    createLanguageMenu(langMenu);
+    createSettingsMenu(settingsMenu);
+    createToolsMenu(toolsMenu);
+    createMacroMenu(macroMenu);
+    createRunMenu(runMenu);
+    createViewMenu(viewMenu);
+    createPluginsMenu(pluginMenu);
+
+    // Window 選單（Notepad++ Window）——列出所有開啟文件並可切換（選單已於函式開頭建立）
+    connect(m_windowMenu, &QMenu::aboutToShow, this, &MainWindow::buildWindowMenu);
+
+    // Preferences（Cmd+,）
+    // 重要：不可用 menuBar()->addAction（bare action）——macOS 原生選單列只接受子選單，
+    // bare action 會迫使 Qt 退回「非原生視窗內選單列」，造成選單一半在螢幕頂端、一半在視窗上。
+    // 正解：建立成一般 QAction，設 PreferencesRole，Qt 會自動移入 macOS 應用程式選單（macpad++ ▸ Preferences）。
+    QAction *prefsAct = new QAction(tr("Preferences…"), this);
+    prefsAct->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_Comma));
+    prefsAct->setMenuRole(QAction::PreferencesRole);
+    connect(prefsAct, &QAction::triggered, this, [this] {
+        const auto cur = macpad::persistence::SettingsStore::load();
+        macpad::ui::PreferencesDialog dlg(cur, this);
+        if (dlg.exec() == QDialog::Accepted) {
+            const auto s = dlg.result();
+            macpad::persistence::SettingsStore::save(s);
+            // 直接可套用的編輯偏好：借道既有 View 選單同名可勾選動作，狀態與畫面自動同步。
+            if (m_wrapAct) m_wrapAct->setChecked(s.wordWrap);
+            if (m_wsAct) m_wsAct->setChecked(s.showWhitespace);
+            m_showIndentGuide = s.showIndentGuides;
+            // 逐分頁即時套用可即時生效的偏好（tabWidth/行號/游標寬/自動配對/自動完成/call tip/縮排參考線）
+            forEachEditor([this, &s](EditorWidget *e) { applyEditorPrefs(e, s); });
+            applySnapshotTimerSettings(s);  // 依偏好啟停/調整當機復原快照計時器
+            applyWindowPrefs(s);            // 工具列/狀態列/分頁列可見性與圖示大小、最近檔案選單
+            rebuildRunShortcuts();          // Run 指令快捷鍵（偏好可能影響，保守重建）
+            applyTheme();
+            statusBar()->showMessage(tr("偏好設定已儲存"), 4000);
+        }
+    });
+
+    // About / Quit：設定 role，Qt 於 macOS 統一移入應用程式選單（讓 app menu 完整原生）
+    QAction *aboutAct = new QAction(tr("About macpad++"), this);
+    aboutAct->setMenuRole(QAction::AboutRole);
+    connect(aboutAct, &QAction::triggered, this, [this] {
+        QMessageBox::about(this, tr("About macpad++"),
+                           tr("macpad++ — Notepad++ 對等的原生 macOS 編輯器\nQt6 + QScintilla"));
+    });
+    QAction *quitAct = new QAction(tr("Quit macpad++"), this);
+    quitAct->setShortcut(QKeySequence::Quit);
+    quitAct->setMenuRole(QAction::QuitRole);
+    connect(quitAct, &QAction::triggered, qApp, &QApplication::quit);
+
+    // 把三個 app-menu 動作掛進 File 選單（有實際容器）；macOS 會依 role 自動搬到應用程式選單，
+    // 其他平台則留在 File。關鍵是它們都在 QMenu 內，不再是 bare action。
+    fileMenu->addSeparator();
+    fileMenu->addAction(prefsAct);
+    fileMenu->addAction(aboutAct);
+    fileMenu->addAction(quitAct);
+
+    // 套用使用者在 Shortcut Mapper 儲存的快捷鍵覆寫
+    QList<QAction *> allActs;
+    for (QAction *a : menuBar()->findChildren<QAction *>())
+        if (!a->menu() && !a->isSeparator() && !a->text().isEmpty())
+            allActs.append(a);
+    macpad::ui::ShortcutMapperDialog::applySavedOverrides(allActs);
+}
+
+
+void MainWindow::createFileMenu(QMenu *fileMenu)
+{
     // File 選單（Mac 慣例快捷鍵——QKeySequence 標準鍵在 macOS 自動對映 Cmd，FR-024）
     fileMenu->addAction(tr("New"), QKeySequence::New, this, &MainWindow::newFile);
     fileMenu->addAction(tr("Open…"), QKeySequence::Open, this, &MainWindow::openFileDialog);
@@ -341,7 +413,11 @@ void MainWindow::createMenus()
                         [this] { restoreClosedTab(); });
     fileMenu->addSeparator();
     fileMenu->addAction(tr("Move to Recycle Bin"), this, [this] { moveCurrentToTrash(); });
+}
 
+
+void MainWindow::createEditMenu(QMenu *editMenu)
+{
     // Edit 選單（QScintilla 內建 undo/redo/剪貼；多游標為 Cmd+Click，FR-005）
     editMenu->addAction(tr("Undo"), QKeySequence::Undo, this, [this] {
         if (auto *e = currentEditor()) e->undo();
@@ -408,98 +484,6 @@ void MainWindow::createMenus()
     // 無預設快捷鍵（Notepad++ 亦無；且 Ctrl+Alt+Shift+F 已被 Unfold All 佔用）
     editMenu->addAction(tr("Find in Projects…"), this,
                         [this] { showFindInProjects(); });
-
-    createSearchMenu(searchMenu);  // Notepad++ Search 選單（Find Next/Prev、Mark、書籤進階等）
-
-    // Encoding 選單：編碼與 EOL 轉換（FR-019/020）
-    using macpad::core::Encoding;
-    using macpad::core::Eol;
-    QMenu *encMenu = formatMenu->addMenu(tr("Encoding"));
-    const struct { const char *name; Encoding enc; } encs[] = {
-        {"UTF-8", Encoding::Utf8}, {"UTF-8 with BOM", Encoding::Utf8Bom},
-        {"UTF-16 LE", Encoding::Utf16LE}, {"UTF-16 BE", Encoding::Utf16BE},
-        {"ANSI (Latin-1)", Encoding::Latin1},
-    };
-    for (const auto &e : encs) {
-        const Encoding enc = e.enc;
-        // 以字面量 tr() 標示名稱，lupdate 才能靜態擷取翻譯（不可傳執行期 const char*）
-        QString label;
-        switch (enc) {
-        case Encoding::Utf8:    label = tr("UTF-8"); break;
-        case Encoding::Utf8Bom: label = tr("UTF-8 with BOM"); break;
-        case Encoding::Utf16LE: label = tr("UTF-16 LE"); break;
-        case Encoding::Utf16BE: label = tr("UTF-16 BE"); break;
-        case Encoding::Latin1:  label = tr("ANSI (Latin-1)"); break;
-        }
-        encMenu->addAction(label, this, [this, enc] {
-            if (auto *ed = currentEditor()) ed->setEncoding(enc);
-        });
-    }
-    // Character sets（傳統/區域編碼，複刻 Notepad++ Encoding ▸ Character sets）
-    // 以所選 codec 重新解讀目前檔案（開亂碼的 Big5/GBK/Shift-JIS… 檔可正確顯示）
-    QMenu *charsetMenu = encMenu->addMenu(tr("Character sets"));
-    for (const auto &grp : macpad::core::FileEncoding::characterSets()) {
-        QMenu *regionMenu = charsetMenu->addMenu(grp.region);
-        for (const auto &cs : grp.items) {
-            const QString codec = cs.codec;
-            regionMenu->addAction(cs.display, this, [this, codec] {
-                EditorWidget *e = currentEditor();
-                if (!e) return;
-                QString err;
-                if (!e->reinterpretWithCodec(codec, &err)) {
-                    QMessageBox::warning(this, tr("Character sets"), err);
-                    return;
-                }
-                updateStatusBar();
-                statusBar()->showMessage(tr("已以 %1 重新解讀").arg(codec), 3000);
-            });
-        }
-    }
-
-    // Reinterpret（不重新編碼，僅以指定編碼重讀磁碟內容——FR-048）
-    QMenu *reinterpretMenu = encMenu->addMenu(tr("Reinterpret as"));
-    const struct { const char *label; Encoding enc; } reinterprets[] = {
-        {"UTF-8", Encoding::Utf8}, {"UTF-16 LE", Encoding::Utf16LE}, {"UTF-16 BE", Encoding::Utf16BE},
-    };
-    for (const auto &r : reinterprets) {
-        const Encoding enc = r.enc;
-        QString label;
-        switch (enc) {
-        case Encoding::Utf8:    label = tr("Reinterpret as UTF-8"); break;
-        case Encoding::Utf16LE: label = tr("Reinterpret as UTF-16 LE"); break;
-        case Encoding::Utf16BE: label = tr("Reinterpret as UTF-16 BE"); break;
-        default: break;
-        }
-        reinterpretMenu->addAction(label, this, [this, enc] {
-            EditorWidget *e = currentEditor();
-            if (!e) return;
-            QString err;
-            if (!e->reinterpretAsEncoding(enc, &err)) {
-                QMessageBox::warning(this, tr("Reinterpret as"), err);
-                return;
-            }
-            updateStatusBar();
-            statusBar()->showMessage(tr("已重新解讀"), 3000);
-        });
-    }
-
-    QMenu *eolMenu = formatMenu->addMenu(tr("End of Line"));
-    const struct { const char *name; Eol eol; } eols[] = {
-        {"Unix (LF)", Eol::Lf}, {"Windows (CRLF)", Eol::CrLf}, {"Classic Mac (CR)", Eol::Cr},
-    };
-    for (const auto &e : eols) {
-        const Eol eol = e.eol;
-        // 以字面量 tr() 標示名稱，lupdate 才能靜態擷取翻譯（不可傳執行期 const char*）
-        QString label;
-        switch (eol) {
-        case Eol::Lf:   label = tr("Unix (LF)"); break;
-        case Eol::CrLf: label = tr("Windows (CRLF)"); break;
-        case Eol::Cr:   label = tr("Classic Mac (CR)"); break;
-        }
-        eolMenu->addAction(label, this, [this, eol] {
-            if (auto *ed = currentEditor()) ed->convertEol(eol);
-        });
-    }
 
     // 書籤（FR-008）——置於 Edit 選單
     editMenu->addSeparator();
@@ -621,7 +605,105 @@ void MainWindow::createMenus()
     pasteSpecialMenu->addAction(tr("Paste RTF Content"), this, [this] {
         if (EditorWidget *e = currentEditor(); e && !e->isReadOnly()) e->pasteAsRtf();
     });
+}
 
+
+void MainWindow::createEncodingMenu(QMenu *formatMenu)
+{
+    // Encoding 選單：編碼與 EOL 轉換（FR-019/020）
+    using macpad::core::Encoding;
+    using macpad::core::Eol;
+    QMenu *encMenu = formatMenu->addMenu(tr("Encoding"));
+    const struct { const char *name; Encoding enc; } encs[] = {
+        {"UTF-8", Encoding::Utf8}, {"UTF-8 with BOM", Encoding::Utf8Bom},
+        {"UTF-16 LE", Encoding::Utf16LE}, {"UTF-16 BE", Encoding::Utf16BE},
+        {"ANSI (Latin-1)", Encoding::Latin1},
+    };
+    for (const auto &e : encs) {
+        const Encoding enc = e.enc;
+        // 以字面量 tr() 標示名稱，lupdate 才能靜態擷取翻譯（不可傳執行期 const char*）
+        QString label;
+        switch (enc) {
+        case Encoding::Utf8:    label = tr("UTF-8"); break;
+        case Encoding::Utf8Bom: label = tr("UTF-8 with BOM"); break;
+        case Encoding::Utf16LE: label = tr("UTF-16 LE"); break;
+        case Encoding::Utf16BE: label = tr("UTF-16 BE"); break;
+        case Encoding::Latin1:  label = tr("ANSI (Latin-1)"); break;
+        }
+        encMenu->addAction(label, this, [this, enc] {
+            if (auto *ed = currentEditor()) ed->setEncoding(enc);
+        });
+    }
+    // Character sets（傳統/區域編碼，複刻 Notepad++ Encoding ▸ Character sets）
+    // 以所選 codec 重新解讀目前檔案（開亂碼的 Big5/GBK/Shift-JIS… 檔可正確顯示）
+    QMenu *charsetMenu = encMenu->addMenu(tr("Character sets"));
+    for (const auto &grp : macpad::core::FileEncoding::characterSets()) {
+        QMenu *regionMenu = charsetMenu->addMenu(grp.region);
+        for (const auto &cs : grp.items) {
+            const QString codec = cs.codec;
+            regionMenu->addAction(cs.display, this, [this, codec] {
+                EditorWidget *e = currentEditor();
+                if (!e) return;
+                QString err;
+                if (!e->reinterpretWithCodec(codec, &err)) {
+                    QMessageBox::warning(this, tr("Character sets"), err);
+                    return;
+                }
+                updateStatusBar();
+                statusBar()->showMessage(tr("已以 %1 重新解讀").arg(codec), 3000);
+            });
+        }
+    }
+
+    // Reinterpret（不重新編碼，僅以指定編碼重讀磁碟內容——FR-048）
+    QMenu *reinterpretMenu = encMenu->addMenu(tr("Reinterpret as"));
+    const struct { const char *label; Encoding enc; } reinterprets[] = {
+        {"UTF-8", Encoding::Utf8}, {"UTF-16 LE", Encoding::Utf16LE}, {"UTF-16 BE", Encoding::Utf16BE},
+    };
+    for (const auto &r : reinterprets) {
+        const Encoding enc = r.enc;
+        QString label;
+        switch (enc) {
+        case Encoding::Utf8:    label = tr("Reinterpret as UTF-8"); break;
+        case Encoding::Utf16LE: label = tr("Reinterpret as UTF-16 LE"); break;
+        case Encoding::Utf16BE: label = tr("Reinterpret as UTF-16 BE"); break;
+        default: break;
+        }
+        reinterpretMenu->addAction(label, this, [this, enc] {
+            EditorWidget *e = currentEditor();
+            if (!e) return;
+            QString err;
+            if (!e->reinterpretAsEncoding(enc, &err)) {
+                QMessageBox::warning(this, tr("Reinterpret as"), err);
+                return;
+            }
+            updateStatusBar();
+            statusBar()->showMessage(tr("已重新解讀"), 3000);
+        });
+    }
+
+    QMenu *eolMenu = formatMenu->addMenu(tr("End of Line"));
+    const struct { const char *name; Eol eol; } eols[] = {
+        {"Unix (LF)", Eol::Lf}, {"Windows (CRLF)", Eol::CrLf}, {"Classic Mac (CR)", Eol::Cr},
+    };
+    for (const auto &e : eols) {
+        const Eol eol = e.eol;
+        // 以字面量 tr() 標示名稱，lupdate 才能靜態擷取翻譯（不可傳執行期 const char*）
+        QString label;
+        switch (eol) {
+        case Eol::Lf:   label = tr("Unix (LF)"); break;
+        case Eol::CrLf: label = tr("Windows (CRLF)"); break;
+        case Eol::Cr:   label = tr("Classic Mac (CR)"); break;
+        }
+        eolMenu->addAction(label, this, [this, eol] {
+            if (auto *ed = currentEditor()) ed->convertEol(eol);
+        });
+    }
+}
+
+
+void MainWindow::createPluginsMenu(QMenu *pluginMenu)
+{
     // Plugins 選單（複刻 Notepad++ Plugins；Plugins Admin 列出內建擴充）
     pluginMenu->addAction(tr("Plugins Admin…"), this, [this] {
         QString msg;
@@ -636,7 +718,11 @@ void MainWindow::createMenus()
                   "註：Notepad++ 的 .dll 外掛為 Windows 專屬，macOS 無法載入。");
         QMessageBox::information(this, tr("Plugins Admin"), msg);
     });
+}
 
+
+void MainWindow::createToolsMenu(QMenu *toolsMenu)
+{
     // Tools 選單：雜湊
     const struct { const char *name; QCryptographicHash::Algorithm alg; } hashes[] = {
         {"MD5", QCryptographicHash::Md5},
@@ -656,7 +742,11 @@ void MainWindow::createMenus()
             QMessageBox::information(this, label, digest);
         });
     }
+}
 
+
+void MainWindow::createSettingsMenu(QMenu *settingsMenu)
+{
     // Settings 選單（複刻 Notepad++ Settings）：Style Configurator + Shortcut Mapper
     settingsMenu->addAction(tr("Style Configurator…"), this, [this] {
         macpad::ui::StyleConfiguratorDialog dlg(this);
@@ -726,53 +816,11 @@ void MainWindow::createMenus()
         act->setCheckable(true);
         act->setChecked(code == curLang);
     }
+}
 
-    // Preferences（Cmd+,）
-    // 重要：不可用 menuBar()->addAction（bare action）——macOS 原生選單列只接受子選單，
-    // bare action 會迫使 Qt 退回「非原生視窗內選單列」，造成選單一半在螢幕頂端、一半在視窗上。
-    // 正解：建立成一般 QAction，設 PreferencesRole，Qt 會自動移入 macOS 應用程式選單（macpad++ ▸ Preferences）。
-    QAction *prefsAct = new QAction(tr("Preferences…"), this);
-    prefsAct->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_Comma));
-    prefsAct->setMenuRole(QAction::PreferencesRole);
-    connect(prefsAct, &QAction::triggered, this, [this] {
-        const auto cur = macpad::persistence::SettingsStore::load();
-        macpad::ui::PreferencesDialog dlg(cur, this);
-        if (dlg.exec() == QDialog::Accepted) {
-            const auto s = dlg.result();
-            macpad::persistence::SettingsStore::save(s);
-            // 直接可套用的編輯偏好：借道既有 View 選單同名可勾選動作，狀態與畫面自動同步。
-            if (m_wrapAct) m_wrapAct->setChecked(s.wordWrap);
-            if (m_wsAct) m_wsAct->setChecked(s.showWhitespace);
-            m_showIndentGuide = s.showIndentGuides;
-            // 逐分頁即時套用可即時生效的偏好（tabWidth/行號/游標寬/自動配對/自動完成/call tip/縮排參考線）
-            forEachEditor([this, &s](EditorWidget *e) { applyEditorPrefs(e, s); });
-            applySnapshotTimerSettings(s);  // 依偏好啟停/調整當機復原快照計時器
-            applyWindowPrefs(s);            // 工具列/狀態列/分頁列可見性與圖示大小、最近檔案選單
-            rebuildRunShortcuts();          // Run 指令快捷鍵（偏好可能影響，保守重建）
-            applyTheme();
-            statusBar()->showMessage(tr("偏好設定已儲存"), 4000);
-        }
-    });
 
-    // About / Quit：設定 role，Qt 於 macOS 統一移入應用程式選單（讓 app menu 完整原生）
-    QAction *aboutAct = new QAction(tr("About macpad++"), this);
-    aboutAct->setMenuRole(QAction::AboutRole);
-    connect(aboutAct, &QAction::triggered, this, [this] {
-        QMessageBox::about(this, tr("About macpad++"),
-                           tr("macpad++ — Notepad++ 對等的原生 macOS 編輯器\nQt6 + QScintilla"));
-    });
-    QAction *quitAct = new QAction(tr("Quit macpad++"), this);
-    quitAct->setShortcut(QKeySequence::Quit);
-    quitAct->setMenuRole(QAction::QuitRole);
-    connect(quitAct, &QAction::triggered, qApp, &QApplication::quit);
-
-    // 把三個 app-menu 動作掛進 File 選單（有實際容器）；macOS 會依 role 自動搬到應用程式選單，
-    // 其他平台則留在 File。關鍵是它們都在 QMenu 內，不再是 bare action。
-    fileMenu->addSeparator();
-    fileMenu->addAction(prefsAct);
-    fileMenu->addAction(aboutAct);
-    fileMenu->addAction(quitAct);
-
+void MainWindow::createLanguageMenu(QMenu *langMenu)
+{
     // Language 選單：手動選語法高亮（FR-003）+ UDL（FR-032）
 
     // 手動選擇語言：設定目前編輯器的 lexer（覆寫副檔名自動判斷）
@@ -836,7 +884,11 @@ void MainWindow::createMenus()
                                  tr("XML 檔案無效或無法解析"));
         }
     });
+}
 
+
+void MainWindow::createRunMenu(QMenu *runMenu)
+{
     // Run 選單（FR-031）
     runMenu->addAction(tr("Run…"), QKeySequence(Qt::Key_F5), this, [this] {
         if (!m_runDock) {
@@ -921,7 +973,11 @@ void MainWindow::createMenus()
                 a->setShortcut(QKeySequence(entry.shortcut));  // 選單顯示快捷鍵（實際綁定於 rebuildRunShortcuts）
         }
     });
+}
 
+
+void MainWindow::createMacroMenu(QMenu *macroMenu)
+{
     // Macro 選單（FR-028）
     m_recordAction = macroMenu->addAction(tr("Start Recording"),
                                           this, &MainWindow::startMacroRecording);
@@ -992,7 +1048,11 @@ void MainWindow::createMenus()
             });
         }
     });
+}
 
+
+void MainWindow::createViewMenu(QMenu *viewMenu)
+{
     // View 選單：Zoom（FR-023）+ 全螢幕（FR-023）
     viewMenu->addAction(tr("Zoom In"), QKeySequence::ZoomIn, this, [this] {
         if (auto *ed = currentEditor()) ed->zoomIn();
@@ -1183,16 +1243,6 @@ void MainWindow::createMenus()
                            [this] { viewCurrentFileInBrowser(QStringLiteral("Google Chrome")); });
     browserMenu->addAction(tr("Firefox"), this,
                            [this] { viewCurrentFileInBrowser(QStringLiteral("Firefox")); });
-
-    // Window 選單（Notepad++ Window）——列出所有開啟文件並可切換（選單已於函式開頭建立）
-    connect(m_windowMenu, &QMenu::aboutToShow, this, &MainWindow::buildWindowMenu);
-
-    // 套用使用者在 Shortcut Mapper 儲存的快捷鍵覆寫
-    QList<QAction *> allActs;
-    for (QAction *a : menuBar()->findChildren<QAction *>())
-        if (!a->menu() && !a->isSeparator() && !a->text().isEmpty())
-            allActs.append(a);
-    macpad::ui::ShortcutMapperDialog::applySavedOverrides(allActs);
 }
 
 

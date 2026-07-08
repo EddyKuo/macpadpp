@@ -127,6 +127,17 @@ private slots:
 
 private:
     void createMenus();
+    // createMenus() 的分解：各頂層選單的填充拆到獨立 helper（行為保持一致）
+    void createFileMenu(QMenu *fileMenu);
+    void createEditMenu(QMenu *editMenu);
+    void createEncodingMenu(QMenu *formatMenu);
+    void createLanguageMenu(QMenu *langMenu);
+    void createSettingsMenu(QMenu *settingsMenu);
+    void createToolsMenu(QMenu *toolsMenu);
+    void createMacroMenu(QMenu *macroMenu);
+    void createRunMenu(QMenu *runMenu);
+    void createViewMenu(QMenu *viewMenu);
+    void createPluginsMenu(QMenu *pluginMenu);
     // 依目前 lexer 反查 LexerFactory 語言鍵（FR-052）。跨多個 .cpp 使用，故為私有靜態成員。
     static QString languageKeyForLexer(QsciLexer *lex);
     // 依偏好套用「視窗層級」外觀（工具列/狀態列/分頁列可見性與圖示大小、分頁關閉鈕等）
