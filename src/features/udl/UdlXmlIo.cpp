@@ -137,6 +137,7 @@ UdlDefinition UdlXmlIo::importFromXml(const QString &path, const QString &langNa
     QString currentKeywordsName;
     QMap<QString, QString> keywordLists;   // name -> 內文
     QMap<int, UdlStyle> styleMap;
+    QVector<bool> prefixModes;             // <Settings><Prefix words1..8=…>（與 exportToXml 對稱）
 
     while (!xml.atEnd() && !found) {
         const auto token = xml.readNext();
@@ -158,6 +159,13 @@ UdlDefinition UdlXmlIo::importFromXml(const QString &path, const QString &langNa
                 const QString caseIgnored =
                     xml.attributes().value(QStringLiteral("caseIgnored")).toString();
                 def.caseSensitive = (caseIgnored.compare(QStringLiteral("yes"), Qt::CaseInsensitive) != 0);
+            } else if (inTargetUserLang && elem == QLatin1String("Prefix")) {
+                prefixModes.resize(kUdlMaxKeywordGroups);
+                for (int i = 0; i < kUdlMaxKeywordGroups; ++i) {
+                    const QString v = xml.attributes()
+                                          .value(QStringLiteral("words%1").arg(i + 1)).toString();
+                    prefixModes[i] = (v.compare(QStringLiteral("yes"), Qt::CaseInsensitive) == 0);
+                }
             } else if (inTargetUserLang && elem == QLatin1String("Keywords")) {
                 currentKeywordsName = xml.attributes().value(QStringLiteral("name")).toString();
                 keywordLists.insert(currentKeywordsName, xml.readElementText());
@@ -200,6 +208,9 @@ UdlDefinition UdlXmlIo::importFromXml(const QString &path, const QString &langNa
         const QString txt = keywordLists.value(QStringLiteral("Keywords%1").arg(i + 1));
         for (const QString &kw : txt.split(sep, Qt::SkipEmptyParts))
             def.keywordGroups[i].insert(kw);
+        // <Prefix> 前綴模式（若 XML 有提供）——與 exportToXml 對稱，修正往返遺失
+        if (i < prefixModes.size())
+            def.keywordGroupPrefixMode[i] = prefixModes.at(i);
     }
     def.keywords = def.keywordGroups.at(0);
 

@@ -228,6 +228,222 @@ private slots:
         QCOMPARE(p.files.size(), 1);
         QCOMPARE(p.files.at(0).path, QStringLiteral("a.txt"));
     }
+
+    // --- Sprint 6/7 新增旗標 ---
+
+    void parseOpenSessionFlag()
+    {
+        const auto p = CliArgs::parse({"-openSession", "/tmp/my.session", "file.txt"});
+        QCOMPARE(p.openSessionPath, QStringLiteral("/tmp/my.session"));
+        QCOMPARE(p.files.size(), 1);
+        QCOMPARE(p.files.at(0).path, QStringLiteral("file.txt"));
+    }
+
+    void parseOpenSessionFlagNoValue()
+    {
+        // -openSession 為最後一個 token：吞噬不到值，回傳空字串
+        const auto p = CliArgs::parse({"-openSession"});
+        QVERIFY(p.openSessionPath.isEmpty());
+        QVERIFY(p.files.isEmpty());
+    }
+
+    void parseOpenFoldersAsWorkspaceSingle()
+    {
+        const auto p = CliArgs::parse({"-openFoldersAsWorkspace", "/tmp/proj", "file.txt"});
+        QCOMPARE(p.openFoldersAsWorkspace.size(), 1);
+        QCOMPARE(p.openFoldersAsWorkspace.at(0), QStringLiteral("/tmp/proj"));
+        QCOMPARE(p.files.size(), 1);
+    }
+
+    void parseOpenFoldersAsWorkspaceRepeated()
+    {
+        // 可重複出現，每次各吞噬一個資料夾
+        const auto p = CliArgs::parse(
+            {"-openFoldersAsWorkspace", "/tmp/a", "-openFoldersAsWorkspace", "/tmp/b"});
+        QCOMPARE(p.openFoldersAsWorkspace.size(), 2);
+        QCOMPARE(p.openFoldersAsWorkspace.at(0), QStringLiteral("/tmp/a"));
+        QCOMPARE(p.openFoldersAsWorkspace.at(1), QStringLiteral("/tmp/b"));
+        QVERIFY(p.files.isEmpty());
+    }
+
+    void parseWindowXNumericConsumed()
+    {
+        const auto p = CliArgs::parse({"-x", "50"});
+        QVERIFY(p.windowX.has_value());
+        QCOMPARE(p.windowX.value(), 50);
+        QVERIFY(p.files.isEmpty());
+    }
+
+    void parseWindowYNumericConsumed()
+    {
+        const auto p = CliArgs::parse({"-y", "75"});
+        QVERIFY(p.windowY.has_value());
+        QCOMPARE(p.windowY.value(), 75);
+        QVERIFY(p.files.isEmpty());
+    }
+
+    void parseWindowYNonNumericNotConsumed()
+    {
+        // -y 後接非數字（檔案路徑）：不吞噬，路徑仍被當檔案開啟
+        const auto p = CliArgs::parse({"-y", "notes.txt"});
+        QVERIFY(!p.windowY.has_value());
+        QCOMPARE(p.files.size(), 1);
+        QCOMPARE(p.files.at(0).path, QStringLiteral("notes.txt"));
+    }
+
+    void parseNoTabBarFlag()
+    {
+        const auto p = CliArgs::parse({"-notabbar", "file.txt"});
+        QVERIFY(p.hideTabBar);
+        QCOMPARE(p.files.size(), 1);
+    }
+
+    void parseFullReadOnlyFlag()
+    {
+        const auto p = CliArgs::parse({"-fullReadOnly", "file.txt"});
+        QVERIFY(p.fullReadOnly);
+        QCOMPARE(p.files.size(), 1);
+    }
+
+    void parseMonitorFlag()
+    {
+        const auto p = CliArgs::parse({"-monitor", "file.txt"});
+        QVERIFY(p.monitorMode);
+        QCOMPARE(p.files.size(), 1);
+    }
+
+    void parseSettingsDirFlag()
+    {
+        const auto p = CliArgs::parse({"-settingsDir", "/tmp/settings", "file.txt"});
+        QCOMPARE(p.settingsDir, QStringLiteral("/tmp/settings"));
+        QCOMPARE(p.files.size(), 1);
+    }
+
+    void parseUiLangCodeFlag()
+    {
+        const auto p = CliArgs::parse({"-Lfr", "file.txt"});
+        QCOMPARE(p.uiLangCode, QStringLiteral("fr"));
+        QCOMPARE(p.files.size(), 1);
+        // 確認與小寫 -l<lang>（語法高亮）互不干擾
+        QVERIFY(p.forceLanguage.isEmpty());
+    }
+
+    void parseUdlNameFlag()
+    {
+        const auto p = CliArgs::parse({"-udl=MyLang", "file.txt"});
+        QCOMPARE(p.udlName, QStringLiteral("MyLang"));
+        QCOMPARE(p.files.size(), 1);
+    }
+
+    void parseZFlagSwallowsNextToken()
+    {
+        // -z 吞噬下一個 token，無實際作用；file.txt 之後不受影響
+        const auto p = CliArgs::parse({"-z", "swallowedValue", "file.txt"});
+        QCOMPARE(p.files.size(), 1);
+        QCOMPARE(p.files.at(0).path, QStringLiteral("file.txt"));
+    }
+
+    void parseNotepadStyleCmdlineFlag()
+    {
+        const auto p = CliArgs::parse({"-notepadStyleCmdline", "file.txt"});
+        QVERIFY(p.notepadStyleCmdline);
+        QCOMPARE(p.files.size(), 1);
+    }
+
+    void parseSystemTrayIgnoredFlag()
+    {
+        const auto p = CliArgs::parse({"-systemtray", "file.txt"});
+        QVERIFY(p.systemTrayIgnored);
+        QCOMPARE(p.files.size(), 1);
+        QCOMPARE(p.files.at(0).path, QStringLiteral("file.txt"));
+    }
+
+    void parseNoPluginIgnoredFlag()
+    {
+        const auto p = CliArgs::parse({"-noPlugin", "file.txt"});
+        QVERIFY(p.noPluginIgnored);
+        QCOMPARE(p.files.size(), 1);
+    }
+
+    void parsePluginMessageIgnoredFlag()
+    {
+        // -pluginMessage <msg>：吞噬其值，不視為檔案
+        const auto p = CliArgs::parse({"-pluginMessage", "hello-plugin", "file.txt"});
+        QVERIFY(p.pluginMessageIgnored);
+        QCOMPARE(p.files.size(), 1);
+        QCOMPARE(p.files.at(0).path, QStringLiteral("file.txt"));
+    }
+
+    void parseLoadingTimeIgnoredFlag()
+    {
+        const auto p = CliArgs::parse({"-loadingTime", "1234", "file.txt"});
+        QVERIFY(p.loadingTimeIgnored);
+        QCOMPARE(p.files.size(), 1);
+        QCOMPARE(p.files.at(0).path, QStringLiteral("file.txt"));
+    }
+
+    void parseGhostTypingIgnoredFlags()
+    {
+        // -qn/-qt/-qf/-qSpeed 各自吞噬其值，皆設定同一個旗標
+        {
+            const auto p = CliArgs::parse({"-qn", "1", "file.txt"});
+            QVERIFY(p.ghostTypingIgnored);
+            QCOMPARE(p.files.size(), 1);
+        }
+        {
+            const auto p = CliArgs::parse({"-qt", "2", "file.txt"});
+            QVERIFY(p.ghostTypingIgnored);
+            QCOMPARE(p.files.size(), 1);
+        }
+        {
+            const auto p = CliArgs::parse({"-qf", "3", "file.txt"});
+            QVERIFY(p.ghostTypingIgnored);
+            QCOMPARE(p.files.size(), 1);
+        }
+        {
+            const auto p = CliArgs::parse({"-qSpeed", "4", "file.txt"});
+            QVERIFY(p.ghostTypingIgnored);
+            QCOMPARE(p.files.size(), 1);
+        }
+    }
+
+    void parseSprint6And7FlagsMixedWithFiles()
+    {
+        // 綜合：新旗標與真實 file:line 參數混合出現
+        const auto p = CliArgs::parse(
+            {"-openSession", "/tmp/s.session", "-openFoldersAsWorkspace", "/tmp/ws",
+             "-x", "10", "-y", "20", "-notabbar", "-fullReadOnly", "-monitor",
+             "-settingsDir", "/tmp/cfg", "-Lde", "-udl=Custom", "-z", "zval",
+             "-notepadStyleCmdline", "-systemtray", "-noPlugin",
+             "-pluginMessage", "msg", "-loadingTime", "99", "-qn", "1",
+             "src/main.cpp:7", "docs/readme.md"});
+
+        QCOMPARE(p.openSessionPath, QStringLiteral("/tmp/s.session"));
+        QCOMPARE(p.openFoldersAsWorkspace.size(), 1);
+        QCOMPARE(p.openFoldersAsWorkspace.at(0), QStringLiteral("/tmp/ws"));
+        QVERIFY(p.windowX.has_value());
+        QCOMPARE(p.windowX.value(), 10);
+        QVERIFY(p.windowY.has_value());
+        QCOMPARE(p.windowY.value(), 20);
+        QVERIFY(p.hideTabBar);
+        QVERIFY(p.fullReadOnly);
+        QVERIFY(p.monitorMode);
+        QCOMPARE(p.settingsDir, QStringLiteral("/tmp/cfg"));
+        QCOMPARE(p.uiLangCode, QStringLiteral("de"));
+        QCOMPARE(p.udlName, QStringLiteral("Custom"));
+        QVERIFY(p.notepadStyleCmdline);
+        QVERIFY(p.systemTrayIgnored);
+        QVERIFY(p.noPluginIgnored);
+        QVERIFY(p.pluginMessageIgnored);
+        QVERIFY(p.loadingTimeIgnored);
+        QVERIFY(p.ghostTypingIgnored);
+
+        QCOMPARE(p.files.size(), 2);
+        QCOMPARE(p.files.at(0).path, QStringLiteral("src/main.cpp"));
+        QCOMPARE(p.files.at(0).line, 7);
+        QCOMPARE(p.files.at(1).path, QStringLiteral("docs/readme.md"));
+        QCOMPARE(p.files.at(1).line, 0);
+    }
 };
 
 QTEST_APPLESS_MAIN(TestCliArgs)

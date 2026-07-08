@@ -182,6 +182,173 @@ private slots:
         QVERIFY(lex->paper(styleId).isValid());
         QVERIFY(lex->color(styleId) != QColor(QStringLiteral("not-a-color")));
     }
+
+    // Scintilla 顏色訊息回傳值為 0x00BBGGRR（Windows COLORREF 排列）；解出可與 QColor(#RRGGBB) 比對。
+    static QColor colourFromScintilla(long raw)
+    {
+        return QColor(int(raw & 0xFF), int((raw >> 8) & 0xFF), int((raw >> 16) & 0xFF));
+    }
+
+    // StyleOverride.underline=true：套用後 lexer 該 style 的字型應為 underline（③a 樣式覆寫的 underline 分支）
+    void applyStyleOverrideAppliesUnderline()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.path() + QStringLiteral("/underline.cpp");
+        {
+            QFile f(path);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write("int x = 1; // comment\n");
+        }
+
+        EditorWidget editor;
+        QString err;
+        QVERIFY2(editor.loadFile(path, &err), qPrintable(err));
+        QsciLexer *lex = editor.lexer();
+        QVERIFY(lex != nullptr);
+        const QString langKey = QString::fromLatin1(lex->language());
+        QVERIFY(!langKey.isEmpty());
+
+        const int styleId = 2;
+        StyleOverride ov;
+        ov.style = styleId;
+        ov.bold = true;
+        ov.italic = false;
+        ov.underline = true;
+
+        StyleSettings cfg;
+        cfg.byLang.insert(langKey, {ov});
+        QVERIFY(StyleStore::save(cfg));
+
+        ThemeManager::applyToEditor(&editor, false);
+
+        lex = editor.lexer();
+        QVERIFY(lex != nullptr);
+        const QFont f = lex->font(styleId);
+        QVERIFY(f.underline());
+        QVERIFY(f.bold());
+        QVERIFY(!f.italic());
+    }
+
+    // GlobalStyles 新欄位（edgeColor/caretColor/foldMargin/bookmarkMargin/markColor 等）：
+    // 套用後不可 crash；edgeColor()/caret 前景/indicator 0 前景等可查詢欄位須反映設定值。
+    void applyGlobalStylesAppliesNewFields()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.path() + QStringLiteral("/globalstyles.cpp");
+        {
+            QFile f(path);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write("int x = 1;\n");
+        }
+
+        EditorWidget editor;
+        QString err;
+        QVERIFY2(editor.loadFile(path, &err), qPrintable(err));
+        QVERIFY(editor.lexer() != nullptr);
+
+        StyleSettings cfg;
+        cfg.global.edgeColor = QStringLiteral("#010203");
+        cfg.global.caretColor = QStringLiteral("#040506");
+        cfg.global.foldMargin = QStringLiteral("#070809");
+        cfg.global.bookmarkMargin = QStringLiteral("#0a0b0c");
+        cfg.global.markColor = QStringLiteral("#0d0e0f");
+        // 目前 ThemeManager 尚未讀取以下欄位（僅存於 StyleSettings，供未來使用）；
+        // 設定後套用不可 crash。
+        cfg.global.badBrace = QStringLiteral("#101112");
+        cfg.global.foldActive = QStringLiteral("#131415");
+        cfg.global.changeHistoryModifiedMargin = QStringLiteral("#161718");
+        cfg.global.changeHistorySavedMargin = QStringLiteral("#191a1b");
+        cfg.global.changeHistoryRevertedMargin = QStringLiteral("#1c1d1e");
+        cfg.global.urlHovered = QStringLiteral("#1f2021");
+        QVERIFY(StyleStore::save(cfg));
+
+        // 不應 crash
+        ThemeManager::applyToEditor(&editor, true);
+
+        QCOMPARE(editor.edgeColor(), QColor(QStringLiteral("#010203")));
+
+        const long caretRaw = editor.SendScintilla(QsciScintillaBase::SCI_GETCARETFORE);
+        QCOMPARE(colourFromScintilla(caretRaw), QColor(QStringLiteral("#040506")));
+
+        const long markRaw = editor.SendScintilla(QsciScintillaBase::SCI_INDICGETFORE, 0UL);
+        QCOMPARE(colourFromScintilla(markRaw), QColor(QStringLiteral("#0d0e0f")));
+
+        // 再套用一次（light）確認重複套用仍不 crash 且 edgeColor 持續反映設定值
+        ThemeManager::applyToEditor(&editor, false);
+        QCOMPARE(editor.edgeColor(), QColor(QStringLiteral("#010203")));
+    }
+
+    // Global Override（enableGlobalFg/enableGlobalBg）：開啟時應以單一顏色套用到所有 lexer style
+    void enableGlobalFgAndBgOverrideAppliesToAllStyles()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.path() + QStringLiteral("/globaloverride.cpp");
+        {
+            QFile f(path);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write("int x = 1; // comment\nstruct S { int a; };\n");
+        }
+
+        EditorWidget editor;
+        QString err;
+        QVERIFY2(editor.loadFile(path, &err), qPrintable(err));
+        QsciLexer *lex = editor.lexer();
+        QVERIFY(lex != nullptr);
+
+        StyleSettings cfg;
+        cfg.global.enableGlobalFg = true;
+        cfg.global.globalFg = QStringLiteral("#aa11bb");
+        cfg.global.enableGlobalBg = true;
+        cfg.global.globalBg = QStringLiteral("#cc22dd");
+        QVERIFY(StyleStore::save(cfg));
+
+        ThemeManager::applyToEditor(&editor, true);
+
+        lex = editor.lexer();
+        QVERIFY(lex != nullptr);
+        // 檢查多個不同 style index，皆應被強制套用同一組前景/背景色
+        for (int style : {0, 1, 5, 10, 50}) {
+            QCOMPARE(lex->color(style), QColor(QStringLiteral("#aa11bb")));
+            QCOMPARE(lex->paper(style), QColor(QStringLiteral("#cc22dd")));
+        }
+    }
+
+    // enableGlobalFg/Bg 關閉且顏色字串為空時：不應觸發覆寫迴圈（早期略過），不可 crash
+    void disabledGlobalOverrideDoesNotChangeStyles()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.path() + QStringLiteral("/globaloverrideoff.cpp");
+        {
+            QFile f(path);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write("int x = 1; // comment\n");
+        }
+
+        EditorWidget editor;
+        QString err;
+        QVERIFY2(editor.loadFile(path, &err), qPrintable(err));
+        QsciLexer *lex = editor.lexer();
+        QVERIFY(lex != nullptr);
+
+        StyleSettings cfg;
+        cfg.global.enableGlobalFg = false;
+        cfg.global.globalFg = QStringLiteral("#aa11bb");
+        cfg.global.enableGlobalBg = false;
+        cfg.global.globalBg = QStringLiteral("#cc22dd");
+        QVERIFY(StyleStore::save(cfg));
+
+        // 不應 crash；且既然關閉，style 0 的顏色不應被覆寫成 globalFg
+        ThemeManager::applyToEditor(&editor, true);
+
+        lex = editor.lexer();
+        QVERIFY(lex != nullptr);
+        QVERIFY(lex->color(0) != QColor(QStringLiteral("#aa11bb")));
+        QVERIFY(lex->paper(0) != QColor(QStringLiteral("#cc22dd")));
+    }
 };
 
 QTEST_MAIN(TestThemeManager)

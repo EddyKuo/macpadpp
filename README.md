@@ -52,11 +52,11 @@ open build/src/macpad++.app
 ## 測試與效能基準
 
 ```bash
-ctest --test-dir build --output-on-failure                    # 25 個 QtTest 套件
+ctest --test-dir build --output-on-failure                    # 34 個 QtTest 套件
 QT_QPA_PLATFORM=offscreen ./build/tests/bench_largefile 100    # 大檔案基準
 ```
 
-核心邏輯以 clang source-based coverage 量測,**功能範圍行覆蓋率約 91%**(排除純 UI 的
+核心邏輯以 clang source-based coverage 量測,**功能範圍行覆蓋率 90.0%**(排除純 UI 的
 視窗/對話框/停靠面板)。實測效能:開 100 MB ≈ 120 ms;10 MB 正則取代 15 萬處 ≈ 52 ms。
 
 更多細節見 **[`BUILD.md`](BUILD.md)**。

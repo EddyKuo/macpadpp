@@ -3,7 +3,11 @@
 #include <QtTest>
 #include <QApplication>
 #include <QClipboard>
+#include <QDateTime>
 #include <QFile>
+#include <QLocale>
+#include <QMimeData>
+#include <QRegularExpression>
 #include <QTemporaryDir>
 
 #include <Qsci/qscilexercpp.h>
@@ -696,6 +700,234 @@ private slots:
         e.clearStyledTokens();
         QCOMPARE(e.indicatorRangeCount(EditorWidget::kTokenIndicatorBase), 0);
         QCOMPARE(e.indicatorRangeCount(EditorWidget::kTokenIndicatorBase + 2), 0);
+    }
+
+    void selectAllOccurrencesMatchCaseWholeWordVariants()
+    {
+        // FR-060：4 種 matchCase/wholeWord 組合對 "foo Foo food" 的相符數應有一致的相對關係。
+        // 精確選取數為 Scintilla 內部搜尋+既有選取合併的實作細節，故以相對比較驗證每個旗標
+        // 確實造成行為差異，避免對內部精確計數方式過度耦合。
+        auto countFor = [](bool matchCase, bool wholeWord) -> long {
+            EditorWidget e;
+            e.setText(QStringLiteral("foo Foo food"));
+            e.setCursorPosition(0, 1);
+            e.selectAllOccurrences(matchCase, wholeWord);
+            return e.SendScintilla(EditorWidget::SCI_GETSELECTIONS);
+        };
+
+        const long caseSensitiveSubstring = countFor(true, false);
+        const long caseInsensitiveSubstring = countFor(false, false);
+        const long caseSensitiveWholeWord = countFor(true, true);
+        const long caseInsensitiveWholeWord = countFor(false, true);
+
+        // 所有變化至少都選到自身所在的字詞
+        QVERIFY(caseSensitiveSubstring >= 1);
+        QVERIFY(caseInsensitiveSubstring >= 1);
+        QVERIFY(caseSensitiveWholeWord >= 1);
+        QVERIFY(caseInsensitiveWholeWord >= 1);
+
+        // 不分大小寫應涵蓋 "Foo"，故 >= 只分大小寫的版本
+        QVERIFY(caseInsensitiveSubstring >= caseSensitiveSubstring);
+        QVERIFY(caseInsensitiveWholeWord >= caseSensitiveWholeWord);
+
+        // 子字串搜尋涵蓋 "food" 內的 "foo"，整詞搜尋不應涵蓋，故子字串版本 >= 整詞版本
+        QVERIFY(caseSensitiveSubstring >= caseSensitiveWholeWord);
+        QVERIFY(caseInsensitiveSubstring >= caseInsensitiveWholeWord);
+
+        // 不分大小寫子字串應嚴格多於只分大小寫整詞（"Foo" 與 "food" 至少一個額外命中）
+        QVERIFY(caseInsensitiveSubstring > caseSensitiveWholeWord);
+    }
+
+    void undoLastMultiSelectDropsLastSelection()
+    {
+        // FR-060：undoLastMultiSelect 丟棄最後加入的選取區域，不加選下一個。
+        // 起始選取數為 Scintilla 內部搜尋合併細節，故不硬編確切數字，只驗證每次呼叫
+        // 恰好減少 1，直到剩 1 個時安全 no-op（不會降到 0）。
+        EditorWidget e;
+        e.setText(QStringLiteral("foo foo foo"));
+        e.setCursorPosition(0, 1);
+        e.selectAllOccurrences(false, false);
+        long count = e.SendScintilla(EditorWidget::SCI_GETSELECTIONS);
+        QVERIFY(count > 1);  // 三個 "foo" 應產生多重選取
+
+        while (count > 1) {
+            e.undoLastMultiSelect();
+            const long next = e.SendScintilla(EditorWidget::SCI_GETSELECTIONS);
+            QCOMPARE(next, count - 1);
+            count = next;
+        }
+
+        // 只剩一個選取時再呼叫：安全 no-op（不會降到 0）
+        e.undoLastMultiSelect();
+        QCOMPARE(e.SendScintilla(EditorWidget::SCI_GETSELECTIONS), 1L);
+    }
+
+    void columnSelectionToMultiEditTogglePlacesCaretsOrRectangle()
+    {
+        // 開啟後 endColumnSelect 不產生矩形選取，改為每行相同欄位各放一個插入點
+        EditorWidget e;
+        QVERIFY(!e.columnSelectionToMultiEdit());
+        e.setColumnSelectionToMultiEdit(true);
+        QVERIFY(e.columnSelectionToMultiEdit());
+
+        e.setText(QStringLiteral("abcd\nefgh\n"));
+        e.setCursorPosition(0, 1);
+        e.beginColumnSelect();
+        e.setCursorPosition(1, 3);
+        e.endColumnSelect();
+
+        QCOMPARE(e.SendScintilla(EditorWidget::SCI_GETSELECTIONS), 2L);
+        QCOMPARE(e.SendScintilla(EditorWidget::SCI_GETSELECTIONMODE),
+                 static_cast<long>(EditorWidget::SC_SEL_STREAM));
+        // 每個選取為插入點（start==end），非範圍選取
+        for (int i = 0; i < 2; ++i) {
+            const long s = e.SendScintilla(EditorWidget::SCI_GETSELECTIONNSTART,
+                                            static_cast<unsigned long>(i));
+            const long en = e.SendScintilla(EditorWidget::SCI_GETSELECTIONNEND,
+                                             static_cast<unsigned long>(i));
+            QCOMPARE(s, en);
+        }
+
+        // 關閉（預設）時 endColumnSelect 產生矩形選取模式
+        EditorWidget e2;
+        QVERIFY(!e2.columnSelectionToMultiEdit());
+        e2.setText(QStringLiteral("abcd\nefgh\n"));
+        e2.setCursorPosition(0, 1);
+        e2.beginColumnSelect();
+        e2.setCursorPosition(1, 3);
+        e2.endColumnSelect();
+        QCOMPARE(e2.SendScintilla(EditorWidget::SCI_GETSELECTIONMODE),
+                 static_cast<long>(EditorWidget::SC_SEL_RECTANGLE));
+    }
+
+    void pasteAsHtmlStripsTagsFromClipboard()
+    {
+        // Edit ▸ Paste Special：讀取剪貼簿 HTML 負載，去標籤後以純文字插入
+        auto *mime = new QMimeData();
+        mime->setHtml(QStringLiteral("<p>Hello <b>World</b></p>"));
+        qApp->clipboard()->setMimeData(mime);
+
+        EditorWidget e;
+        e.setText(QString());
+        e.pasteAsHtml();
+        QCOMPARE(e.text(), QStringLiteral("Hello World"));
+
+        // 無 HTML 負載時退回一般純文字貼上
+        qApp->clipboard()->setText(QStringLiteral("plain fallback"));
+        EditorWidget e2;
+        e2.setText(QString());
+        e2.pasteAsHtml();
+        QCOMPARE(e2.text(), QStringLiteral("plain fallback"));
+    }
+
+    void pasteAsRtfStripsControlWordsFromClipboard()
+    {
+        // Edit ▸ Paste Special：讀取剪貼簿 RTF 負載，去控制詞後以純文字插入
+        auto *mime = new QMimeData();
+        mime->setData(QStringLiteral("text/rtf"),
+                      QByteArrayLiteral("{\\rtf1\\ansi Hello World}"));
+        qApp->clipboard()->setMimeData(mime);
+
+        EditorWidget e;
+        e.setText(QString());
+        e.pasteAsRtf();
+        QCOMPARE(e.text(), QStringLiteral("Hello World"));
+
+        // 無 RTF 負載時退回一般純文字貼上
+        qApp->clipboard()->setText(QStringLiteral("plain rtf fallback"));
+        EditorWidget e2;
+        e2.setText(QString());
+        e2.pasteAsRtf();
+        QCOMPARE(e2.text(), QStringLiteral("plain rtf fallback"));
+    }
+
+    void insertDateShortAndLongInsertNonEmptyLocaleText()
+    {
+        // Edit ▸ Insert Date/Time：取代選取（或插入）系統當地格式日期／時間文字。
+        // 確切文字與系統 QLocale 格式/語系相依（可能為 2 或 4 位數年份、不同月份名稱等），
+        // 故以「非空、含數字、Long 格式較 Short 格式資訊量更多」弱化驗證，避免跨語系環境不穩。
+        static const QRegularExpression hasDigit(QStringLiteral("\\d"));
+
+        EditorWidget e;
+        e.setText(QString());
+        e.insertDateShort();
+        const QString shortText = e.text();
+        QVERIFY(!shortText.isEmpty());
+        QVERIFY(hasDigit.match(shortText).hasMatch());
+
+        EditorWidget e2;
+        e2.setText(QString());
+        e2.insertDateLong();
+        const QString longText = e2.text();
+        QVERIFY(!longText.isEmpty());
+        QVERIFY(hasDigit.match(longText).hasMatch());
+
+        // Long format 包含星期/月份全名等，長度應不短於 Short format
+        QVERIFY(longText.size() >= shortText.size());
+    }
+
+    void insertDateCustomUsesGivenFormatString()
+    {
+        // 自訂格式字串：以固定格式驗證結構（避免與系統當地格式耦合造成不穩定）
+        EditorWidget e;
+        e.setText(QString());
+        e.insertDateCustom(QStringLiteral("yyyy-MM-dd"));
+        static const QRegularExpression datePattern(QStringLiteral("^\\d{4}-\\d{2}-\\d{2}$"));
+        QVERIFY(datePattern.match(e.text()).hasMatch());
+
+        // 空格式字串：no-op，不插入任何文字
+        EditorWidget e2;
+        e2.setText(QString());
+        e2.insertDateCustom(QString());
+        QVERIFY(e2.text().isEmpty());
+    }
+
+    void triggerWordCompletionShowsListWhenWordsPresent()
+    {
+        // 手動強制觸發自動完成清單，無視 autoCompletionThreshold
+        EditorWidget e;
+        e.setText(QStringLiteral("alpha alphabet alarm a"));
+        e.setCursorPosition(0, e.text().length());  // 游標在最後的 "a" 之後
+        e.triggerWordCompletion();
+        QVERIFY(e.isListActive());
+    }
+
+    void triggerCallTipEmitsSignalForIdentifierBeforeCaret()
+    {
+        // 手動觸發（不需鍵入 '('）：游標前若有識別字則發出 callTipRequested
+        EditorWidget e;
+        e.setText(QStringLiteral("myFunction"));
+        e.setCursorPosition(0, e.text().length());
+
+        QSignalSpy spy(&e, &EditorWidget::callTipRequested);
+        e.triggerCallTip();
+        QCOMPARE(spy.count(), 1);
+        QCOMPARE(spy.at(0).at(0).toString(), QStringLiteral("myFunction"));
+
+        // 游標在文件開頭（pos<=0）：安全 no-op，不發訊號
+        EditorWidget e2;
+        e2.setText(QStringLiteral("foo"));
+        e2.setCursorPosition(0, 0);
+        QSignalSpy spy2(&e2, &EditorWidget::callTipRequested);
+        e2.triggerCallTip();
+        QCOMPARE(spy2.count(), 0);
+    }
+
+    void setHighlightMatchingTagsTogglesIndicator()
+    {
+        // 開啟後立即依目前游標標記一次；關閉時清除既有標記
+        EditorWidget e;
+        QVERIFY(!e.highlightMatchingTags());
+
+        e.setText(QStringLiteral("<div>text</div>"));
+        e.setCursorPosition(0, 2);  // 游標落在開啟標籤 "<div>" 內
+        e.setHighlightMatchingTags(true);
+        QVERIFY(e.highlightMatchingTags());
+        QCOMPARE(e.indicatorRangeCount(EditorWidget::kTagMatchIndicator), 2);  // 開+閉各一段
+
+        e.setHighlightMatchingTags(false);
+        QVERIFY(!e.highlightMatchingTags());
+        QCOMPARE(e.indicatorRangeCount(EditorWidget::kTagMatchIndicator), 0);
     }
 };
 
