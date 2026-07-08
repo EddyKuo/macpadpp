@@ -31,6 +31,7 @@ set(MACPAD_TESTS
     test_backup
     test_findall
     test_themestore
+    test_recoverydialog
 )
 
 foreach(t ${MACPAD_TESTS})

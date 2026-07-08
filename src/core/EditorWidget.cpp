@@ -829,8 +829,8 @@ void EditorWidget::keyPressEvent(QKeyEvent *event)
         }
     }
 
-    // 鍵入 '(' → 取其前的識別字，請上層查函式簽名顯示 call tip
-    if (typed == QLatin1String("(")) {
+    // 鍵入 '(' → 取其前的識別字，請上層查函式簽名顯示 call tip（FR-N/A，可由偏好設定關閉）
+    if (m_callTips && typed == QLatin1String("(")) {
         const long pos = SendScintilla(SCI_GETCURRENTPOS);
         const long paren = pos - 1;
         if (paren <= 0)
@@ -969,6 +969,40 @@ void EditorWidget::skipAndSelectNext()
     if (n > 1)
         SendScintilla(SCI_DROPSELECTIONN, static_cast<unsigned long>(n - 1));
     SendScintilla(SCI_MULTIPLESELECTADDNEXT);
+}
+
+// === Preferences 即時套用 ===
+void EditorWidget::setShowLineNumbers(bool show)
+{
+    m_showLineNumbers = show;
+    if (show) {
+        // 與 applyDefaultConfig 相同公式重算動態寬度（依目前字型量測，非固定值）
+        setMarginLineNumbers(0, true);
+        const QFontMetrics fm(font());
+        setMarginWidth(0, fm.horizontalAdvance(QStringLiteral("0000")) + 8);
+    } else {
+        setMarginLineNumbers(0, false);
+        setMarginWidth(0, 0);
+    }
+}
+
+void EditorWidget::setCaretWidth(int px)
+{
+    // Scintilla 僅接受 0..3 像素（SC_CARETSTYLE 無關的獨立設定）；夾限避免非法值
+    m_caretWidth = qBound(0, px, 3);
+    SendScintilla(SCI_SETCARETWIDTH, static_cast<unsigned long>(m_caretWidth));
+}
+
+void EditorWidget::setWordCompletionEnabled(bool enabled)
+{
+    m_wordCompletion = enabled;
+    if (enabled) {
+        // 若已套用 API 自動完成（m_apis 非空），改用文件+API 合併來源；否則僅文件字詞。
+        setAutoCompletionSource(m_apis ? QsciScintilla::AcsAll : QsciScintilla::AcsDocument);
+        setAutoCompletionThreshold(2);
+    } else {
+        setAutoCompletionSource(QsciScintilla::AcsNone);
+    }
 }
 
 // === API 自動完成（FR-055 hook）===

@@ -480,6 +480,74 @@ private slots:
         QSignalSpy spy(apis, &QsciAPIs::apiPreparationFinished);
         QVERIFY(spy.count() > 0 || spy.wait(5000));
     }
+    void showLineNumbersTogglesMarginWidth()
+    {
+        // 預設開啟，寬度 > 0；關閉後寬度歸零；重新開啟則恢復動態寬度
+        EditorWidget e;
+        QVERIFY(e.showLineNumbers());
+        QVERIFY(e.marginWidth(0) > 0);
+
+        e.setShowLineNumbers(false);
+        QVERIFY(!e.showLineNumbers());
+        QCOMPARE(e.marginWidth(0), 0);
+
+        e.setShowLineNumbers(true);
+        QVERIFY(e.showLineNumbers());
+        QVERIFY(e.marginWidth(0) > 0);
+    }
+
+    void caretWidthRoundTripsAndClamps()
+    {
+        EditorWidget e;
+        QCOMPARE(e.caretWidth(), 1);  // 預設值
+
+        e.setCaretWidth(2);
+        QCOMPARE(e.caretWidth(), 2);
+
+        e.setCaretWidth(0);
+        QCOMPARE(e.caretWidth(), 0);
+
+        // 超出範圍夾限至 0..3
+        e.setCaretWidth(99);
+        QCOMPARE(e.caretWidth(), 3);
+        e.setCaretWidth(-5);
+        QCOMPARE(e.caretWidth(), 0);
+    }
+
+    void wordCompletionEnabledTogglesAutoCompletionSource()
+    {
+        EditorWidget e;
+        QVERIFY(e.wordCompletionEnabled());  // 預設開啟
+        QVERIFY(e.autoCompletionSource() != QsciScintilla::AcsNone);
+
+        e.setWordCompletionEnabled(false);
+        QVERIFY(!e.wordCompletionEnabled());
+        QCOMPARE(e.autoCompletionSource(), QsciScintilla::AcsNone);
+
+        e.setWordCompletionEnabled(true);
+        QVERIFY(e.wordCompletionEnabled());
+        QVERIFY(e.autoCompletionSource() != QsciScintilla::AcsNone);
+    }
+
+    void callTipsEnabledGatesCallTipRequested()
+    {
+        EditorWidget e;
+        QVERIFY(e.callTipsEnabled());  // 預設開啟
+        e.setText(QStringLiteral("foo"));
+        e.setCursorPosition(0, 3);
+
+        QSignalSpy spy(&e, &EditorWidget::callTipRequested);
+        QTest::keyClick(&e, '(');
+        QCOMPARE(spy.count(), 1);
+
+        e.setCallTipsEnabled(false);
+        QVERIFY(!e.callTipsEnabled());
+        e.setText(QStringLiteral("bar"));
+        e.setCursorPosition(0, 3);
+        QSignalSpy spy2(&e, &EditorWidget::callTipRequested);
+        QTest::keyClick(&e, '(');
+        QCOMPARE(spy2.count(), 0);
+    }
 };
 
 QTEST_MAIN(TestEditorOps)

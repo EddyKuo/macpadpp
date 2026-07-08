@@ -1060,3 +1060,10 @@ Sprint 2 完成後，`docs/parity-audit.md` 的 B 組（FR-053..060）由 missin
 ---
 
 *Sprint 2 增補（§13）補完大型子系統；狀態於實作後同步至 `docs/parity-audit.md` 與 `sprint/current/status.md`。*
+
+### 13.5 Sprint 3 收尾（FR-053/FR-054 完成）
+清除 Sprint 2 遺留 TODO，使兩個子系統真正完整：
+- **Preferences 即時套用**：`EditorWidget` 新增 `setShowLineNumbers`/`setCaretWidth`(override)/`setWordCompletionEnabled`/`setCallTipsEnabled`(+`m_callTips` 守衛 `(` call-tip)。MainWindow 新增 `applyEditorPrefs(editor, settings)`，於 Preferences 套用與 `addEditorTab` 皆呼叫，讓現有與新分頁一致套用 tabWidth/行號/游標寬/自動配對/自動完成/threshold/call-tip/檢視偏好。
+- **當機復原真實化**：原本 `writeSnapshot` 從未被呼叫（機制空轉）。新增 30 秒週期 `QTimer`，對 dirty 分頁 `BackupService::writeSnapshot`；啟動時若 `pendingSnapshots()` 非空，開 `SnapshotRecoveryDialog`（多選還原/全部丟棄），取代原資訊框；`closeEvent` 正常關閉清空快照。
+- **大檔守衛**（`largeFileMB`）：`openFile` 超過門檻先確認。**失焦自存**（`autosaveOnFocusLoss`）：`applicationStateChanged` 非 active 時存已命名之未存分頁。
+- 驗證：CTest 30/30、-Werror 零警告、功能覆蓋率 90.5%。

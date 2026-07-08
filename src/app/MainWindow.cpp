@@ -19,6 +19,7 @@
 #include "features/autocomplete/ApiDatabase.h"
 #include "persistence/ThemeStore.h"
 #include "ui/ThemePickerDialog.h"
+#include "ui/SnapshotRecoveryDialog.h"
 #include "features/findall/FindAllEngine.h"
 #include "features/findall/FindAllDock.h"
 #include "features/backup/BackupService.h"
@@ -256,13 +257,23 @@ MainWindow::MainWindow(QWidget *parent, bool restoreSessionOnLaunch)
     rebuildRecentMenu();
     applyTheme();  // 還原後統一套用主題（含 lexer paper）
 
-    // 當機復原（FR-054 輕量版）：偵測上次未正常關閉遺留的快照，先揭露存在即可。
-    // TODO(sprint2)：完整的「選擇快照→還原內容」對話框待後續加入。
+    // 當機復原（FR-054）：偵測上次未正常關閉遺留的快照，讓使用者選擇還原或丟棄。
     {
         const QStringList pending = macpad::features::BackupService::pendingSnapshots();
         if (!pending.isEmpty()) {
-            QMessageBox::information(this, tr("Crash Recovery"),
-                tr("偵測到 %1 份未正常關閉時遺留的快照。").arg(pending.size()));
+            macpad::ui::SnapshotRecoveryDialog dlg(pending, this);
+            if (dlg.exec() == QDialog::Accepted) {
+                if (dlg.discardAll()) {
+                    macpad::features::BackupService::clearSnapshots();
+                } else {
+                    for (const QString &id : dlg.selectedSnapshots()) {
+                        EditorWidget *e = addEditorTab();
+                        e->setText(QString::fromUtf8(
+                            macpad::features::BackupService::readSnapshot(id)));
+                    }
+                    macpad::features::BackupService::clearSnapshots();  // 還原後清除，避免重覆提示
+                }
+            }
         }
     }
 
@@ -287,6 +298,40 @@ MainWindow::MainWindow(QWidget *parent, bool restoreSessionOnLaunch)
         });
         timer->start();
     }
+
+    // 當機復原快照（FR-054）：每 30 秒把「有未存變更」的分頁內容寫入 snapshot；
+    // 正常關閉時 closeEvent 會 clearSnapshots()，故啟動時殘留者即代表上次未正常結束。
+    {
+        auto *snapTimer = new QTimer(this);
+        snapTimer->setInterval(30 * 1000);
+        connect(snapTimer, &QTimer::timeout, this, [this] {
+            for (int i = 0; i < m_tabs->count(); ++i) {
+                EditorWidget *e = editorAt(i);
+                if (e && e->isDirty()) {
+                    const QString docId = e->isUntitled()
+                        ? QStringLiteral("untitled-%1").arg(i)
+                        : QFileInfo(e->filePath()).fileName();
+                    macpad::features::BackupService::writeSnapshot(
+                        QStringLiteral("session"), docId, e->text().toUtf8());
+                }
+            }
+        });
+        snapTimer->start();
+    }
+
+    // 失焦自動儲存（FR-053）：視窗失去作用時存已命名之未存分頁
+    connect(qApp, &QApplication::applicationStateChanged, this,
+            [this](Qt::ApplicationState state) {
+        if (state != Qt::ApplicationActive
+            && macpad::persistence::SettingsStore::load().autosaveOnFocusLoss) {
+            for (int i = 0; i < m_tabs->count(); ++i) {
+                EditorWidget *e = editorAt(i);
+                if (e && !e->isUntitled() && e->isDirty())
+                    e->saveFile(e->filePath());
+            }
+            updateTabTitle();
+        }
+    });
 }
 
 MainWindow::~MainWindow() = default;
@@ -883,19 +928,15 @@ void MainWindow::createMenus()
         if (dlg.exec() == QDialog::Accepted) {
             const auto s = dlg.result();
             macpad::persistence::SettingsStore::save(s);
-            for (int i = 0; i < m_tabs->count(); ++i)
-                if (EditorWidget *e = editorAt(i)) e->setTabWidth(s.tabWidth);
             // 直接可套用的編輯偏好：借道既有 View 選單同名可勾選動作，狀態與畫面自動同步。
             if (m_wrapAct) m_wrapAct->setChecked(s.wordWrap);
             if (m_wsAct) m_wsAct->setChecked(s.showWhitespace);
             m_showIndentGuide = s.showIndentGuides;
-            for (int i = 0; i < m_tabs->count(); ++i) applyViewPrefs(editorAt(i));
-            // TODO(sprint2)：showLineNumbers 需 EditorWidget 增加行號邊欄寬度切換 API，尚未暴露。
-            // TODO(sprint2)：caretWidth/defaultEol/defaultEncoding/autosaveOnFocusLoss/
-            // autoInsertPairs/wordAutoComplete/acThreshold/showCallTips/largeFileMB/
-            // disableAutoCompleteOverMB 屬新分頁預設值或非文字即時屬性，套用時機不同於現有分頁，暫不即時套用。
+            // 逐分頁即時套用可即時生效的偏好（tabWidth/行號/游標寬/自動配對/自動完成/call tip/縮排參考線）
+            for (int i = 0; i < m_tabs->count(); ++i)
+                applyEditorPrefs(editorAt(i), s);
             applyTheme();
-            statusBar()->showMessage(tr("偏好設定已儲存（部分設定重啟後生效）"), 4000);
+            statusBar()->showMessage(tr("偏好設定已儲存"), 4000);
         }
     });
 
@@ -1470,6 +1511,20 @@ void MainWindow::applyViewPrefs(EditorWidget *editor)
     editor->setIndentationGuides(m_showIndentGuide);
     editor->setWrapVisualFlags(m_showWrapSymbol ? QsciScintilla::WrapFlagByText
                                                 : QsciScintilla::WrapFlagNone);
+}
+
+void MainWindow::applyEditorPrefs(EditorWidget *editor, const macpad::persistence::Settings &s)
+{
+    if (!editor)
+        return;
+    editor->setTabWidth(s.tabWidth);
+    editor->setShowLineNumbers(s.showLineNumbers);
+    editor->setCaretWidth(s.caretWidth);
+    editor->setAutoClose(s.autoInsertPairs);          // 括號/引號自動配對
+    editor->setWordCompletionEnabled(s.wordAutoComplete);
+    editor->setAutoCompletionThreshold(s.acThreshold);
+    editor->setCallTipsEnabled(s.showCallTips);
+    applyViewPrefs(editor);                            // wrap/whitespace/eol/縮排參考線
 }
 
 void MainWindow::themeEditor(EditorWidget *editor)
@@ -2249,7 +2304,7 @@ EditorWidget *MainWindow::addEditorTab()
     });
 
     themeEditor(editor);
-    applyViewPrefs(editor);
+    applyEditorPrefs(editor, macpad::persistence::SettingsStore::load());  // 新分頁套用目前偏好
 
     const int idx = m_tabs->addTab(pane, editor->displayName());
     m_tabs->setCurrentIndex(idx);
@@ -2278,6 +2333,17 @@ void MainWindow::openFile(const QString &path)
     if (existing >= 0) {
         m_tabs->setCurrentIndex(existing);
         return;
+    }
+
+    // 大檔守衛（FR-053 largeFileMB）：超過門檻先確認，避免誤開巨檔卡住
+    const int largeMB = macpad::persistence::SettingsStore::load().largeFileMB;
+    const qint64 sizeMB = QFileInfo(absPath).size() / (1024 * 1024);
+    if (largeMB > 0 && sizeMB >= largeMB) {
+        const auto btn = QMessageBox::question(this, tr("Open Large File"),
+            tr("「%1」約 %2 MB，超過門檻 %3 MB。仍要開啟嗎？")
+                .arg(QFileInfo(absPath).fileName()).arg(sizeMB).arg(largeMB));
+        if (btn != QMessageBox::Yes)
+            return;
     }
 
     // 若目前分頁是空白未動的 Untitled，直接沿用它

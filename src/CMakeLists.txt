@@ -80,6 +80,8 @@ set(MACPAD_LIB_SOURCES
     ui/UdlEditorDialog.h
     ui/ThemePickerDialog.cpp
     ui/ThemePickerDialog.h
+    ui/SnapshotRecoveryDialog.cpp
+    ui/SnapshotRecoveryDialog.h
     ui/WorkspaceDock.cpp
     ui/WorkspaceDock.h
     ui/PreferencesDialog.cpp

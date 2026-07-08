@@ -170,6 +170,23 @@ public:
     // entries 由上層 ApiDatabase 模組提供；無 lexer 時安全跳過（無 lexer 即無語言可套 API）。
     void applyApiCompletions(const QStringList &entries);
 
+    // === 即時套用之偏好設定（Preferences ▸ 套用到已開啟編輯器）===
+    // 行號邊欄顯示/隱藏；true 時依 applyDefaultConfig 相同公式重算動態寬度。
+    void setShowLineNumbers(bool show);
+    bool showLineNumbers() const { return m_showLineNumbers; }
+
+    // 插入點（caret）寬度（像素，0..3）。覆寫 QsciScintilla::setCaretWidth 以額外記錄目前值。
+    void setCaretWidth(int px) override;
+    int caretWidth() const { return m_caretWidth; }
+
+    // 字詞自動完成開關（文件內字詞來源）；關閉時完全停用自動完成彈出。
+    void setWordCompletionEnabled(bool enabled);
+    bool wordCompletionEnabled() const { return m_wordCompletion; }
+
+    // Call tip（函式參數提示）開關；關閉時鍵入 '(' 不再發出 callTipRequested。
+    void setCallTipsEnabled(bool enabled) { m_callTips = enabled; }
+    bool callTipsEnabled() const { return m_callTips; }
+
 signals:
     void dirtyChanged(bool dirty);
     void metaChanged();     // 編碼/EOL 變更（狀態列更新）
@@ -202,6 +219,12 @@ private:
     bool m_autoClose = true;  // 自動配對符號 ( [ { " '（FR-050）
     bool m_changeHistoryEnabled = false;  // 變更歷史開關狀態（FR-057）
     bool m_virtualSpace = false;          // 虛擬空間開關狀態（FR-060）
+
+    // Preferences 即時套用相關狀態
+    bool m_showLineNumbers = true;   // 行號邊欄顯示狀態
+    int  m_caretWidth = 1;           // 插入點寬度（像素）
+    bool m_wordCompletion = true;    // 字詞自動完成開關
+    bool m_callTips = true;          // call tip 開關
 
     // API 自動完成資料（FR-055）——由 EditorWidget 持有（parent 改為 this，與 lexer 生命週期解耦），
     // 銷毀前主動收斂背景 prepare() 的 worker thread，避免 async 競態造成的懸空回呼（SIGBUS）。

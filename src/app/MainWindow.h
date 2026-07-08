@@ -33,7 +33,7 @@ namespace macpad::ui { class EditorPane; class DocumentListDock;
     class CharacterPanel; }
 namespace macpad::extension { class ExtensionRegistry; }
 namespace macpad::features { class FindInFilesDock; class RunDock; class FindAllDock; }
-namespace macpad::persistence { struct SessionState; }
+namespace macpad::persistence { struct SessionState; struct Settings; }
 
 class MainWindow : public QMainWindow, public macpad::extension::IHostServices {
     Q_OBJECT
@@ -73,6 +73,7 @@ private slots:
     void applyTheme();
     void themeEditor(macpad::core::EditorWidget *editor);  // 依設定為單一編輯器上主題色
     void applyViewPrefs(macpad::core::EditorWidget *editor);
+    void applyEditorPrefs(macpad::core::EditorWidget *editor, const macpad::persistence::Settings &s);
     void onFileChangedOnDisk(const QString &path);
     void startMacroRecording();
     void stopMacroRecording();
