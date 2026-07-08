@@ -24,6 +24,7 @@ class QToolBar;
 class QFileSystemWatcher;
 class QTimer;
 class QsciMacro;
+class QsciLexer;
 class QAction;
 class QLineEdit;
 class QDockWidget;
@@ -126,6 +127,8 @@ private slots:
 
 private:
     void createMenus();
+    // 依目前 lexer 反查 LexerFactory 語言鍵（FR-052）。跨多個 .cpp 使用，故為私有靜態成員。
+    static QString languageKeyForLexer(QsciLexer *lex);
     // 依偏好套用「視窗層級」外觀（工具列/狀態列/分頁列可見性與圖示大小、分頁關閉鈕等）
     void applyWindowPrefs(const macpad::persistence::Settings &s);
     // 依 delimiterChars 設定編輯器的 word-char 集合（影響雙擊選字邊界）

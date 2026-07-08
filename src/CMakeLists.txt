@@ -3,6 +3,12 @@
 
 set(MACPAD_LIB_SOURCES
     app/MainWindow.cpp
+    app/MainWindow_Menus.cpp
+    app/MainWindow_File.cpp
+    app/MainWindow_Session.cpp
+    app/MainWindow_View.cpp
+    app/MainWindow_Prefs.cpp
+    app/MainWindow_Actions.cpp
     app/MainWindow.h
     core/EditorWidget.cpp
     core/EditorWidget.h
