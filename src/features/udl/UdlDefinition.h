@@ -48,6 +48,9 @@ struct UdlDefinition {
     QStringList extensions;      // 不含點
     QSet<QString> keywords;      // 向後相容欄位：未使用多組時等同第 0 組
     QVector<QSet<QString>> keywordGroups;  // 最多 8 組（FR-059）；為空時退回 keywords
+    // 每組關鍵字是否啟用「前綴模式」（Prefix Mode）：符合任一關鍵字前綴即視為命中，
+    // 而非要求整詞相等（FR-059 擴充）。索引對齊 keywordGroups；為空或越界視為 false（向後相容）。
+    QVector<bool> keywordGroupPrefixMode;
     QSet<QString> operators;               // 運算子（FR-059）
     QVector<UdlDelimiter> delimiters;       // 自訂分隔符區塊（FR-059）
     UdlFolderTokens folderTokens;            // 摺疊符（FR-059）
@@ -64,6 +67,8 @@ struct UdlDefinition {
     // 取得第 idx 組關鍵字（0-based）。未設定 keywordGroups 時，第 0 組回退至 keywords（向後相容）。
     // 越界回傳空集合的參照。
     const QSet<QString> &keywordGroup(int idx) const;
+    // 第 idx 組關鍵字是否啟用前綴模式；越界回傳 false。
+    bool keywordGroupPrefix(int idx) const;
 
     static UdlDefinition fromJson(const QJsonObject &obj);
     QJsonObject toJson() const;

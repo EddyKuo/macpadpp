@@ -6,10 +6,12 @@
 
 #include <QCheckBox>
 #include <QColorDialog>
+#include <QComboBox>
 #include <QDialogButtonBox>
 #include <QFileDialog>
 #include <QFormLayout>
 #include <QHBoxLayout>
+#include <QInputDialog>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMessageBox>
@@ -17,6 +19,7 @@
 #include <QPushButton>
 #include <QRegularExpression>
 #include <QScrollArea>
+#include <QSignalBlocker>
 #include <QTabWidget>
 #include <QVBoxLayout>
 #include <QWidget>
@@ -33,6 +36,18 @@ UdlEditorDialog::UdlEditorDialog(macpad::features::UdlManager *manager, QWidget 
     setWindowTitle(tr("Define Your Language"));
     resize(560, 560);
     auto *root = new QVBoxLayout(this);
+
+    // --- 語言選單（Language picker，WORK 2）：可載入既有 UDL 編輯，或重新命名/移除 ---
+    auto *pickerRow = new QHBoxLayout();
+    m_languagePicker = new QComboBox(this);
+    auto *renameBtn = new QPushButton(tr("Rename…"), this);
+    auto *removeBtn = new QPushButton(tr("Remove"), this);
+    pickerRow->addWidget(new QLabel(tr("Language:"), this));
+    pickerRow->addWidget(m_languagePicker, 1);
+    pickerRow->addWidget(renameBtn);
+    pickerRow->addWidget(removeBtn);
+    root->addLayout(pickerRow);
+
     auto *tabs = new QTabWidget(this);
 
     // --- 一般設定分頁 ---
@@ -64,11 +79,19 @@ UdlEditorDialog::UdlEditorDialog(macpad::features::UdlManager *manager, QWidget 
     auto *keywordsPage = new QWidget(tabs);
     auto *kwForm = new QFormLayout(keywordsPage);
     for (int i = 0; i < kUdlMaxKeywordGroups; ++i) {
-        auto *edit = new QPlainTextEdit(keywordsPage);
+        auto *rowWidget = new QWidget(keywordsPage);
+        auto *rowLayout = new QVBoxLayout(rowWidget);
+        rowLayout->setContentsMargins(0, 0, 0, 0);
+        auto *edit = new QPlainTextEdit(rowWidget);
         edit->setPlaceholderText(tr("關鍵字，以空白或換行分隔"));
         edit->setMaximumHeight(60);
-        kwForm->addRow(tr("Group %1:").arg(i + 1), edit);
+        // Prefix Mode（WORK 1）：勾選後，token 以此組任一關鍵字為前綴即視為命中。
+        auto *prefixCheck = new QCheckBox(tr("Prefix Mode"), rowWidget);
+        rowLayout->addWidget(edit);
+        rowLayout->addWidget(prefixCheck);
+        kwForm->addRow(tr("Group %1:").arg(i + 1), rowWidget);
         m_keywordGroups.push_back(edit);
+        m_keywordGroupPrefix.push_back(prefixCheck);
     }
     tabs->addTab(keywordsPage, tr("Keywords"));
 
@@ -106,6 +129,12 @@ UdlEditorDialog::UdlEditorDialog(macpad::features::UdlManager *manager, QWidget 
     connect(box, &QDialogButtonBox::accepted, this, &UdlEditorDialog::saveDefinition);
     connect(box, &QDialogButtonBox::rejected, this, &QDialog::reject);
     connect(exportBtn, &QPushButton::clicked, this, &UdlEditorDialog::exportDefinition);
+
+    connect(m_languagePicker, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &UdlEditorDialog::loadSelectedLanguage);
+    connect(renameBtn, &QPushButton::clicked, this, &UdlEditorDialog::renameLanguage);
+    connect(removeBtn, &QPushButton::clicked, this, &UdlEditorDialog::removeLanguage);
+    refreshLanguagePicker();
 }
 
 void UdlEditorDialog::updateColorButton(QPushButton *btn, const QColor &color)
@@ -205,9 +234,12 @@ macpad::features::UdlDefinition UdlEditorDialog::collectDefinition() const
         def.extensions << ext.toLower();
 
     def.keywordGroups.resize(kUdlMaxKeywordGroups);
+    def.keywordGroupPrefixMode.resize(kUdlMaxKeywordGroups);
     for (int i = 0; i < kUdlMaxKeywordGroups && i < m_keywordGroups.size(); ++i) {
         for (const QString &kw : m_keywordGroups.at(i)->toPlainText().split(sep, Qt::SkipEmptyParts))
             def.keywordGroups[i].insert(kw);
+        if (i < m_keywordGroupPrefix.size())
+            def.keywordGroupPrefixMode[i] = m_keywordGroupPrefix.at(i)->isChecked();
     }
     def.keywords = def.keywordGroups.at(0);
 
@@ -250,6 +282,115 @@ macpad::features::UdlDefinition UdlEditorDialog::collectDefinition() const
     return def;
 }
 
+void UdlEditorDialog::loadDefinitionIntoUi(const macpad::features::UdlDefinition &def)
+{
+    m_name->setText(def.name);
+    m_extensions->setText(def.extensions.join(QLatin1Char(' ')));
+
+    for (int i = 0; i < kUdlMaxKeywordGroups && i < m_keywordGroups.size(); ++i) {
+        const QStringList kws(def.keywordGroup(i).begin(), def.keywordGroup(i).end());
+        m_keywordGroups.at(i)->setPlainText(kws.join(QLatin1Char(' ')));
+        if (i < m_keywordGroupPrefix.size())
+            m_keywordGroupPrefix.at(i)->setChecked(def.keywordGroupPrefix(i));
+    }
+
+    const QStringList ops(def.operators.begin(), def.operators.end());
+    m_operators->setPlainText(ops.join(QLatin1Char(' ')));
+
+    QStringList delimLines;
+    for (const auto &d : def.delimiters)
+        delimLines << d.open + QLatin1Char('|') + d.escape + QLatin1Char('|') + d.close;
+    m_delimiters->setPlainText(delimLines.join(QLatin1Char('\n')));
+
+    m_folderOpen->setText(def.folderTokens.open);
+    m_folderMiddle->setText(def.folderTokens.middle);
+    m_folderClose->setText(def.folderTokens.close);
+
+    m_lineComment->setText(def.lineComment);
+    m_blockStart->setText(def.blockCommentStart);
+    m_blockEnd->setText(def.blockCommentEnd);
+    m_caseSensitive->setChecked(def.caseSensitive);
+
+    for (StyleRow &row : m_styleRows) {
+        const auto it = def.styles.constFind(row.styleId);
+        if (it != def.styles.constEnd()) {
+            row.fg = it.value().fg.isEmpty() ? QColor() : QColor(it.value().fg);
+            row.bg = it.value().bg.isEmpty() ? QColor() : QColor(it.value().bg);
+            row.bold->setChecked(it.value().bold);
+            row.italic->setChecked(it.value().italic);
+            row.underline->setChecked(it.value().underline);
+        } else {
+            row.fg = QColor();
+            row.bg = QColor();
+            row.bold->setChecked(false);
+            row.italic->setChecked(false);
+            row.underline->setChecked(false);
+        }
+        updateColorButton(row.fgButton, row.fg);
+        updateColorButton(row.bgButton, row.bg);
+    }
+}
+
+void UdlEditorDialog::refreshLanguagePicker(const QString &selectName)
+{
+    if (!m_languagePicker)
+        return;
+    const QSignalBlocker blocker(m_languagePicker);
+    m_languagePicker->clear();
+    m_languagePicker->addItem(tr("(New Language)"));
+    int selectIndex = 0;
+    if (m_manager) {
+        for (const auto &d : m_manager->definitions()) {
+            m_languagePicker->addItem(d.name);
+            if (!selectName.isEmpty() && d.name == selectName)
+                selectIndex = m_languagePicker->count() - 1;
+        }
+    }
+    m_languagePicker->setCurrentIndex(selectIndex);
+}
+
+void UdlEditorDialog::loadSelectedLanguage(int index)
+{
+    if (index <= 0 || !m_manager)
+        return;
+    const QString name = m_languagePicker->itemText(index);
+    for (const auto &d : m_manager->definitions()) {
+        if (d.name == name) {
+            loadDefinitionIntoUi(d);
+            break;
+        }
+    }
+}
+
+void UdlEditorDialog::renameLanguage()
+{
+    if (!m_manager || !m_languagePicker || m_languagePicker->currentIndex() <= 0)
+        return;
+    const QString oldName = m_languagePicker->currentText();
+    bool ok = false;
+    const QString newName = QInputDialog::getText(this, tr("Rename Language"),
+        tr("New name:"), QLineEdit::Normal, oldName, &ok).trimmed();
+    if (!ok || newName.isEmpty() || newName == oldName)
+        return;
+    if (!m_manager->rename(oldName, newName)) {
+        QMessageBox::warning(this, tr("Define Your Language"), tr("無法重新命名 UDL。"));
+        return;
+    }
+    refreshLanguagePicker(newName);
+}
+
+void UdlEditorDialog::removeLanguage()
+{
+    if (!m_manager || !m_languagePicker || m_languagePicker->currentIndex() <= 0)
+        return;
+    const QString name = m_languagePicker->currentText();
+    if (QMessageBox::question(this, tr("Define Your Language"),
+            tr("確定要移除語言「%1」？").arg(name)) != QMessageBox::Yes)
+        return;
+    m_manager->remove(name);
+    refreshLanguagePicker();
+}
+
 void UdlEditorDialog::saveDefinition()
 {
     const macpad::features::UdlDefinition def = collectDefinition();
@@ -275,6 +416,7 @@ void UdlEditorDialog::exportDefinition()
         QMessageBox::warning(this, tr("Define Your Language"), tr("無法儲存 UDL。"));
         return;
     }
+    refreshLanguagePicker(def.name);
 
     const QString path = QFileDialog::getSaveFileName(
         this, tr("Export User Defined Language"),

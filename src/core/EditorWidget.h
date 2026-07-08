@@ -133,6 +133,8 @@ public:
     // === Call tip（函式參數提示）===
     void showCallTip(const QString &text);   // 於游標處顯示 call tip
     void cancelCallTip();
+    // 強制對游標前識別字發出 callTipRequested（不需鍵入 '(' 觸發），供上層綁定快捷鍵手動觸發
+    void triggerCallTip();
 
     // === 尋找計數（FR-047，供 Find/Replace 對話框「Count」按鈕）===
     // 計算全文匹配數，不移動游標、不改變選取（以 SCI_SEARCHINTARGET 掃描後還原游標）。
@@ -166,8 +168,11 @@ public:
 
     // === 多重選取指令（Edit ▸ Multi-select，FR-060）===
     void selectNextOccurrence();     // 將下一個相符項目加入選取
-    void selectAllOccurrences();     // 選取目前選取（或游標所在字詞）的所有相符項目
+    // matchCase/wholeWord 預設值與原行為相同（區分大小寫、不限整詞），供 MainWindow 提供 4 種變化
+    void selectAllOccurrences(bool matchCase = true, bool wholeWord = false);
     void skipAndSelectNext();        // 略過目前最後加入的選取，改選下一個相符項目
+    // 丟棄最近一次加入的多重選取區域，不加選下一個相符項目（skipAndSelectNext 的反向操作）
+    void undoLastMultiSelect();
 
     // === API 自動完成（FR-055 hook）===
     // entries 由上層 ApiDatabase 模組提供；無 lexer 時安全跳過（無 lexer 即無語言可套 API）。
@@ -185,6 +190,9 @@ public:
     // 字詞自動完成開關（文件內字詞來源）；關閉時完全停用自動完成彈出。
     void setWordCompletionEnabled(bool enabled);
     bool wordCompletionEnabled() const { return m_wordCompletion; }
+
+    // 無視 autoCompletionThreshold，強制立即顯示自動完成清單（有 API 來源時含 API，否則僅文件字詞）
+    void triggerWordCompletion();
 
     // Call tip（函式參數提示）開關；關閉時鍵入 '(' 不再發出 callTipRequested。
     void setCallTipsEnabled(bool enabled) { m_callTips = enabled; }

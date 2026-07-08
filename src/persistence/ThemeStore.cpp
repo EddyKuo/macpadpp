@@ -40,6 +40,7 @@ static QJsonObject styleSettingsToJson(const StyleSettings &s)
             so.insert(QStringLiteral("bg"), ov.bg);
             so.insert(QStringLiteral("bold"), ov.bold);
             so.insert(QStringLiteral("italic"), ov.italic);
+            so.insert(QStringLiteral("underline"), ov.underline);
             arr.append(so);
         }
         langs.insert(it.key(), arr);
@@ -66,6 +67,7 @@ static StyleSettings styleSettingsFromJson(const QJsonObject &o)
             ov.bg = so.value(QStringLiteral("bg")).toString();
             ov.bold = so.value(QStringLiteral("bold")).toBool();
             ov.italic = so.value(QStringLiteral("italic")).toBool();
+            ov.underline = so.value(QStringLiteral("underline")).toBool();  // 舊主題檔缺此鍵預設 false
             list.append(ov);
         }
         s.byLang.insert(it.key(), list);

@@ -193,6 +193,27 @@ private slots:
         QCOMPARE(p.files.at(0).path, QStringLiteral("file.txt"));
     }
 
+    void parseWindowPosFlags()
+    {
+        // -x/-y 帶合法整數：設定座標且不吞掉後續檔案
+        const auto p = CliArgs::parse({"-x", "100", "-y", "200", "file.txt"});
+        QVERIFY(p.windowX.has_value());
+        QVERIFY(p.windowY.has_value());
+        QCOMPARE(p.windowX.value(), 100);
+        QCOMPARE(p.windowY.value(), 200);
+        QCOMPARE(p.files.size(), 1);
+        QCOMPARE(p.files.at(0).path, QStringLiteral("file.txt"));
+    }
+
+    void windowPosFlagDoesNotConsumeNonNumericPath()
+    {
+        // -x 後接非數字（檔案路徑）：不吞噬，路徑仍被當檔案開啟
+        const auto p = CliArgs::parse({"-x", "file.txt"});
+        QVERIFY(!p.windowX.has_value());
+        QCOMPARE(p.files.size(), 1);
+        QCOMPARE(p.files.at(0).path, QStringLiteral("file.txt"));
+    }
+
     void parseNewFlagsCombined()
     {
         const auto p = CliArgs::parse(

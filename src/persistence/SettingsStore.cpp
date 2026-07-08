@@ -102,17 +102,28 @@ Settings SettingsStore::load()
     s.wordWrap = o.value(QStringLiteral("word_wrap")).toBool(s.wordWrap);
     s.showWhitespace = o.value(QStringLiteral("show_whitespace")).toBool(s.showWhitespace);
     s.caretWidth = o.value(QStringLiteral("caret_width")).toInt(s.caretWidth);
+    s.currentLineHighlight =
+        o.value(QStringLiteral("current_line_highlight")).toBool(s.currentLineHighlight);
+    s.enableVirtualSpace = o.value(QStringLiteral("enable_virtual_space")).toBool(s.enableVirtualSpace);
+    s.copyLineWithoutSelection =
+        o.value(QStringLiteral("copy_line_without_selection")).toBool(s.copyLineWithoutSelection);
 
     // New Document
     s.defaultEol = eolFromString(o.value(QStringLiteral("default_eol")).toString(eolToString(s.defaultEol)));
     s.defaultEncoding = encodingFromString(
         o.value(QStringLiteral("default_encoding")).toString(encodingToString(s.defaultEncoding)));
+    s.autoDetectFileStatus =
+        o.value(QStringLiteral("auto_detect_file_status")).toBool(s.autoDetectFileStatus);
+    s.sessionFileExt = o.value(QStringLiteral("session_file_ext")).toString(s.sessionFileExt);
 
     // Backup
     s.backupMode = backupModeFromString(
         o.value(QStringLiteral("backup_mode")).toString(backupModeToString(s.backupMode)));
     s.backupDir = o.value(QStringLiteral("backup_dir")).toString(s.backupDir);
     s.autosaveOnFocusLoss = o.value(QStringLiteral("autosave_on_focus_loss")).toBool(s.autosaveOnFocusLoss);
+    s.enableSessionSnapshot =
+        o.value(QStringLiteral("enable_session_snapshot")).toBool(s.enableSessionSnapshot);
+    s.snapshotIntervalSec = o.value(QStringLiteral("snapshot_interval_sec")).toInt(s.snapshotIntervalSec);
 
     // Auto-Completion
     s.autoInsertPairs = o.value(QStringLiteral("auto_insert_pairs")).toBool(s.autoInsertPairs);
@@ -127,6 +138,10 @@ Settings SettingsStore::load()
 
     // Search
     s.searchEngineUrl = o.value(QStringLiteral("search_engine_url")).toString(s.searchEngineUrl);
+    s.keepFindDialogOpen = o.value(QStringLiteral("keep_find_dialog_open")).toBool(s.keepFindDialogOpen);
+    s.confirmReplaceAll = o.value(QStringLiteral("confirm_replace_all")).toBool(s.confirmReplaceAll);
+    s.findInSelectionThreshold =
+        o.value(QStringLiteral("find_in_selection_threshold")).toInt(s.findInSelectionThreshold);
 
     // Highlighting
     s.showWrapSymbol = o.value(QStringLiteral("show_wrap_symbol")).toBool(s.showWrapSymbol);
@@ -164,15 +179,22 @@ bool SettingsStore::save(const Settings &s)
     o.insert(QStringLiteral("word_wrap"), s.wordWrap);
     o.insert(QStringLiteral("show_whitespace"), s.showWhitespace);
     o.insert(QStringLiteral("caret_width"), s.caretWidth);
+    o.insert(QStringLiteral("current_line_highlight"), s.currentLineHighlight);
+    o.insert(QStringLiteral("enable_virtual_space"), s.enableVirtualSpace);
+    o.insert(QStringLiteral("copy_line_without_selection"), s.copyLineWithoutSelection);
 
     // New Document
     o.insert(QStringLiteral("default_eol"), eolToString(s.defaultEol));
     o.insert(QStringLiteral("default_encoding"), encodingToString(s.defaultEncoding));
+    o.insert(QStringLiteral("auto_detect_file_status"), s.autoDetectFileStatus);
+    o.insert(QStringLiteral("session_file_ext"), s.sessionFileExt);
 
     // Backup
     o.insert(QStringLiteral("backup_mode"), backupModeToString(s.backupMode));
     o.insert(QStringLiteral("backup_dir"), s.backupDir);
     o.insert(QStringLiteral("autosave_on_focus_loss"), s.autosaveOnFocusLoss);
+    o.insert(QStringLiteral("enable_session_snapshot"), s.enableSessionSnapshot);
+    o.insert(QStringLiteral("snapshot_interval_sec"), s.snapshotIntervalSec);
 
     // Auto-Completion
     o.insert(QStringLiteral("auto_insert_pairs"), s.autoInsertPairs);
@@ -186,6 +208,9 @@ bool SettingsStore::save(const Settings &s)
 
     // Search
     o.insert(QStringLiteral("search_engine_url"), s.searchEngineUrl);
+    o.insert(QStringLiteral("keep_find_dialog_open"), s.keepFindDialogOpen);
+    o.insert(QStringLiteral("confirm_replace_all"), s.confirmReplaceAll);
+    o.insert(QStringLiteral("find_in_selection_threshold"), s.findInSelectionThreshold);
 
     // Highlighting
     o.insert(QStringLiteral("show_wrap_symbol"), s.showWrapSymbol);

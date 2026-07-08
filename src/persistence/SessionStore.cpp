@@ -117,6 +117,11 @@ SessionState SessionStore::loadNamed(const QString &name)
     return jsonToState(JsonFile::load(sessionsDir() + QLatin1Char('/') + sessionFileName(name)));
 }
 
+SessionState SessionStore::loadFromPath(const QString &path)
+{
+    return jsonToState(JsonFile::load(path));
+}
+
 QStringList SessionStore::listNames()
 {
     QStringList names;

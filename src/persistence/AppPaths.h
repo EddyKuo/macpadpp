@@ -13,6 +13,8 @@ public:
     static QString configDir();
     // 設定目錄下的檔案路徑
     static QString filePath(const QString &name);
+    // 覆寫設定目錄（供命令列 -settingsDir <dir>）；須在任何設定讀取前呼叫。空字串還原為預設。
+    static void setConfigDirOverride(const QString &dir);
 };
 
 }  // namespace macpad::persistence

@@ -15,6 +15,13 @@ const QSet<QString> &UdlDefinition::keywordGroup(int idx) const
     return keywordGroups.at(idx);
 }
 
+bool UdlDefinition::keywordGroupPrefix(int idx) const
+{
+    if (idx < 0 || idx >= keywordGroupPrefixMode.size())
+        return false;
+    return keywordGroupPrefixMode.at(idx);
+}
+
 UdlDefinition UdlDefinition::fromJson(const QJsonObject &obj)
 {
     UdlDefinition d;
@@ -34,6 +41,14 @@ UdlDefinition UdlDefinition::fromJson(const QJsonObject &obj)
         // 舊格式（schema v2 以前）：單一 keywords 陣列，視為第 0 組（向後相容）
         for (const QJsonValue &v : obj.value(QStringLiteral("keywords")).toArray())
             d.keywords.insert(v.toString());
+    }
+
+    // 前綴模式（Prefix Mode，FR-059 擴充）：舊版 JSON 無此欄位時全部視為 false（向後相容）。
+    d.keywordGroupPrefixMode.resize(kUdlMaxKeywordGroups);
+    if (obj.contains(QStringLiteral("keyword_group_prefix_mode"))) {
+        const QJsonArray pm = obj.value(QStringLiteral("keyword_group_prefix_mode")).toArray();
+        for (int i = 0; i < pm.size() && i < kUdlMaxKeywordGroups; ++i)
+            d.keywordGroupPrefixMode[i] = pm.at(i).toBool(false);
     }
 
     for (const QJsonValue &v : obj.value(QStringLiteral("operators")).toArray())
@@ -106,6 +121,12 @@ QJsonObject UdlDefinition::toJson() const
         groups.append(g);
     }
     o.insert(QStringLiteral("keyword_groups"), groups);
+
+    // 前綴模式（Prefix Mode，FR-059 擴充）
+    QJsonArray prefixModes;
+    for (int i = 0; i < kUdlMaxKeywordGroups; ++i)
+        prefixModes.append(keywordGroupPrefix(i));
+    o.insert(QStringLiteral("keyword_group_prefix_mode"), prefixModes);
 
     QJsonArray ops;
     for (const QString &op : operators)

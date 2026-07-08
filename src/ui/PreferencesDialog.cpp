@@ -112,12 +112,24 @@ QWidget *PreferencesDialog::buildEditingPage()
     m_caretWidth->setRange(1, 4);
     m_caretWidth->setValue(current.caretWidth);
 
+    m_currentLineHighlight = new QCheckBox(tr("高亮目前所在行"), page);
+    m_currentLineHighlight->setChecked(current.currentLineHighlight);
+
+    m_enableVirtualSpace = new QCheckBox(tr("允許插入點移至行尾之後（虛擬空白）"), page);
+    m_enableVirtualSpace->setChecked(current.enableVirtualSpace);
+
+    m_copyLineWithoutSelection = new QCheckBox(tr("無選取時複製/剪下整行"), page);
+    m_copyLineWithoutSelection->setChecked(current.copyLineWithoutSelection);
+
     auto *form = new QFormLayout(page);
     form->addRow(m_showLineNumbers);
     form->addRow(m_showIndentGuides);
     form->addRow(m_wordWrap);
     form->addRow(m_showWhitespace);
     form->addRow(tr("插入點寬度"), m_caretWidth);
+    form->addRow(m_currentLineHighlight);
+    form->addRow(m_enableVirtualSpace);
+    form->addRow(m_copyLineWithoutSelection);
     return page;
 }
 
@@ -135,9 +147,18 @@ QWidget *PreferencesDialog::buildNewDocumentPage()
         {tr("UTF-8"), tr("UTF-8 BOM"), tr("UTF-16 LE"), tr("UTF-16 BE"), tr("ANSI (Latin-1)")});
     m_defaultEncoding->setCurrentIndex(int(current.defaultEncoding));
 
+    m_autoDetectFileStatus = new QCheckBox(tr("偵測檔案於外部被異動/刪除"), page);
+    m_autoDetectFileStatus->setChecked(current.autoDetectFileStatus);
+
+    m_sessionFileExt = new QLineEdit(page);
+    m_sessionFileExt->setText(current.sessionFileExt);
+    m_sessionFileExt->setPlaceholderText(QStringLiteral(".session"));
+
     auto *form = new QFormLayout(page);
     form->addRow(tr("預設換行字元"), m_defaultEol);
     form->addRow(tr("預設編碼"), m_defaultEncoding);
+    form->addRow(m_autoDetectFileStatus);
+    form->addRow(tr("Session 檔案副檔名"), m_sessionFileExt);
     return page;
 }
 
@@ -156,10 +177,20 @@ QWidget *PreferencesDialog::buildBackupPage()
     m_autosaveOnFocusLoss = new QCheckBox(tr("失去焦點時自動儲存"), page);
     m_autosaveOnFocusLoss->setChecked(current.autosaveOnFocusLoss);
 
+    m_enableSessionSnapshot = new QCheckBox(tr("啟用當機還原快照"), page);
+    m_enableSessionSnapshot->setChecked(current.enableSessionSnapshot);
+
+    m_snapshotIntervalSec = new QSpinBox(page);
+    m_snapshotIntervalSec->setRange(5, 3600);
+    m_snapshotIntervalSec->setSuffix(tr(" 秒"));
+    m_snapshotIntervalSec->setValue(current.snapshotIntervalSec);
+
     auto *form = new QFormLayout(page);
     form->addRow(tr("備份模式"), m_backupMode);
     form->addRow(tr("備份目錄"), m_backupDir);
     form->addRow(m_autosaveOnFocusLoss);
+    form->addRow(m_enableSessionSnapshot);
+    form->addRow(tr("快照間隔"), m_snapshotIntervalSec);
     return page;
 }
 
@@ -220,8 +251,23 @@ QWidget *PreferencesDialog::buildSearchPage()
     m_searchEngineUrl->setPlaceholderText(
         QStringLiteral("https://www.google.com/search?q=%s"));
 
+    m_keepFindDialogOpen = new QCheckBox(tr("搜尋後保持「尋找」對話框開啟"), page);
+    m_keepFindDialogOpen->setChecked(current.keepFindDialogOpen);
+
+    m_confirmReplaceAll = new QCheckBox(tr("「全部取代」前顯示確認"), page);
+    m_confirmReplaceAll->setChecked(current.confirmReplaceAll);
+
+    m_findInSelectionThreshold = new QSpinBox(page);
+    m_findInSelectionThreshold->setRange(0, 1000000);
+    m_findInSelectionThreshold->setSpecialValueText(tr("關閉"));
+    m_findInSelectionThreshold->setSuffix(tr(" 字元"));
+    m_findInSelectionThreshold->setValue(current.findInSelectionThreshold);
+
     auto *form = new QFormLayout(page);
     form->addRow(tr("網路搜尋引擎網址"), m_searchEngineUrl);
+    form->addRow(m_keepFindDialogOpen);
+    form->addRow(m_confirmReplaceAll);
+    form->addRow(tr("自動啟用「在選取範圍內尋找」門檻"), m_findInSelectionThreshold);
     return page;
 }
 
@@ -308,13 +354,20 @@ Settings PreferencesDialog::result() const
     s.wordWrap = m_wordWrap->isChecked();
     s.showWhitespace = m_showWhitespace->isChecked();
     s.caretWidth = m_caretWidth->value();
+    s.currentLineHighlight = m_currentLineHighlight->isChecked();
+    s.enableVirtualSpace = m_enableVirtualSpace->isChecked();
+    s.copyLineWithoutSelection = m_copyLineWithoutSelection->isChecked();
 
     s.defaultEol = Eol(m_defaultEol->currentIndex());
     s.defaultEncoding = Encoding(m_defaultEncoding->currentIndex());
+    s.autoDetectFileStatus = m_autoDetectFileStatus->isChecked();
+    s.sessionFileExt = m_sessionFileExt->text();
 
     s.backupMode = BackupMode(m_backupMode->currentIndex());
     s.backupDir = m_backupDir->text();
     s.autosaveOnFocusLoss = m_autosaveOnFocusLoss->isChecked();
+    s.enableSessionSnapshot = m_enableSessionSnapshot->isChecked();
+    s.snapshotIntervalSec = m_snapshotIntervalSec->value();
 
     s.autoInsertPairs = m_autoInsertPairs->isChecked();
     s.wordAutoComplete = m_wordAutoComplete->isChecked();
@@ -325,6 +378,9 @@ Settings PreferencesDialog::result() const
     s.disableAutoCompleteOverMB = m_disableAutoCompleteOverMB->value();
 
     s.searchEngineUrl = m_searchEngineUrl->text();
+    s.keepFindDialogOpen = m_keepFindDialogOpen->isChecked();
+    s.confirmReplaceAll = m_confirmReplaceAll->isChecked();
+    s.findInSelectionThreshold = m_findInSelectionThreshold->value();
 
     s.smartHighlight = m_smartHighlight->isChecked();
     s.highlightMatchingTags = m_highlightMatchingTags->isChecked();

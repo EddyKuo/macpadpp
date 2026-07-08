@@ -42,7 +42,8 @@ QString ColumnEditor::insertNumberColumn(const QString &text, int firstLine, int
                                          int col, const NumberSeqSpec &spec)
 {
     return insertAtColumn(text, firstLine, lastLine, col, [&spec](int row) {
-        return formatNumber(spec.start + row * spec.increment, spec);
+        const int rep = spec.repeat > 0 ? spec.repeat : 1;  // 每 rep 行才遞增一次
+        return formatNumber(spec.start + (row / rep) * spec.increment, spec);
     });
 }
 

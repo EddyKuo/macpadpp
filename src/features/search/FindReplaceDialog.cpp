@@ -8,9 +8,15 @@
 #include <QLineEdit>
 #include <QPushButton>
 #include <QRegularExpression>
+#include <QSettings>
 #include <QSlider>
 
 using macpad::core::EditorWidget;
+
+namespace {
+// QSettings 群組名稱，統一存放本對話框的搜尋選項勾選狀態
+constexpr auto kSettingsGroup = "FindReplaceDialog";
+}  // namespace
 
 namespace macpad::features {
 
@@ -30,7 +36,11 @@ FindReplaceDialog::FindReplaceDialog(QWidget *parent)
     m_inSelection = new QCheckBox(tr("In selection"), this);
     m_dotMatchesNewline = new QCheckBox(tr("'.' matches newline"), this);
     m_extended = new QCheckBox(tr("Extended (\\n \\r \\t \\0 \\xNN)"), this);
+    m_extended->setToolTip(tr("\\n \\r \\t \\0 \\b \\\\ \\xNN \\uXXXX \\u{XXXX} \\oNNN \\dNNN"));
     m_status = new QLabel(this);
+
+    // 還原上次使用的搜尋選項勾選狀態（在建立按鈕/連線之前，避免載入時觸發多餘的儲存）
+    loadSearchOptions();
 
     m_opacitySlider = new QSlider(Qt::Horizontal, this);
     m_opacitySlider->setRange(30, 100);  // 對應 setWindowOpacity() 0.3..1.0
@@ -93,6 +103,45 @@ FindReplaceDialog::FindReplaceDialog(QWidget *parent)
             m_selRestrictLineTo = m_selRestrictIndexTo = -1;
         }
     });
+
+    // 勾選狀態變更即存檔（QSettings），下次開啟對話框/重啟程式時還原
+    connect(m_caseSensitive, &QCheckBox::toggled, this,
+           [this](bool on) { saveSearchOption(QStringLiteral("matchCase"), on); });
+    connect(m_wholeWord, &QCheckBox::toggled, this,
+           [this](bool on) { saveSearchOption(QStringLiteral("wholeWord"), on); });
+    connect(m_regex, &QCheckBox::toggled, this,
+           [this](bool on) { saveSearchOption(QStringLiteral("regex"), on); });
+    connect(m_wrap, &QCheckBox::toggled, this,
+           [this](bool on) { saveSearchOption(QStringLiteral("wrap"), on); });
+    connect(m_inSelection, &QCheckBox::toggled, this,
+           [this](bool on) { saveSearchOption(QStringLiteral("inSelection"), on); });
+    connect(m_dotMatchesNewline, &QCheckBox::toggled, this,
+           [this](bool on) { saveSearchOption(QStringLiteral("dotMatchesNewline"), on); });
+    connect(m_extended, &QCheckBox::toggled, this,
+           [this](bool on) { saveSearchOption(QStringLiteral("extended"), on); });
+}
+
+void FindReplaceDialog::loadSearchOptions()
+{
+    QSettings settings;
+    settings.beginGroup(QLatin1String(kSettingsGroup));
+    m_caseSensitive->setChecked(settings.value(QStringLiteral("matchCase"), false).toBool());
+    m_wholeWord->setChecked(settings.value(QStringLiteral("wholeWord"), false).toBool());
+    m_regex->setChecked(settings.value(QStringLiteral("regex"), false).toBool());
+    m_wrap->setChecked(settings.value(QStringLiteral("wrap"), true).toBool());
+    m_inSelection->setChecked(settings.value(QStringLiteral("inSelection"), false).toBool());
+    m_dotMatchesNewline->setChecked(
+        settings.value(QStringLiteral("dotMatchesNewline"), false).toBool());
+    m_extended->setChecked(settings.value(QStringLiteral("extended"), false).toBool());
+    settings.endGroup();
+}
+
+void FindReplaceDialog::saveSearchOption(const QString &key, bool value) const
+{
+    QSettings settings;
+    settings.beginGroup(QLatin1String(kSettingsGroup));
+    settings.setValue(key, value);
+    settings.endGroup();
 }
 
 void FindReplaceDialog::setEditor(EditorWidget *editor)
@@ -369,9 +418,22 @@ QString FindReplaceDialog::effectiveReplaceText() const
 
 QString FindReplaceDialog::unescapeExtended(const QString &text)
 {
-    // 自足實作：轉換 \n \r \t \0 \\ \xNN，其餘未知跳脫序列原樣保留。
+    // 自足實作：轉換 \n \r \t \0 \\ \xNN \b \uXXXX \u{XXXX} \oNNN(八進位) \dNNN(十進位)，
+    // 其餘未知跳脫序列原樣保留。
     QString out;
     out.reserve(text.size());
+
+    // 將 Unicode 碼點附加到 out；超出 BMP（>0xFFFF）時輸出代理對（surrogate pair）
+    auto appendCodepoint = [&out](uint cp) {
+        if (cp > 0xFFFFu) {
+            cp -= 0x10000u;
+            out += QChar(static_cast<char16_t>(0xD800u + (cp >> 10)));
+            out += QChar(static_cast<char16_t>(0xDC00u + (cp & 0x3FFu)));
+        } else {
+            out += QChar(static_cast<char16_t>(cp));
+        }
+    };
+
     for (int i = 0; i < text.size(); ++i) {
         const QChar c = text.at(i);
         if (c == QLatin1Char('\\') && i + 1 < text.size()) {
@@ -409,6 +471,68 @@ QString FindReplaceDialog::unescapeExtended(const QString &text)
                     out += QChar(static_cast<char16_t>(val));
                     i += 3;
                     continue;
+                }
+            }
+            if (n == QLatin1Char('b')) {
+                out += QChar(0x08);  // backspace
+                ++i;
+                continue;
+            }
+            // \u{XXXX...}：可變長度 16 進位碼點，直到對應的 '}'（先於固定長度 \uXXXX 判斷）
+            if (n == QLatin1Char('u') && i + 2 < text.size()
+                && text.at(i + 2) == QLatin1Char('{')) {
+                int j = i + 3;
+                while (j < text.size() && text.at(j) != QLatin1Char('}'))
+                    ++j;
+                if (j < text.size() && j > i + 3) {
+                    bool ok = false;
+                    const uint cp = text.mid(i + 3, j - (i + 3)).toUInt(&ok, 16);
+                    if (ok && cp <= 0x10FFFFu) {
+                        appendCodepoint(cp);
+                        i = j;
+                        continue;
+                    }
+                }
+            }
+            // \uXXXX：固定 4 位 16 進位碼點
+            if (n == QLatin1Char('u') && i + 5 < text.size()) {
+                bool ok = false;
+                const uint cp = text.mid(i + 2, 4).toUInt(&ok, 16);
+                if (ok) {
+                    appendCodepoint(cp);
+                    i += 5;
+                    continue;
+                }
+            }
+            // \oNNN：八進位字元碼（貪婪取連續八進位數字）
+            if (n == QLatin1Char('o')) {
+                int j = i + 2;
+                while (j < text.size() && text.at(j) >= QLatin1Char('0')
+                       && text.at(j) <= QLatin1Char('7'))
+                    ++j;
+                if (j > i + 2) {
+                    bool ok = false;
+                    const uint cp = text.mid(i + 2, j - (i + 2)).toUInt(&ok, 8);
+                    if (ok && cp <= 0x10FFFFu) {
+                        appendCodepoint(cp);
+                        i = j - 1;
+                        continue;
+                    }
+                }
+            }
+            // \dNNN：十進位字元碼（貪婪取連續十進位數字）
+            if (n == QLatin1Char('d')) {
+                int j = i + 2;
+                while (j < text.size() && text.at(j).isDigit())
+                    ++j;
+                if (j > i + 2) {
+                    bool ok = false;
+                    const uint cp = text.mid(i + 2, j - (i + 2)).toUInt(&ok, 10);
+                    if (ok && cp <= 0x10FFFFu) {
+                        appendCodepoint(cp);
+                        i = j - 1;
+                        continue;
+                    }
                 }
             }
             // 未知跳脫序列，原樣保留反斜線與該字元

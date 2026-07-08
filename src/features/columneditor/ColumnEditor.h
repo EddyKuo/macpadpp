@@ -13,6 +13,7 @@ struct NumberSeqSpec {
     int base = 10;        // 10 / 16 / 8 / 2
     int width = 0;        // 補零至寬度（0 = 不補）
     bool upperHex = true;
+    int repeat = 1;       // 每個數值重複幾行後才遞增（1 = 每行都遞增；Notepad++ Repeat）
 };
 
 class ColumnEditor {

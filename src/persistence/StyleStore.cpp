@@ -32,6 +32,7 @@ StyleSettings StyleStore::load()
             ov.bg = so.value(QStringLiteral("bg")).toString();
             ov.bold = so.value(QStringLiteral("bold")).toBool();
             ov.italic = so.value(QStringLiteral("italic")).toBool();
+            ov.underline = so.value(QStringLiteral("underline")).toBool();
             list.append(ov);
         }
         s.byLang.insert(it.key(), list);
@@ -46,6 +47,21 @@ StyleSettings StyleStore::load()
     s.global.marginBg = g.value(QStringLiteral("margin_bg")).toString();
     s.global.marginFg = g.value(QStringLiteral("margin_fg")).toString();
     s.global.currentLineNumber = g.value(QStringLiteral("current_line_number")).toString();
+    s.global.edgeColor = g.value(QStringLiteral("edge_color")).toString();
+    s.global.bookmarkMargin = g.value(QStringLiteral("bookmark_margin")).toString();
+    s.global.foldMargin = g.value(QStringLiteral("fold_margin")).toString();
+    s.global.caretColor = g.value(QStringLiteral("caret_color")).toString();
+    s.global.markColor = g.value(QStringLiteral("mark_color")).toString();
+    s.global.enableGlobalFg = g.value(QStringLiteral("enable_global_fg")).toBool();
+    s.global.globalFg = g.value(QStringLiteral("global_fg")).toString();
+    s.global.enableGlobalBg = g.value(QStringLiteral("enable_global_bg")).toBool();
+    s.global.globalBg = g.value(QStringLiteral("global_bg")).toString();
+
+    // user_extensions：缺欄位（舊版 styles.json）→ 維持空表（向後相容）
+    const QJsonObject exts = o.value(QStringLiteral("user_extensions")).toObject();
+    for (auto it = exts.begin(); it != exts.end(); ++it)
+        s.userExtensions.insert(it.key(), it.value().toString());
+
     return s;
 }
 
@@ -65,6 +81,7 @@ bool StyleStore::save(const StyleSettings &s)
             so.insert(QStringLiteral("bg"), ov.bg);
             so.insert(QStringLiteral("bold"), ov.bold);
             so.insert(QStringLiteral("italic"), ov.italic);
+            so.insert(QStringLiteral("underline"), ov.underline);
             arr.append(so);
         }
         langs.insert(it.key(), arr);
@@ -79,7 +96,21 @@ bool StyleStore::save(const StyleSettings &s)
     g.insert(QStringLiteral("margin_bg"), s.global.marginBg);
     g.insert(QStringLiteral("margin_fg"), s.global.marginFg);
     g.insert(QStringLiteral("current_line_number"), s.global.currentLineNumber);
+    g.insert(QStringLiteral("edge_color"), s.global.edgeColor);
+    g.insert(QStringLiteral("bookmark_margin"), s.global.bookmarkMargin);
+    g.insert(QStringLiteral("fold_margin"), s.global.foldMargin);
+    g.insert(QStringLiteral("caret_color"), s.global.caretColor);
+    g.insert(QStringLiteral("mark_color"), s.global.markColor);
+    g.insert(QStringLiteral("enable_global_fg"), s.global.enableGlobalFg);
+    g.insert(QStringLiteral("global_fg"), s.global.globalFg);
+    g.insert(QStringLiteral("enable_global_bg"), s.global.enableGlobalBg);
+    g.insert(QStringLiteral("global_bg"), s.global.globalBg);
     o.insert(QStringLiteral("global"), g);
+
+    QJsonObject exts;
+    for (auto it = s.userExtensions.begin(); it != s.userExtensions.end(); ++it)
+        exts.insert(it.key(), it.value());
+    o.insert(QStringLiteral("user_extensions"), exts);
 
     return JsonFile::save(stylesPath(), o);
 }

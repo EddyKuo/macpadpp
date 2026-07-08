@@ -15,6 +15,7 @@ struct StyleOverride {
     QString bg;         // #RRGGBB，空 = 不覆寫
     bool bold = false;
     bool italic = false;
+    bool underline = false;
 };
 
 // GlobalStyles — 編輯器全域（非 lexer）樣式覆寫（複刻 Notepad++ Style Configurator 的
@@ -27,6 +28,18 @@ struct GlobalStyles {
     QString marginBg;           // 行號邊界背景色
     QString marginFg;           // 行號邊界前景色
     QString currentLineNumber;  // 目前行行號顏色
+    QString edgeColor;          // Edge（欄位參考線）顏色
+    QString bookmarkMargin;     // 書籤邊界顏色
+    QString foldMargin;         // 摺疊邊界顏色
+    QString caretColor;         // 插入點（游標）顏色，獨立於「目前行反白背景色」
+    QString markColor;          // 標記（Find Mark / Bookmark 標記列）顏色
+
+    // Global override：開啟時以單一前景/背景色套用到所有語言的所有 style，
+    // 疊在各語言個別覆寫之上（供快速套用一致配色，如全域深色前景）。
+    bool enableGlobalFg = false;
+    QString globalFg;
+    bool enableGlobalBg = false;
+    QString globalBg;
 };
 
 struct StyleSettings {
@@ -34,6 +47,7 @@ struct StyleSettings {
     int fontSize = 0;                                     // 0 = 用預設
     QHash<QString, QVector<StyleOverride>> byLang;        // 語言鍵（LexerFactory key）→ 覆寫清單
     GlobalStyles global;                                  // 全域（非 lexer）樣式覆寫
+    QHash<QString, QString> userExtensions;               // 語言（lexer language() 字串）→ 使用者自訂副檔名（以逗號/空白分隔）
 };
 
 class StyleStore {

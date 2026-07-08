@@ -1,10 +1,16 @@
 #include "ui/WorkspaceDock.h"
 
+#include <QApplication>
+#include <QClipboard>
 #include <QDir>
+#include <QFile>
 #include <QFileDialog>
 #include <QFileIconProvider>
 #include <QFileInfo>
+#include <QInputDialog>
+#include <QLineEdit>
 #include <QMenu>
+#include <QMessageBox>
 #include <QProcess>
 #include <QTreeWidget>
 
@@ -61,12 +67,24 @@ void WorkspaceDock::populateChildren(QTreeWidgetItem *item, const QString &dirPa
     while (item->childCount() > 0)
         delete item->takeChild(0);
 
-    QDir dir(dirPath);
-    dir.setFilter(QDir::AllEntries | QDir::NoDotAndDotDot);
-    dir.setSorting(QDir::DirsFirst | QDir::Name | QDir::IgnoreCase);
+    // 資料夾一律顯示；檔案名稱過濾器（m_nameFilters）僅套用於檔案。
+    QFileInfoList entries;
+    {
+        QDir dirs(dirPath);
+        dirs.setFilter(QDir::Dirs | QDir::NoDotAndDotDot);
+        dirs.setSorting(QDir::Name | QDir::IgnoreCase);
+        entries += dirs.entryInfoList();
+    }
+    {
+        QDir files(dirPath);
+        files.setFilter(QDir::Files);
+        files.setSorting(QDir::Name | QDir::IgnoreCase);
+        if (!m_nameFilters.isEmpty())
+            files.setNameFilters(m_nameFilters);
+        entries += files.entryInfoList();
+    }
 
     QFileIconProvider iconProvider;
-    const QFileInfoList entries = dir.entryInfoList();
     for (const QFileInfo &info : entries) {
         auto *child = new QTreeWidgetItem(item);
         child->setText(0, info.fileName());
@@ -114,14 +132,117 @@ void WorkspaceDock::showContextMenu(const QPoint &pos)
             addRoot(dir);
     });
 
+    QAction *setFilterAction = menu.addAction(tr("Set Filter…"));
+    connect(setFilterAction, &QAction::triggered, this, [this]() {
+        bool ok = false;
+        const QString current = m_nameFilters.join(QStringLiteral(";"));
+        const QString text = QInputDialog::getText(this, tr("Set Filter"),
+                                                     tr("Name filters (e.g. *.cpp;*.h), empty to clear:"),
+                                                     QLineEdit::Normal, current, &ok);
+        if (!ok)
+            return;
+        QStringList filters;
+        for (const QString &part : text.split(QChar(';'), Qt::SkipEmptyParts))
+            filters.append(part.trimmed());
+        setNameFilters(filters);
+    });
+
     if (item && !item->data(0, kPlaceholderRole).toBool()) {
         QTreeWidgetItem *rootItem = rootItemFor(item);
         const bool isRoot = (item == rootItem);
+        const bool isDir = isDirItem(item);
+        const QString itemPath = pathOf(item);
+        const QString containingDir = isDir ? itemPath : QFileInfo(itemPath).absolutePath();
 
         QAction *removeRootAction = menu.addAction(tr("Remove Root"));
         removeRootAction->setEnabled(isRoot);
         connect(removeRootAction, &QAction::triggered, this, [this, rootItem]() {
             removeRoot(pathOf(rootItem));
+        });
+
+        menu.addSeparator();
+
+        QAction *newFileAction = menu.addAction(tr("New File…"));
+        connect(newFileAction, &QAction::triggered, this, [this, containingDir, item]() {
+            bool ok = false;
+            const QString name = QInputDialog::getText(this, tr("New File"), tr("File name:"),
+                                                         QLineEdit::Normal, QString(), &ok);
+            if (!ok || name.isEmpty())
+                return;
+            QFile file(QDir(containingDir).filePath(name));
+            if (!file.open(QIODevice::WriteOnly)) {
+                QMessageBox::warning(this, tr("New File"), tr("Failed to create file: %1").arg(name));
+                return;
+            }
+            file.close();
+            QTreeWidgetItem *dirItem = isDirItem(item) ? item : item->parent();
+            if (dirItem)
+                populateChildren(dirItem, containingDir);
+        });
+
+        QAction *newFolderAction = menu.addAction(tr("New Folder…"));
+        connect(newFolderAction, &QAction::triggered, this, [this, containingDir, item]() {
+            bool ok = false;
+            const QString name = QInputDialog::getText(this, tr("New Folder"), tr("Folder name:"),
+                                                         QLineEdit::Normal, QString(), &ok);
+            if (!ok || name.isEmpty())
+                return;
+            if (!QDir(containingDir).mkdir(name)) {
+                QMessageBox::warning(this, tr("New Folder"), tr("Failed to create folder: %1").arg(name));
+                return;
+            }
+            QTreeWidgetItem *dirItem = isDirItem(item) ? item : item->parent();
+            if (dirItem)
+                populateChildren(dirItem, containingDir);
+        });
+
+        menu.addSeparator();
+
+        QAction *renameAction = menu.addAction(tr("Rename…"));
+        renameAction->setEnabled(!isRoot);
+        connect(renameAction, &QAction::triggered, this, [this, item, itemPath, containingDir]() {
+            const QFileInfo info(itemPath);
+            bool ok = false;
+            const QString newName = QInputDialog::getText(this, tr("Rename"), tr("New name:"),
+                                                            QLineEdit::Normal, info.fileName(), &ok);
+            if (!ok || newName.isEmpty() || newName == info.fileName())
+                return;
+            const QString newPath = QDir(containingDir).filePath(newName);
+            if (!QFile::rename(itemPath, newPath)) {
+                QMessageBox::warning(this, tr("Rename"), tr("Failed to rename to: %1").arg(newName));
+                return;
+            }
+            QTreeWidgetItem *parentItem = item->parent();
+            if (parentItem)
+                populateChildren(parentItem, containingDir);
+        });
+
+        QAction *deleteAction = menu.addAction(tr("Delete"));
+        deleteAction->setEnabled(!isRoot);
+        connect(deleteAction, &QAction::triggered, this, [this, item, itemPath, containingDir]() {
+            const auto reply = QMessageBox::question(this, tr("Delete"),
+                                                       tr("Move \"%1\" to Trash?").arg(QFileInfo(itemPath).fileName()));
+            if (reply != QMessageBox::Yes)
+                return;
+            if (!QFile::moveToTrash(itemPath)) {
+                QMessageBox::warning(this, tr("Delete"), tr("Failed to move to Trash: %1").arg(itemPath));
+                return;
+            }
+            QTreeWidgetItem *parentItem = item->parent();
+            if (parentItem)
+                populateChildren(parentItem, containingDir);
+        });
+
+        menu.addSeparator();
+
+        QAction *copyPathAction = menu.addAction(tr("Copy Full Path"));
+        connect(copyPathAction, &QAction::triggered, this, [itemPath]() {
+            QApplication::clipboard()->setText(itemPath);
+        });
+
+        QAction *copyNameAction = menu.addAction(tr("Copy File Name"));
+        connect(copyNameAction, &QAction::triggered, this, [itemPath]() {
+            QApplication::clipboard()->setText(QFileInfo(itemPath).fileName());
         });
 
         menu.addSeparator();
@@ -140,9 +261,29 @@ void WorkspaceDock::showContextMenu(const QPoint &pos)
             if (!path.isEmpty())
                 QProcess::startDetached(QStringLiteral("open"), {QStringLiteral("-R"), path});
         });
+
+        QAction *terminalAction = menu.addAction(tr("Open Terminal Here"));
+        connect(terminalAction, &QAction::triggered, this, [containingDir]() {
+            if (!containingDir.isEmpty())
+                QProcess::startDetached(QStringLiteral("open"), {QStringLiteral("-a"), QStringLiteral("Terminal"), containingDir});
+        });
     }
 
     menu.exec(m_tree->viewport()->mapToGlobal(pos));
+}
+
+void WorkspaceDock::refreshAll()
+{
+    for (int i = 0; i < m_tree->topLevelItemCount(); ++i) {
+        QTreeWidgetItem *rootItem = m_tree->topLevelItem(i);
+        populateChildren(rootItem, pathOf(rootItem));
+    }
+}
+
+void WorkspaceDock::setNameFilters(const QStringList &filters)
+{
+    m_nameFilters = filters;
+    refreshAll();
 }
 
 void WorkspaceDock::setRoot(const QString &dir)

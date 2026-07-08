@@ -15,6 +15,8 @@ public:
     bool save(const UdlDefinition &def);         // 存至 udl/{name}.json 並加入記憶體
     bool importFromFile(const QString &path);    // 匯入外部 JSON UDL 檔並儲存
     bool exportToFile(const QString &name, const QString &path);  // 匯出已存在的 UDL 至外部檔（FR-059）
+    bool rename(const QString &oldName, const QString &newName);  // 重新命名已存在的 UDL（FR-059 擴充）
+    bool remove(const QString &name);                             // 移除已存在的 UDL（FR-059 擴充）
     const UdlDefinition *findForExtension(const QString &suffix) const;
 
     const QVector<UdlDefinition> &definitions() const { return m_defs; }

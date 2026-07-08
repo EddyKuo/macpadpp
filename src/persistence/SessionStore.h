@@ -38,6 +38,9 @@ public:
     static SessionState loadNamed(const QString &name);
     static QStringList listNames();
 
+    // 任意路徑的 session 檔（供命令列 -openSession <file>）；檔案不存在/損毀回傳空 session
+    static SessionState loadFromPath(const QString &path);
+
     static constexpr int kSchemaVersion = 1;
 };
 

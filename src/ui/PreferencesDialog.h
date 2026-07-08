@@ -54,15 +54,22 @@ private:
     QCheckBox *m_wordWrap = nullptr;
     QCheckBox *m_showWhitespace = nullptr;
     QSpinBox *m_caretWidth = nullptr;
+    QCheckBox *m_currentLineHighlight = nullptr;
+    QCheckBox *m_enableVirtualSpace = nullptr;
+    QCheckBox *m_copyLineWithoutSelection = nullptr;
 
     // New Document
     QComboBox *m_defaultEol = nullptr;
     QComboBox *m_defaultEncoding = nullptr;
+    QCheckBox *m_autoDetectFileStatus = nullptr;
+    QLineEdit *m_sessionFileExt = nullptr;
 
     // Backup
     QComboBox *m_backupMode = nullptr;
     QLineEdit *m_backupDir = nullptr;
     QCheckBox *m_autosaveOnFocusLoss = nullptr;
+    QCheckBox *m_enableSessionSnapshot = nullptr;
+    QSpinBox *m_snapshotIntervalSec = nullptr;
 
     // Auto-Completion
     QCheckBox *m_autoInsertPairs = nullptr;
@@ -76,6 +83,9 @@ private:
 
     // Search
     QLineEdit *m_searchEngineUrl = nullptr;
+    QCheckBox *m_keepFindDialogOpen = nullptr;
+    QCheckBox *m_confirmReplaceAll = nullptr;
+    QSpinBox *m_findInSelectionThreshold = nullptr;
 
     // Highlighting
     QCheckBox *m_smartHighlight = nullptr;

@@ -15,6 +15,7 @@ class QListWidget;
 class QCheckBox;
 class QLabel;
 class QPushButton;
+class QLineEdit;
 class QsciLexer;
 
 namespace macpad::ui {
@@ -31,12 +32,17 @@ private slots:
     void pickForeground();
     void pickBackground();
     void onBoldItalicChanged();
+    void onExtensionsEdited();
+    void pickGlobalFg();
+    void pickGlobalBg();
+    void onGlobalOverrideToggled();
     void apply();
 
 private:
     macpad::persistence::StyleOverride *currentOverride(bool create);
     void refreshSwatches();
     void refreshGlobalSwatch();
+    void refreshGlobalOverrideSwatches();
 
     macpad::persistence::StyleSettings m_cfg;
     QString m_langKey;          // 目前語言的 LexerFactory key；等於 kGlobalStylesKey 時代表選中 Global Styles
@@ -53,6 +59,17 @@ private:
     QPushButton *m_bgBtn = nullptr;
     QCheckBox *m_bold = nullptr;
     QCheckBox *m_italic = nullptr;
+    QCheckBox *m_underline = nullptr;
+
+    QLineEdit *m_userExt = nullptr;  // 每語言「User ext.」自訂副檔名輸入框（Global Styles 模式下停用）
+
+    // Global override（單一 fg/bg 套用到所有語言）
+    QCheckBox *m_enableGlobalFg = nullptr;
+    QLabel *m_globalFgSwatch = nullptr;
+    QPushButton *m_globalFgBtn = nullptr;
+    QCheckBox *m_enableGlobalBg = nullptr;
+    QLabel *m_globalBgSwatch = nullptr;
+    QPushButton *m_globalBgBtn = nullptr;
 };
 
 }  // namespace macpad::ui

@@ -842,6 +842,26 @@ void EditorWidget::cancelCallTip()
     SendScintilla(SCI_CALLTIPCANCEL);
 }
 
+void EditorWidget::triggerCallTip()
+{
+    // 手動觸發（如快捷鍵）：取游標前的識別字並發出 callTipRequested，
+    // 邏輯與 keyPressEvent 鍵入 '(' 時相同，但以目前游標位置為終點，無需剛鍵入 '('。
+    const long pos = SendScintilla(SCI_GETCURRENTPOS);
+    if (pos <= 0)
+        return;
+    const long ws = SendScintilla(SCI_WORDSTARTPOSITION, static_cast<unsigned long>(pos), 1L);
+    if (ws >= pos)
+        return;
+    // setUtf8(true) → 位置為位元組偏移；先收集原始位元組再以 UTF-8 解碼（同 keyPressEvent 註解）
+    QByteArray nameBytes;
+    for (long p = ws; p < pos; ++p)
+        nameBytes += static_cast<char>(
+            SendScintilla(SCI_GETCHARAT, static_cast<unsigned long>(p)));
+    const QString name = QString::fromUtf8(nameBytes);
+    if (!name.trimmed().isEmpty())
+        emit callTipRequested(name);
+}
+
 QChar EditorWidget::closerFor(QChar opener)
 {
     // 供 keyPressEvent 與測試共用（自動配對符號，FR-050）
@@ -1027,7 +1047,7 @@ void EditorWidget::selectNextOccurrence()
     SendScintilla(SCI_MULTIPLESELECTADDNEXT);
 }
 
-void EditorWidget::selectAllOccurrences()
+void EditorWidget::selectAllOccurrences(bool matchCase, bool wholeWord)
 {
     if (!hasSelectedText()) {
         // 無選取：以游標所在字詞為搜尋依據
@@ -1041,7 +1061,10 @@ void EditorWidget::selectAllOccurrences()
         lineIndexFromPosition(static_cast<int>(wordEnd), &lt, &it);
         setSelection(lf, iff, lt, it);
     }
-    SendScintilla(SCI_SETSEARCHFLAGS, SCFIND_MATCHCASE);
+    int flags = 0;
+    if (matchCase) flags |= SCFIND_MATCHCASE;
+    if (wholeWord) flags |= SCFIND_WHOLEWORD;
+    SendScintilla(SCI_SETSEARCHFLAGS, static_cast<unsigned long>(flags));
     SendScintilla(SCI_SETTARGETSTART, 0UL);
     SendScintilla(SCI_SETTARGETEND, static_cast<unsigned long>(length()));
     SendScintilla(SCI_MULTIPLESELECTADDEACH);
@@ -1054,6 +1077,14 @@ void EditorWidget::skipAndSelectNext()
     if (n > 1)
         SendScintilla(SCI_DROPSELECTIONN, static_cast<unsigned long>(n - 1));
     SendScintilla(SCI_MULTIPLESELECTADDNEXT);
+}
+
+void EditorWidget::undoLastMultiSelect()
+{
+    // skipAndSelectNext 的反向操作：只丟棄最後加入的選取區域，不加選下一個相符項目
+    const int n = static_cast<int>(SendScintilla(SCI_GETSELECTIONS));
+    if (n > 1)
+        SendScintilla(SCI_DROPSELECTIONN, static_cast<unsigned long>(n - 1));
 }
 
 // === Preferences 即時套用 ===
@@ -1088,6 +1119,16 @@ void EditorWidget::setWordCompletionEnabled(bool enabled)
     } else {
         setAutoCompletionSource(QsciScintilla::AcsNone);
     }
+}
+
+void EditorWidget::triggerWordCompletion()
+{
+    // 手動強制觸發（如快捷鍵）：無視 autoCompletionThreshold，立即顯示清單。
+    // 來源與 setWordCompletionEnabled 相同規則：有 API 來源時文件字詞+API 合併，否則僅文件字詞。
+    if (m_apis)
+        autoCompleteFromAll();
+    else
+        autoCompleteFromDocument();
 }
 
 // === API 自動完成（FR-055 hook）===

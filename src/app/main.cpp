@@ -9,6 +9,7 @@
 #include "core/EditorWidget.h"
 #include "core/LexerFactory.h"
 #include "features/cli/CliArgs.h"
+#include "persistence/AppPaths.h"
 #include "persistence/SettingsStore.h"
 #include "platform/SingleInstance.h"
 
@@ -61,6 +62,29 @@ static void openParsedArgs(MainWindow &window, const macpad::features::ParsedArg
             e->setFocus();
         }
     }
+    // -openSession <file>：從指定 session 檔還原分頁（在開檔前後皆可，這裡於開檔後附加還原）
+    if (!parsed.openSessionPath.isEmpty())
+        window.openSessionFile(parsed.openSessionPath);
+    // -openFoldersAsWorkspace <folder>（可重複）：各資料夾加入工作區
+    for (const QString &folder : parsed.openFoldersAsWorkspace)
+        window.addWorkspaceFolder(folder);
+    // -notabbar：隱藏分頁列
+    if (parsed.hideTabBar)
+        window.setTabBarVisible(false);
+    // -fullReadOnly：全域唯讀（較 -ro 嚴格，套用到所有已開啟分頁）
+    if (parsed.fullReadOnly)
+        window.setFullReadOnly(true);
+    // -monitor：對所有已開啟且已存檔的分頁啟用外部異動監控
+    if (parsed.monitorMode)
+        window.enableMonitoringForOpenFiles();
+    // -x <n> / -y <n>：視窗初始座標（兩者皆給定才移動）
+    if (parsed.windowX.has_value() && parsed.windowY.has_value())
+        window.move(parsed.windowX.value(), parsed.windowY.value());
+    // -udl=<name>：對作用中編輯器套用指定的使用者定義語言（UDL）
+    if (!parsed.udlName.isEmpty())
+        window.applyUdlByName(parsed.udlName);
+    // -notepadStyleCmdline：Notepad 風格多檔命令列語意（產品決策，暫不改變現行開檔行為）。
+    // -uiLangCode（-L<code>）：介面語言於啟動前決定（見 main() 內 resolveLanguage）；此處不重載。
     // -alwaysOnTop / -title:/-titleAdd:：視窗層級選項（開檔後統一套用）
     window.applyCliWindowOptions(parsed.alwaysOnTop, parsed.titleAdd);
     // -quickPrint：直印目前檔案後保留開啟。
@@ -77,12 +101,18 @@ int main(int argc, char *argv[])
     const QStringList rawArgs = app.arguments().mid(1);
     const macpad::features::ParsedArgs parsed = macpad::features::CliArgs::parse(rawArgs);
 
+    // -settingsDir <dir>：自訂設定目錄——須在任何設定讀取前套用（否則會讀到預設位置）
+    if (!parsed.settingsDir.isEmpty())
+        macpad::persistence::AppPaths::setConfigDirOverride(parsed.settingsDir);
+
     const auto settings = macpad::persistence::SettingsStore::load();
 
     // 介面語言(i18n):載入對應 .qm 並安裝翻譯器(須在建立 MainWindow 前,選單才會被翻譯)。
     // i18n.qrc 編在靜態庫,須顯式初始化資源。
+    // -L<langCode>（大寫）命令列指定介面語言優先於設定檔。
     Q_INIT_RESOURCE(i18n);
-    const QString lang = resolveLanguage(settings.language);
+    const QString lang = resolveLanguage(
+        !parsed.uiLangCode.isEmpty() ? parsed.uiLangCode : settings.language);
     static QTranslator translator;
     if (translator.load(QStringLiteral(":/i18n/macpad_%1.qm").arg(lang)))
         app.installTranslator(&translator);

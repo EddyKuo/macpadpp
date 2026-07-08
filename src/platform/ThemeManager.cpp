@@ -121,8 +121,25 @@ static void applyWithStyles(macpad::core::EditorWidget *editor, bool dark,
                 QFont f = lex->font(ov.style);
                 f.setBold(ov.bold);
                 f.setItalic(ov.italic);
+                f.setUnderline(ov.underline);
                 lex->setFont(f, ov.style);
             }
+        }
+
+        // Global Override（③c）：開啟時以單一前景/背景色強制套用到所有語法 style，
+        // 疊在每語言個別覆寫「之後」，供快速套用一致配色。
+        const auto &go = styleCfg.global;
+        if (go.enableGlobalFg && !go.globalFg.isEmpty()) {
+            const QColor c(go.globalFg);
+            if (c.isValid())
+                for (int style = 0; style < 128; ++style)
+                    lex->setColor(c, style);
+        }
+        if (go.enableGlobalBg && !go.globalBg.isEmpty()) {
+            const QColor c(go.globalBg);
+            if (c.isValid())
+                for (int style = 0; style < 128; ++style)
+                    lex->setPaper(c, style);
         }
     }
 
@@ -165,6 +182,36 @@ static void applyWithStyles(macpad::core::EditorWidget *editor, bool dark,
         // （會套用到整個行號邊界文字，非僅目前行），做為此設定在缺乏原生支援下的最佳近似。
         if (c.isValid())
             editor->SendScintilla(SCI_STYLESETFORE, static_cast<unsigned long>(STYLE_LINENUMBER), c);
+    }
+    // Edge（欄位參考線）顏色
+    if (!gs.edgeColor.isEmpty()) {
+        const QColor c(gs.edgeColor);
+        if (c.isValid())
+            editor->setEdgeColor(c);
+    }
+    // 插入點（游標）顏色——獨立於「目前行反白背景色」，套用於預設 caret 前景
+    if (!gs.caretColor.isEmpty()) {
+        const QColor c(gs.caretColor);
+        if (c.isValid())
+            editor->setCaretForegroundColor(c);
+    }
+    // 摺疊邊界顏色
+    if (!gs.foldMargin.isEmpty()) {
+        const QColor c(gs.foldMargin);
+        if (c.isValid())
+            editor->setFoldMarginColors(c, c);
+    }
+    // 書籤邊界顏色——以摺疊邊界高亮色近似（Scintilla 無獨立書籤邊界底色訊息）
+    if (!gs.bookmarkMargin.isEmpty()) {
+        const QColor c(gs.bookmarkMargin);
+        if (c.isValid())
+            editor->SendScintilla(QsciScintillaBase::SCI_SETFOLDMARGINHICOLOUR, 1UL, c);
+    }
+    // 標記（Find Mark）顏色——套用於指示器 0 的前景（近似 Notepad++ 標記色）
+    if (!gs.markColor.isEmpty()) {
+        const QColor c(gs.markColor);
+        if (c.isValid())
+            editor->SendScintilla(QsciScintillaBase::SCI_INDICSETFORE, 0UL, c);
     }
 }
 

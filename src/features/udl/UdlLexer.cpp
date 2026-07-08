@@ -206,12 +206,27 @@ void UdlLexer::styleText(int start, int end)
                 : std::min(static_cast<int>(m_def.keywordGroups.size()), kUdlMaxKeywordGroups);
             for (int g = 0; g < groupCount; ++g) {
                 const QSet<QString> &group = m_def.keywordGroup(g);
-                bool kw = m_def.caseSensitive
-                    ? group.contains(word)
-                    : group.contains(word.toLower()) || group.contains(word);
-                if (!m_def.caseSensitive && !kw) {
-                    for (const QString &k : group)
-                        if (k.compare(word, Qt::CaseInsensitive) == 0) { kw = true; break; }
+                bool kw = false;
+                if (m_def.keywordGroupPrefix(g)) {
+                    // 前綴模式（FR-059 擴充）：token 以任一關鍵字為前綴即視為命中，
+                    // 而非要求整詞相等；比對是否區分大小寫依 caseSensitive 而定。
+                    for (const QString &k : group) {
+                        if (k.isEmpty())
+                            continue;
+                        if (word.startsWith(k, m_def.caseSensitive ? Qt::CaseSensitive
+                                                                    : Qt::CaseInsensitive)) {
+                            kw = true;
+                            break;
+                        }
+                    }
+                } else {
+                    kw = m_def.caseSensitive
+                        ? group.contains(word)
+                        : group.contains(word.toLower()) || group.contains(word);
+                    if (!m_def.caseSensitive && !kw) {
+                        for (const QString &k : group)
+                            if (k.compare(word, Qt::CaseInsensitive) == 0) { kw = true; break; }
+                    }
                 }
                 if (kw) {
                     style = styleForKeywordGroup(g);
@@ -256,9 +271,17 @@ void UdlLexer::applyFolding(const QString &text)
             ? 0 : line.count(m_def.folderTokens.open);
         const int closes = m_def.folderTokens.close.isEmpty()
             ? 0 : line.count(m_def.folderTokens.close);
+        const int mids = m_def.folderTokens.middle.isEmpty()
+            ? 0 : line.count(m_def.folderTokens.middle);
 
-        int level = QsciScintillaBase::SC_FOLDLEVELBASE + depth;
-        if (opens > closes)
+        // middle（如 else/elseif）視為「先關閉再重新開啟」同一層級：該行本身顯示於
+        // 外層層級（depth-1），並標記為 header（其後內容摺疊至此），但淨深度不變。
+        int lineDepth = depth;
+        if (mids > 0 && depth > 0)
+            lineDepth = depth - 1;
+
+        int level = QsciScintillaBase::SC_FOLDLEVELBASE + lineDepth;
+        if (opens > closes || mids > 0)
             level |= QsciScintillaBase::SC_FOLDLEVELHEADERFLAG;
         editor()->SendScintilla(QsciScintillaBase::SCI_SETFOLDLEVEL,
                                  static_cast<unsigned long>(ln),

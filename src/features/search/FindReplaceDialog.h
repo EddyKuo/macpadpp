@@ -26,6 +26,12 @@ public:
     // 開啟並聚焦；replaceMode 決定是否顯示取代列
     void showFind(bool replaceMode);
 
+public slots:
+    // 「Find (Volatile) Next/Previous」：搜尋但不記錄為最近命中，不覆寫 replaceOne 依賴的匹配記錄。
+    // 公開供 MainWindow 綁定全域快速鍵（如 Ctrl+Alt+F3 / Ctrl+Alt+Shift+F3）。
+    void findNextVolatile();
+    void findPreviousVolatile();
+
 private slots:
     void findNext();
     void replaceOne();
@@ -34,8 +40,6 @@ private slots:
     void incrementalFind(const QString &text);
     void countAll();       // FR-047「Count」按鈕：只計數不移動
     void swapFindReplace(); // 交換 Find/Replace 欄位文字
-    void findNextVolatile();     // 「Find (Volatile) Next」：搜尋但不記錄為最近命中
-    void findPreviousVolatile(); // 「Find (Volatile) Previous」：同上，反向
     void opacityChanged(int value); // 視窗透明度滑桿變更
 
 private:
@@ -50,9 +54,13 @@ private:
     QString effectiveFindText() const;
     QString effectiveReplaceText() const;
 
-    // 將 \n \r \t \0 \\ \xNN 跳脫序列轉換為對應字元；不認得的序列原樣保留。
-    // 自足實作，不依賴其他模組。
+    // 將 \n \r \t \0 \\ \xNN \b \uXXXX \u{XXXX} \oNNN(八進位) \dNNN(十進位) 跳脫序列轉換為對應字元；
+    // 不認得的序列原樣保留。自足實作，不依賴其他模組。
     static QString unescapeExtended(const QString &text);
+
+    // 從 QSettings 載入/儲存搜尋選項勾選狀態（沿用 app 預設 organization/application scope）
+    void loadSearchOptions();
+    void saveSearchOption(const QString &key, bool value) const;
 
     macpad::core::EditorWidget *m_editor = nullptr;
     QLineEdit *m_findEdit = nullptr;

@@ -16,6 +16,17 @@ static QString udlDir()
     return dir;
 }
 
+// 將 UDL 名稱轉為安全檔名（啟用 Unicode 屬性，使 \w 匹配非 ASCII 文字，
+// 避免全非 ASCII 名稱塌縮成相同底線字串而互相覆蓋）。save()/remove() 共用。
+static QString safeFileName(const QString &name)
+{
+    QString safe = name;
+    safe.replace(QRegularExpression(QStringLiteral("[^\\w.-]"),
+                                    QRegularExpression::UseUnicodePropertiesOption),
+                 QStringLiteral("_"));
+    return safe;
+}
+
 void UdlManager::loadAll()
 {
     m_defs.clear();
@@ -38,12 +49,7 @@ bool UdlManager::save(const UdlDefinition &def)
 {
     if (!def.isValid())
         return false;
-    QString safe = def.name;
-    // 啟用 Unicode 屬性，使 \w 匹配非 ASCII 文字（如中日韓語言名），
-    // 避免全非 ASCII 名稱塌縮成相同底線字串而互相覆蓋。
-    safe.replace(QRegularExpression(QStringLiteral("[^\\w.-]"),
-                                    QRegularExpression::UseUnicodePropertiesOption),
-                 QStringLiteral("_"));
+    const QString safe = safeFileName(def.name);
     QFile file(udlDir() + QLatin1Char('/') + safe + QStringLiteral(".json"));
     if (!file.open(QIODevice::WriteOnly))
         return false;
@@ -84,6 +90,42 @@ bool UdlManager::exportToFile(const QString &name, const QString &path)
     file.write(QJsonDocument(found->toJson()).toJson(QJsonDocument::Indented));
     file.close();
     return true;
+}
+
+bool UdlManager::rename(const QString &oldName, const QString &newName)
+{
+    if (oldName == newName || newName.trimmed().isEmpty())
+        return false;
+    UdlDefinition def;
+    bool found = false;
+    for (const auto &d : m_defs) {
+        if (d.name == oldName) {
+            def = d;
+            found = true;
+            break;
+        }
+    }
+    if (!found)
+        return false;
+    def.name = newName;
+    if (!save(def))
+        return false;
+    remove(oldName);
+    return true;
+}
+
+bool UdlManager::remove(const QString &name)
+{
+    bool found = false;
+    for (int i = 0; i < m_defs.size(); ++i) {
+        if (m_defs.at(i).name == name) {
+            m_defs.remove(i);
+            found = true;
+            break;
+        }
+    }
+    QFile::remove(udlDir() + QLatin1Char('/') + safeFileName(name) + QStringLiteral(".json"));
+    return found;
 }
 
 const UdlDefinition *UdlManager::findForExtension(const QString &suffix) const

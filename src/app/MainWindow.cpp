@@ -316,26 +316,25 @@ MainWindow::MainWindow(QWidget *parent, bool restoreSessionOnLaunch)
         timer->start();
     }
 
-    // 當機復原快照（FR-054）：每 30 秒把「有未存變更」的分頁內容寫入 snapshot；
+    // 當機復原快照（FR-054）：定期把「有未存變更」的分頁內容寫入 snapshot；
     // 正常關閉時 closeEvent 會 clearSnapshots()，故啟動時殘留者即代表上次未正常結束。
-    {
-        auto *snapTimer = new QTimer(this);
-        snapTimer->setInterval(30 * 1000);
-        connect(snapTimer, &QTimer::timeout, this, [this] {
-            int i = 0;
-            forEachEditor([&i](EditorWidget *e) {
-                const int idx = i++;
-                if (e && e->isDirty()) {
-                    const QString docId = e->isUntitled()
-                        ? QStringLiteral("untitled-%1").arg(idx)
-                        : QFileInfo(e->filePath()).fileName();
-                    macpad::features::BackupService::writeSnapshot(
-                        QStringLiteral("session"), docId, e->text().toUtf8());
-                }
-            });
+    // 是否啟用與間隔由偏好設定（enableSessionSnapshot / snapshotIntervalSec）決定，
+    // 於 Preferences 變更後即時重新套用（見 Preferences 接受處）。
+    m_snapshotTimer = new QTimer(this);
+    connect(m_snapshotTimer, &QTimer::timeout, this, [this] {
+        int i = 0;
+        forEachEditor([&i](EditorWidget *e) {
+            const int idx = i++;
+            if (e && e->isDirty()) {
+                const QString docId = e->isUntitled()
+                    ? QStringLiteral("untitled-%1").arg(idx)
+                    : QFileInfo(e->filePath()).fileName();
+                macpad::features::BackupService::writeSnapshot(
+                    QStringLiteral("session"), docId, e->text().toUtf8());
+            }
         });
-        snapTimer->start();
-    }
+    });
+    applySnapshotTimerSettings(settings);
 
     // 失焦自動儲存（FR-053）：視窗失去作用時存已命名之未存分頁
     connect(qApp, &QApplication::applicationStateChanged, this,
@@ -609,10 +608,24 @@ void MainWindow::createMenus()
     });
     editMenu->addSeparator();
     editMenu->addAction(tr("Cut"), QKeySequence::Cut, this, [this] {
-        if (auto *e = currentEditor()) e->cut();
+        auto *e = currentEditor();
+        if (!e) return;
+        // copyLineWithoutSelection：無選取時剪下整行（Notepad++ 慣例）
+        if (e->selectedText().isEmpty()
+            && macpad::persistence::SettingsStore::load().copyLineWithoutSelection)
+            e->SendScintilla(QsciScintillaBase::SCI_LINECUT);
+        else
+            e->cut();
     });
     editMenu->addAction(tr("Copy"), QKeySequence::Copy, this, [this] {
-        if (auto *e = currentEditor()) e->copy();
+        auto *e = currentEditor();
+        if (!e) return;
+        // copyLineWithoutSelection：無選取時複製整行（Notepad++ 慣例）
+        if (e->selectedText().isEmpty()
+            && macpad::persistence::SettingsStore::load().copyLineWithoutSelection)
+            e->SendScintilla(QsciScintillaBase::SCI_LINECOPY);
+        else
+            e->copy();
     });
     editMenu->addAction(tr("Paste"), QKeySequence::Paste, this, [this] {
         if (auto *e = currentEditor()) e->paste();
@@ -790,11 +803,26 @@ void MainWindow::createMenus()
     multiSelectMenu->addAction(tr("Select Next Occurrence"), this, [this] {
         if (auto *e = currentEditor()) e->selectNextOccurrence();
     });
-    multiSelectMenu->addAction(tr("Select All Occurrences"), this, [this] {
-        if (auto *e = currentEditor()) e->selectAllOccurrences();
-    });
     multiSelectMenu->addAction(tr("Skip and Select Next"), this, [this] {
         if (auto *e = currentEditor()) e->skipAndSelectNext();
+    });
+    multiSelectMenu->addAction(tr("Undo Last Selection"), this, [this] {
+        if (auto *e = currentEditor()) e->undoLastMultiSelect();
+    });
+    multiSelectMenu->addSeparator();
+    // Select All Occurrences 四種變體（大小寫 × 全字）
+    QMenu *selAllMenu = multiSelectMenu->addMenu(tr("Select All Occurrences"));
+    selAllMenu->addAction(tr("Match Case"), this, [this] {
+        if (auto *e = currentEditor()) e->selectAllOccurrences(true, false);
+    });
+    selAllMenu->addAction(tr("Ignore Case"), this, [this] {
+        if (auto *e = currentEditor()) e->selectAllOccurrences(false, false);
+    });
+    selAllMenu->addAction(tr("Match Case + Whole Word"), this, [this] {
+        if (auto *e = currentEditor()) e->selectAllOccurrences(true, true);
+    });
+    selAllMenu->addAction(tr("Ignore Case + Whole Word"), this, [this] {
+        if (auto *e = currentEditor()) e->selectAllOccurrences(false, true);
     });
 
     // On Selection（把選取內容當路徑/搜尋字串處理）
@@ -963,6 +991,7 @@ void MainWindow::createMenus()
             m_showIndentGuide = s.showIndentGuides;
             // 逐分頁即時套用可即時生效的偏好（tabWidth/行號/游標寬/自動配對/自動完成/call tip/縮排參考線）
             forEachEditor([this, &s](EditorWidget *e) { applyEditorPrefs(e, s); });
+            applySnapshotTimerSettings(s);  // 依偏好啟停/調整當機復原快照計時器
             applyTheme();
             statusBar()->showMessage(tr("偏好設定已儲存"), 4000);
         }
@@ -1660,6 +1689,8 @@ void MainWindow::applyEditorPrefs(EditorWidget *editor, const macpad::persistenc
     editor->setWordCompletionEnabled(s.wordAutoComplete);
     editor->setAutoCompletionThreshold(s.acThreshold);
     editor->setCallTipsEnabled(s.showCallTips);
+    editor->setCaretLineVisible(s.currentLineHighlight);  // 高亮目前所在行
+    editor->setVirtualSpace(s.enableVirtualSpace);        // 允許插入點移至行尾之後
     applyViewPrefs(editor);                            // wrap/whitespace/eol/縮排參考線
 }
 
@@ -1927,8 +1958,18 @@ void MainWindow::createEditMenuOps(QMenu *editMenu)
         if (dlg.exec() != QDialog::Accepted)
             return;
         const int col = qMin(idxFrom, idxTo);
-        const QString out = macpad::features::ColumnEditor::insertNumberColumn(
-            e->text(), lineFrom, lineTo, col, dlg.spec());
+        QString out;
+        if (dlg.isTextMode()) {
+            // Text 模式：於各行同欄插入固定文字
+            out = macpad::features::ColumnEditor::insertTextColumn(
+                e->text(), lineFrom, lineTo, col, dlg.textToInsert());
+        } else {
+            // Number 模式：遞增數列；repeat 表示每幾行才遞增一次
+            macpad::features::NumberSeqSpec spec = dlg.spec();
+            spec.repeat = dlg.repeatCount();
+            out = macpad::features::ColumnEditor::insertNumberColumn(
+                e->text(), lineFrom, lineTo, col, spec);
+        }
         e->beginUndoAction();
         const QByteArray b = out.toUtf8();
         e->SendScintilla(QsciScintilla::SCI_SETTARGETSTART, 0UL);
@@ -1973,9 +2014,15 @@ void MainWindow::createEditMenuOps(QMenu *editMenu)
                         QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_Slash), this,
                         [this] { if (auto *e = currentEditor()) e->toggleBlockComment(); });
 
-    // 自動完成（從文件既有字詞）
-    editMenu->addAction(tr("Word Completion"), QKeySequence(Qt::CTRL | Qt::Key_Space), this,
-                        [this] { if (auto *e = currentEditor()) e->autoCompleteFromDocument(); });
+    // 自動完成（強制觸發詞彙完成，忽略字數門檻）——Ctrl+Space，另綁 Ctrl+Return
+    QAction *wordCompAct = editMenu->addAction(tr("Word Completion"),
+                                               QKeySequence(Qt::CTRL | Qt::Key_Space), this,
+                        [this] { if (auto *e = currentEditor()) e->triggerWordCompletion(); });
+    wordCompAct->setShortcuts({QKeySequence(Qt::CTRL | Qt::Key_Space),
+                               QKeySequence(Qt::CTRL | Qt::Key_Return)});
+    // 函式參數提示（Call Tip）——不依賴輸入 '('，由使用者明確觸發（Ctrl+Shift+Space）
+    editMenu->addAction(tr("Show Call Tip"), QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_Space),
+                        this, [this] { if (auto *e = currentEditor()) e->triggerCallTip(); });
 
     editMenu->addSeparator();
 
@@ -2049,6 +2096,21 @@ void MainWindow::createSearchMenu(QMenu *searchMenu)
     searchMenu->addAction(tr("Select and Find Previous"),
                           QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_F3), this,
                           [this] { selectAndFind(false); });
+    // Volatile Find（不改變對話框中儲存的查詢字串，直接以選取內容前後搜尋）
+    searchMenu->addAction(tr("Find (Volatile) Next"),
+                          QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_F3), this, [this] {
+        if (!m_findDialog)
+            m_findDialog = new macpad::features::FindReplaceDialog(this);
+        m_findDialog->setEditor(currentEditor());
+        m_findDialog->findNextVolatile();
+    });
+    searchMenu->addAction(tr("Find (Volatile) Previous"),
+                          QKeySequence(Qt::CTRL | Qt::ALT | Qt::SHIFT | Qt::Key_F3), this, [this] {
+        if (!m_findDialog)
+            m_findDialog = new macpad::features::FindReplaceDialog(this);
+        m_findDialog->setEditor(currentEditor());
+        m_findDialog->findPreviousVolatile();
+    });
     searchMenu->addAction(tr("Replace…"), QKeySequence::Replace, this, &MainWindow::showReplace);
     searchMenu->addAction(tr("Incremental Search"), QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_I),
                           this, [this] { showIncrementalSearch(); });
@@ -2451,6 +2513,87 @@ void MainWindow::applyCliWindowOptions(bool alwaysOnTop, const QString &titleAdd
         const QString base = windowTitle().isEmpty() ? QStringLiteral("macpad++") : windowTitle();
         setWindowTitle(base + QStringLiteral(" - ") + titleAdd);
     }
+}
+
+void MainWindow::applySnapshotTimerSettings(const macpad::persistence::Settings &s)
+{
+    if (!m_snapshotTimer)
+        return;
+    if (s.enableSessionSnapshot) {
+        // 夾限區間，防止手改/損毀設定檔導致 0/負值 QTimer 空轉
+        const int intervalSec = qBound(5, s.snapshotIntervalSec, 3600);
+        m_snapshotTimer->setInterval(intervalSec * 1000);
+        m_snapshotTimer->start();
+    } else {
+        m_snapshotTimer->stop();
+    }
+}
+
+// -openSession <file>：從指定 session 檔還原分頁（供命令列）
+void MainWindow::openSessionFile(const QString &path)
+{
+    if (path.isEmpty())
+        return;
+    openSessionState(macpad::persistence::SessionStore::loadFromPath(path));
+}
+
+// -openFoldersAsWorkspace <folder>：將資料夾加入工作區（多根，不清除既有）
+void MainWindow::addWorkspaceFolder(const QString &path)
+{
+    if (path.isEmpty() || !m_workspace)
+        return;
+    m_workspace->addRoot(path);
+    m_workspace->show();
+    m_workspace->raise();
+}
+
+// -notabbar：隱藏/顯示分頁列（兩檢視同步）
+void MainWindow::setTabBarVisible(bool visible)
+{
+    for (QTabWidget *w : {m_tabs, m_tabs2}) {
+        if (w)
+            w->tabBar()->setVisible(visible);
+    }
+}
+
+// -fullReadOnly：全域唯讀——所有已開啟編輯器設唯讀（較 -ro 嚴格，涵蓋全部分頁）
+void MainWindow::setFullReadOnly(bool on)
+{
+    forEachEditor([on](EditorWidget *e) {
+        if (e)
+            e->setReadOnly(on);
+    });
+}
+
+// -udl=<name>：對作用中編輯器套用指定名稱的使用者定義語言（UDL）
+void MainWindow::applyUdlByName(const QString &name)
+{
+    if (name.isEmpty())
+        return;
+    EditorWidget *e = currentEditor();
+    if (!e)
+        return;
+    for (const auto &def : m_udl.definitions()) {
+        if (def.name == name) {
+            e->setLexer(new macpad::features::UdlLexer(def, e));
+            return;
+        }
+    }
+}
+
+// -monitor：對所有已開啟且已存檔的分頁啟用外部異動監控（tail -f 式）
+void MainWindow::enableMonitoringForOpenFiles()
+{
+    forEachEditor([this](EditorWidget *e) {
+        if (e && !e->isUntitled()) {
+            const QString path = e->filePath();
+            if (!m_monitored.contains(path)) {
+                m_monitored.insert(path);
+                watchPath(path);
+                e->setReadOnly(true);
+            }
+        }
+    });
 }
 
 void MainWindow::activateTabRelative(int delta)
@@ -3215,5 +3358,8 @@ void MainWindow::updateStatusBar()
 
     m_stEol->setText(eolDisplay(editor->eol()));
     m_stEnc->setText(editor->encodingLabel());
+    // Character Panel 標頭同步顯示作用中文件的編碼
+    if (m_charPanel)
+        m_charPanel->setEncodingLabel(editor->encodingLabel());
     m_stMode->setText(s.overtype ? QStringLiteral("OVR") : QStringLiteral("INS"));
 }

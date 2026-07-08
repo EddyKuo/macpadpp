@@ -22,6 +22,7 @@ class QLabel;
 class QMenu;
 class QToolBar;
 class QFileSystemWatcher;
+class QTimer;
 class QsciMacro;
 class QAction;
 class QLineEdit;
@@ -53,6 +54,14 @@ public:
     // 命令列視窗選項（FR-051）：-alwaysOnTop 置頂、-title:/-titleAdd: 附加標題（供 main.cpp 於開檔後套用）
     void applyCliWindowOptions(bool alwaysOnTop, const QString &titleAdd);
 
+    // 命令列啟動選項（供 main.cpp 於開檔後套用）
+    void openSessionFile(const QString &path);          // -openSession <file>
+    void addWorkspaceFolder(const QString &path);       // -openFoldersAsWorkspace <folder>
+    void setTabBarVisible(bool visible);                // -notabbar（隱藏分頁列）
+    void setFullReadOnly(bool on);                      // -fullReadOnly（全域唯讀）
+    void enableMonitoringForOpenFiles();                // -monitor（監控所有已開啟檔案）
+    void applyUdlByName(const QString &name);           // -udl=<name>（對作用中編輯器套用 UDL）
+
 public slots:
     // 開啟指定檔案（已開啟則聚焦既有分頁——FR-001 邊界）
     void openFile(const QString &path);
@@ -81,6 +90,7 @@ private slots:
     void themeEditor(macpad::core::EditorWidget *editor);  // 依設定為單一編輯器上主題色
     void applyViewPrefs(macpad::core::EditorWidget *editor);
     void applyEditorPrefs(macpad::core::EditorWidget *editor, const macpad::persistence::Settings &s);
+    void applySnapshotTimerSettings(const macpad::persistence::Settings &s);  // 依偏好啟停/調整快照計時器
     void onFileChangedOnDisk(const QString &path);
     void startMacroRecording();
     void stopMacroRecording();
@@ -182,6 +192,7 @@ private:
     macpad::ui::WorkspaceDock *m_workspace = nullptr;
     macpad::ui::CharacterPanel *m_charPanel = nullptr;
     QsciMacro *m_recordingMacro = nullptr;
+    QTimer *m_snapshotTimer = nullptr;  // 當機復原快照計時器（可依偏好設定啟停/調整間隔）
     QMenu *m_windowMenu = nullptr;
     QStringList m_closedFiles;          // 最近關閉分頁堆疊（Restore Recent Closed File）
     QSet<QString> m_monitored;          // tail -f 監控中的檔案（絕對路徑）

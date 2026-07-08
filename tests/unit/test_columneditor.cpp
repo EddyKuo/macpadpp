@@ -50,6 +50,31 @@ private slots:
         QCOMPARE(out, QStringLiteral("abc1d\nx  2"));
     }
 
+    void insertSequenceWithRepeat()
+    {
+        // repeat=2：每 2 行才遞增一次（1,1,2,2,3）
+        NumberSeqSpec s; s.start = 1; s.increment = 1; s.repeat = 2;
+        const QString out = ColumnEditor::insertNumberColumn("a\nb\nc\nd\ne", 0, 4, 0, s);
+        QCOMPARE(out, QStringLiteral("1a\n1b\n2c\n2d\n3e"));
+    }
+
+    void repeatZeroTreatedAsOne()
+    {
+        // repeat<=0 視為 1（每行遞增），避免除以零
+        NumberSeqSpec s; s.start = 5; s.increment = 5; s.repeat = 0;
+        const QString out = ColumnEditor::insertNumberColumn("a\nb\nc", 0, 2, 0, s);
+        QCOMPARE(out, QStringLiteral("5a\n10b\n15c"));
+    }
+
+    void defaultRepeatIncrementsEveryRow()
+    {
+        // 預設 repeat=1：行為與過去一致（回歸保護）
+        NumberSeqSpec s; s.start = 1; s.increment = 1;
+        QCOMPARE(s.repeat, 1);
+        const QString out = ColumnEditor::insertNumberColumn("a\nb\nc", 0, 2, 0, s);
+        QCOMPARE(out, QStringLiteral("1a\n2b\n3c"));
+    }
+
     void insertTextColumn()
     {
         const QString out = ColumnEditor::insertTextColumn("a\nb\nc", 0, 2, 0, "// ");
