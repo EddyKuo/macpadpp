@@ -189,6 +189,24 @@ private slots:
         QVERIFY(FindInFilesEngine::isExcluded("keep.min.js", "keep.min.js", {"!*.min.js"}));
         QVERIFY(!FindInFilesEngine::isExcluded("a.txt", "a.txt", {"!*.min.js"}));
     }
+
+    // searchInFiles：以明確檔案清單搜尋（Find in Projects 引擎），不遞迴目錄
+    void searchInExplicitFileList()
+    {
+        FindInFilesOptions opts;
+        opts.pattern = QStringLiteral("TODO");
+        const QStringList files = {
+            m_dir.path() + QStringLiteral("/a.txt"),
+            m_dir.path() + QStringLiteral("/b.cpp"),
+            m_dir.path() + QStringLiteral("/sub/c.txt"),
+        };
+        const QVector<FindMatch> hits = FindInFilesEngine::searchInFiles(files, opts);
+        // a.txt(1) + b.cpp(1) + sub/c.txt(1) = 3
+        QCOMPARE(hits.size(), 3);
+        // 只搜清單內的檔，不存在的路徑安全略過
+        const QStringList withMissing = files + QStringList{m_dir.path() + QStringLiteral("/nope.txt")};
+        QCOMPARE(FindInFilesEngine::searchInFiles(withMissing, opts).size(), 3);
+    }
 };
 
 QTEST_APPLESS_MAIN(TestFindInFiles)

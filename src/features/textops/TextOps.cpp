@@ -388,6 +388,12 @@ QString TextOps::spacesToTabsLeading(const QString &s, int tabWidth)
     return joinBack(lines);
 }
 
+QString TextOps::trimBothAndEolToSpace(const QString &s)
+{
+    // 先去除每行頭尾空白，再把行與行之間的換行合併為單一空白
+    return eolToSpace(trimBoth(s));
+}
+
 QString TextOps::toggleLineComment(const QString &s, const QString &marker)
 {
     if (marker.isEmpty())

@@ -1,11 +1,18 @@
 #include "features/functionlist/FunctionListParser.h"
 
+#include "features/functionlist/FunctionListConfig.h"
+
 #include <QRegularExpression>
 
 namespace macpad::features {
 
 QString FunctionListParser::languageForSuffix(const QString &suffix)
 {
+    // 使用者 overrideMap.json 優先於內建對照表（對齊 Notepad++ overrideMap.xml 概念）
+    const QString overridden = FunctionListConfig::languageOverrideForSuffix(suffix);
+    if (!overridden.isEmpty())
+        return overridden;
+
     const QString s = suffix.toLower();
     if (s == "py" || s == "pyw") return QStringLiteral("python");
     if (s == "c" || s == "h" || s == "cpp" || s == "cc" || s == "cxx" ||
@@ -13,6 +20,8 @@ QString FunctionListParser::languageForSuffix(const QString &suffix)
         return QStringLiteral("cpp");
     if (s == "js" || s == "mjs" || s == "ts" || s == "jsx")
         return QStringLiteral("javascript");
+    if (s == "java")
+        return QStringLiteral("java");
     return QString();
 }
 
@@ -22,26 +31,28 @@ QVector<Symbol> FunctionListParser::parse(const QString &content, const QString 
     if (language.isEmpty())
         return out;
 
-    QVector<QRegularExpression> patterns;
-    QRegularExpression scopeRe;  // 偵測 class/struct/namespace 宣告，用於追蹤所屬範疇
-    // 是否需要追蹤所屬範疇（scope）：目前僅 cpp/js 支援類別方法歸屬
-    const bool trackScope = (language == QLatin1String("cpp") || language == QLatin1String("javascript"));
+    // 規則來源：使用者設定檔（functionlist/<language>.json）優先於內建預設值，
+    // 查無任何規則（不支援的語言）則維持過去行為——回傳空清單。
+    const FunctionListRule rule = FunctionListConfig::ruleForLanguage(language);
+    if (!rule.isValid())
+        return out;
 
-    if (language == QLatin1String("python")) {
-        patterns << QRegularExpression(QStringLiteral("^\\s*(?:def|class)\\s+(\\w+)"));
-    } else if (language == QLatin1String("javascript")) {
-        patterns << QRegularExpression(QStringLiteral("^\\s*(?:export\\s+)?(?:async\\s+)?function\\s+(\\w+)"));
-        patterns << QRegularExpression(QStringLiteral("^\\s*(?:export\\s+)?(?:const|let|var)\\s+(\\w+)\\s*=\\s*(?:async\\s*)?\\("));
-        patterns << QRegularExpression(QStringLiteral("^\\s*(?:export\\s+)?class\\s+(\\w+)"));
-        scopeRe = QRegularExpression(QStringLiteral("^\\s*(?:export\\s+)?class\\s+(\\w+)"));
-    } else if (language == QLatin1String("cpp")) {
-        // 類別/結構
-        patterns << QRegularExpression(QStringLiteral("^\\s*(?:class|struct)\\s+(\\w+)"));
-        // 函式定義：type name(...) {   （行末為 { 或 {}）
-        patterns << QRegularExpression(QStringLiteral(
-            "^[\\w:<>,\\*&\\s]*?(\\w+)\\s*\\([^;{}]*\\)\\s*(?:const)?\\s*\\{?\\s*$"));
-        scopeRe = QRegularExpression(QStringLiteral("^\\s*(?:class|struct|namespace)\\s+(\\w+)"));
-    }
+    QVector<QRegularExpression> patterns;
+    patterns.reserve(rule.functionExprs.size());
+    for (const QString &pattern : rule.functionExprs)
+        patterns << QRegularExpression(pattern);
+
+    QRegularExpression scopeRe;  // 偵測 class/struct/namespace 宣告，用於追蹤所屬範疇
+    if (!rule.classExpr.isEmpty())
+        scopeRe = QRegularExpression(rule.classExpr);
+    // 是否需要追蹤所屬範疇（scope）：由規則決定，目前 cpp/javascript/java 支援類別方法歸屬
+    const bool trackScope = rule.trackScope && scopeRe.isValid() && !rule.classExpr.isEmpty();
+
+    // 排除的控制流關鍵字誤判清單：規則未指定時使用內建預設清單（維持既有行為）
+    static const QStringList kDefaultKeywordExclusions = {
+        "if", "for", "while", "switch", "return", "sizeof", "catch", "else", "do"};
+    const QStringList &keywordExclusions =
+        rule.keywordExclusions.isEmpty() ? kDefaultKeywordExclusions : rule.keywordExclusions;
 
     // 依大括號深度追蹤目前所屬的 class/struct/namespace（啟發式，忽略字串/註解中的括號）
     struct ScopeFrame { int depth; QString name; };
@@ -72,9 +83,7 @@ QVector<Symbol> FunctionListParser::parse(const QString &content, const QString 
             if (m.hasMatch()) {
                 const QString name = m.captured(1);
                 // 排除控制流關鍵字誤判（if/for/while/switch/return…）
-                static const QStringList kw = {"if", "for", "while", "switch", "return",
-                                               "sizeof", "catch", "else", "do"};
-                if (!name.isEmpty() && !kw.contains(name)) {
+                if (!name.isEmpty() && !keywordExclusions.contains(name)) {
                     Symbol sym;
                     sym.name = name;
                     sym.line = i + 1;

@@ -1,6 +1,7 @@
 #include "ui/StyleConfiguratorDialog.h"
 
 #include "core/LexerFactory.h"
+#include "persistence/ThemeStore.h"
 
 #include <QCheckBox>
 #include <QColorDialog>
@@ -13,6 +14,7 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
+#include <QPlainTextEdit>
 #include <QPushButton>
 #include <QSpinBox>
 #include <QVBoxLayout>
@@ -41,6 +43,12 @@ static QString macpad::persistence::GlobalStyles::* const kGlobalFields[] = {
     &macpad::persistence::GlobalStyles::foldMargin,
     &macpad::persistence::GlobalStyles::caretColor,
     &macpad::persistence::GlobalStyles::markColor,
+    &macpad::persistence::GlobalStyles::badBrace,
+    &macpad::persistence::GlobalStyles::foldActive,
+    &macpad::persistence::GlobalStyles::changeHistoryModifiedMargin,
+    &macpad::persistence::GlobalStyles::changeHistorySavedMargin,
+    &macpad::persistence::GlobalStyles::changeHistoryRevertedMargin,
+    &macpad::persistence::GlobalStyles::urlHovered,
 };
 
 static void paintSwatch(QLabel *lbl, const QColor &c)
@@ -98,6 +106,19 @@ StyleConfiguratorDialog::StyleConfiguratorDialog(QWidget *parent)
     overrideLayout->addStretch(1);
     root->addWidget(overrideBox);
 
+    // Select theme：複刻 Notepad++ Style Configurator 左上角的主題選擇區。
+    // 只負責挑選 + 發出 themeSelected() 訊號；實際套用（載入 Theme、寫回編輯器）由整合端處理。
+    auto *themeBox = new QGroupBox(tr("Select Theme"), this);
+    auto *themeLayout = new QHBoxLayout(themeBox);
+    m_themeCombo = new QComboBox(this);
+    m_themeCombo->addItems(macpad::persistence::ThemeStore::listThemes());
+    m_applyThemeBtn = new QPushButton(tr("Apply Theme"), this);
+    m_applyThemeBtn->setEnabled(m_themeCombo->count() > 0);
+    themeLayout->addWidget(new QLabel(tr("Theme:"), this));
+    themeLayout->addWidget(m_themeCombo, 1);
+    themeLayout->addWidget(m_applyThemeBtn);
+    root->addWidget(themeBox);
+
     // 語言 + style 清單 + 顏色
     auto *mid = new QHBoxLayout();
     auto *left = new QVBoxLayout();
@@ -116,6 +137,11 @@ StyleConfiguratorDialog::StyleConfiguratorDialog(QWidget *parent)
     m_userExt = new QLineEdit(this);
     m_userExt->setPlaceholderText(tr("e.g. foo bar baz"));
     left->addWidget(m_userExt);
+    left->addWidget(new QLabel(tr("User keywords (this style):"), this));
+    m_keywords = new QPlainTextEdit(this);
+    m_keywords->setPlaceholderText(tr("space-separated keyword overrides for this style"));
+    m_keywords->setMaximumHeight(60);
+    left->addWidget(m_keywords);
     mid->addLayout(left, 1);
 
     auto *right = new QVBoxLayout();
@@ -158,6 +184,10 @@ StyleConfiguratorDialog::StyleConfiguratorDialog(QWidget *parent)
     connect(m_underline, &QCheckBox::toggled, this, &StyleConfiguratorDialog::onBoldItalicChanged);
     connect(m_userExt, &QLineEdit::editingFinished, this,
             &StyleConfiguratorDialog::onExtensionsEdited);
+    connect(m_keywords, &QPlainTextEdit::textChanged, this,
+            &StyleConfiguratorDialog::onKeywordsEdited);
+    connect(m_applyThemeBtn, &QPushButton::clicked, this,
+            &StyleConfiguratorDialog::applyThemeClicked);
     connect(m_enableGlobalFg, &QCheckBox::toggled, this,
             &StyleConfiguratorDialog::onGlobalOverrideToggled);
     connect(m_enableGlobalBg, &QCheckBox::toggled, this,
@@ -193,15 +223,21 @@ void StyleConfiguratorDialog::onLanguageChanged()
     m_italic->setEnabled(!isGlobal);
     m_underline->setEnabled(!isGlobal);
     m_userExt->setEnabled(!isGlobal);
+    m_keywords->setEnabled(!isGlobal);
 
     if (isGlobal) {
         QSignalBlocker be(m_userExt);
         m_userExt->clear();
+        QSignalBlocker bk(m_keywords);
+        m_keywords->clear();
         static const QStringList names = {
             tr("Indent Guide"),      tr("Current Line Background"), tr("Selection Background"),
             tr("Whitespace"),        tr("Margin Background"),       tr("Margin Foreground"),
             tr("Current Line Number"), tr("Edge Colour"),           tr("Bookmark Margin"),
             tr("Fold Margin"),       tr("Caret Colour"),            tr("Mark Colour"),
+            tr("Bad Brace Colour"),  tr("Fold Active State"),
+            tr("Change History: Modified Margin"), tr("Change History: Saved Margin"),
+            tr("Change History: Reverted Margin"), tr("URL Hovered"),
         };
         for (int i = 0; i < names.size(); ++i) {
             auto *item = new QListWidgetItem(names[i]);
@@ -273,6 +309,8 @@ void StyleConfiguratorDialog::refreshSwatches()
     m_bold->setChecked(ov ? ov->bold : f.bold());
     m_italic->setChecked(ov ? ov->italic : f.italic());
     m_underline->setChecked(ov ? ov->underline : f.underline());
+    QSignalBlocker b4(m_keywords);
+    m_keywords->setPlainText(ov ? ov->keywords : QString());
 }
 
 void StyleConfiguratorDialog::refreshGlobalSwatch()
@@ -355,6 +393,28 @@ void StyleConfiguratorDialog::onExtensionsEdited()
         m_cfg.userExtensions.remove(m_langName);
     else
         m_cfg.userExtensions.insert(m_langName, text);
+}
+
+void StyleConfiguratorDialog::onKeywordsEdited()
+{
+    if (m_langKey == kGlobalStylesKey || !m_styles->currentItem())
+        return;
+    const QString text = m_keywords->toPlainText().trimmed();
+    // 空字串仍需寫回（可能是清除既有覆寫），故一律以 currentOverride(true) 建立/取得節點；
+    // 若整筆 override 全為預設值（無 fg/bg/keywords 等），apply() 時仍會原樣寫入 styles.json，
+    // 與既有 fg/bg 覆寫邏輯一致（不做額外裁剪，維持行為單純）。
+    if (auto *ov = currentOverride(true))
+        ov->keywords = text;
+}
+
+void StyleConfiguratorDialog::applyThemeClicked()
+{
+    if (m_themeCombo->count() == 0)
+        return;
+    const QString name = m_themeCombo->currentText();
+    if (name.isEmpty())
+        return;
+    emit themeSelected(name);
 }
 
 void StyleConfiguratorDialog::refreshGlobalOverrideSwatches()

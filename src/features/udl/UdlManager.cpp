@@ -1,5 +1,6 @@
 #include "features/udl/UdlManager.h"
 
+#include "features/udl/UdlXmlIo.h"
 #include "persistence/AppPaths.h"
 
 #include <QDir>
@@ -90,6 +91,24 @@ bool UdlManager::exportToFile(const QString &name, const QString &path)
     file.write(QJsonDocument(found->toJson()).toJson(QJsonDocument::Indented));
     file.close();
     return true;
+}
+
+bool UdlManager::importFromXml(const QString &path)
+{
+    const UdlDefinition d = UdlXmlIo::importFromXml(path);
+    if (!d.isValid())
+        return false;
+    return save(d);
+}
+
+bool UdlManager::exportToXml(const QString &name, const QString &path)
+{
+    const UdlDefinition *found = nullptr;
+    for (const auto &d : m_defs)
+        if (d.name == name) { found = &d; break; }
+    if (!found)
+        return false;
+    return UdlXmlIo::exportToXml(*found, path);
 }
 
 bool UdlManager::rename(const QString &oldName, const QString &newName)

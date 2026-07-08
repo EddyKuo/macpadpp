@@ -56,6 +56,8 @@ public:
     static QString eolToSpace(const QString &s);            // 以單一空白取代換行，合併為一行
     // 只將「行首」連續空白（縮排）轉為 tab，行內其餘空白不動
     static QString spacesToTabsLeading(const QString &s, int tabWidth);
+    // 組合操作：先對每行同時去除頭尾空白（同 trimBoth），再將行間換行轉為單一空白（同 eolToSpace）合併成一行
+    static QString trimBothAndEolToSpace(const QString &s);
 
     // --- 註解切換（行註解）---
     // 若區塊所有非空行皆已註解 → 取消；否則加註解。marker 如 "//"、"#"。

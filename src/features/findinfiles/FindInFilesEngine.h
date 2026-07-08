@@ -45,6 +45,13 @@ public:
                                            const QString &content,
                                            const FindInFilesOptions &opts);
 
+    // 在指定的一組明確檔案路徑中搜尋（不遞迴走目錄，opts.recursive/fileFilters 不適用）。
+    // 供「Find in Projects」等以外部清單（如 ProjectPanelDock::filePathsForProject）
+    // 限定搜尋範圍的情境使用。opts.excludeFilters/includeHidden 仍套用（以每個檔案的檔名判斷）。
+    static QVector<FindMatch> searchInFiles(const QStringList &filePaths,
+                                            const FindInFilesOptions &opts,
+                                            std::atomic<bool> *cancel = nullptr);
+
     struct ReplaceResult {
         int filesChanged = 0;
         int replacements = 0;

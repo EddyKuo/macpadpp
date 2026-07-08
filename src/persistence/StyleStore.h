@@ -16,6 +16,9 @@ struct StyleOverride {
     bool bold = false;
     bool italic = false;
     bool underline = false;
+    // 使用者自訂關鍵字清單（覆寫內建 lexer 關鍵字集，空白分隔；空字串 = 不覆寫）。
+    // 僅對支援關鍵字的 style（如 SCE_C_WORD）有意義；LexerFactory/ThemeManager 套用時查詢此欄位。
+    QString keywords;
 };
 
 // GlobalStyles — 編輯器全域（非 lexer）樣式覆寫（複刻 Notepad++ Style Configurator 的
@@ -33,6 +36,12 @@ struct GlobalStyles {
     QString foldMargin;         // 摺疊邊界顏色
     QString caretColor;         // 插入點（游標）顏色，獨立於「目前行反白背景色」
     QString markColor;          // 標記（Find Mark / Bookmark 標記列）顏色
+    QString badBrace;                    // 不匹配括號（Bad Brace）顏色
+    QString foldActive;                  // 摺疊邊界「作用中」狀態顏色（滑鼠停留於摺疊三角形上）
+    QString changeHistoryModifiedMargin; // Change History 邊界：已修改（未存檔）標記顏色
+    QString changeHistorySavedMargin;    // Change History 邊界：已存檔標記顏色
+    QString changeHistoryRevertedMargin; // Change History 邊界：已還原標記顏色
+    QString urlHovered;                  // URL 連結偵測滑鼠停留時的顏色
 
     // Global override：開啟時以單一前景/背景色套用到所有語言的所有 style，
     // 疊在各語言個別覆寫之上（供快速套用一致配色，如全域深色前景）。
@@ -54,6 +63,11 @@ class StyleStore {
 public:
     static StyleSettings load();
     static bool save(const StyleSettings &s);
+
+    // 查詢指定語言（LexerFactory language() 字串）、指定 style 的使用者自訂關鍵字覆寫；
+    // 未設定則回傳空字串（呼叫端應維持使用該 lexer 的內建關鍵字集）。
+    // 供 LexerFactory / ThemeManager 套用 lexer 時查詢是否有關鍵字覆寫。
+    static QString userKeywordsFor(const StyleSettings &s, const QString &lang, int style);
 };
 
 }  // namespace macpad::persistence

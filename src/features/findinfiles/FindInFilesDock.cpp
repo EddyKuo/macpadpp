@@ -1,12 +1,16 @@
 #include "features/findinfiles/FindInFilesDock.h"
 
 #include <QtConcurrent>
+#include <QAction>
+#include <QApplication>
 #include <QCheckBox>
+#include <QClipboard>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QGridLayout>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMenu>
 #include <QMessageBox>
 #include <QPushButton>
 #include <QRegularExpression>
@@ -43,6 +47,14 @@ FindInFilesDock::FindInFilesDock(QWidget *parent)
     m_results = new QTreeWidget(root);
     m_results->setHeaderLabels({tr("File"), tr("Line"), tr("Text")});
     m_results->setRootIsDecorated(false);
+    m_results->setContextMenuPolicy(Qt::CustomContextMenu);
+
+    // 「auto-purge previous results」：開啟時新搜尋自動清空舊結果（預設開啟，沿用既有 startSearch 行為）
+    m_autoPurge = new QCheckBox(tr("Auto-purge previous results"), root);
+    m_autoPurge->setChecked(true);
+    // 結果列文字換行（trivial 版：切換 QTreeWidget 的 wordWrap）
+    m_wordWrapRows = new QCheckBox(tr("Wrap result rows"), root);
+    m_wordWrapRows->setChecked(false);
 
     grid->addWidget(new QLabel(tr("Find:"), root), 0, 0);
     grid->addWidget(m_pattern, 0, 1, 1, 3);
@@ -62,8 +74,10 @@ FindInFilesDock::FindInFilesDock(QWidget *parent)
     grid->addWidget(new QLabel(tr("Exclude:"), root), 4, 0);
     grid->addWidget(m_exclude, 4, 1, 1, 3);
     grid->addWidget(m_includeHidden, 4, 4);
-    grid->addWidget(m_status, 5, 0, 1, 5);
-    grid->addWidget(m_results, 6, 0, 1, 5);
+    grid->addWidget(m_autoPurge, 5, 0, 1, 2);
+    grid->addWidget(m_wordWrapRows, 5, 2, 1, 2);
+    grid->addWidget(m_status, 6, 0, 1, 5);
+    grid->addWidget(m_results, 7, 0, 1, 5);
     setWidget(root);
 
     connect(m_searchBtn, &QPushButton::clicked, this, &FindInFilesDock::startSearch);
@@ -85,6 +99,9 @@ FindInFilesDock::FindInFilesDock(QWidget *parent)
         emit openLocation(path, item->data(1, Qt::UserRole).toInt(),
                           item->data(2, Qt::UserRole).toInt());
     });
+    connect(m_results, &QTreeWidget::customContextMenuRequested,
+            this, &FindInFilesDock::showResultsContextMenu);
+    connect(m_wordWrapRows, &QCheckBox::toggled, m_results, &QTreeWidget::setWordWrap);
 }
 
 FindInFilesDock::~FindInFilesDock()
@@ -97,6 +114,32 @@ FindInFilesDock::~FindInFilesDock()
 void FindInFilesDock::setSearchRoot(const QString &dir)
 {
     m_dir->setText(dir);
+}
+
+void FindInFilesDock::findInProjectFiles(const QString &pattern, const QStringList &filePaths)
+{
+    if (m_watcher.isRunning() || m_replaceWatcher.isRunning() || filePaths.isEmpty())
+        return;
+    m_pattern->setText(pattern);
+    if (pattern.isEmpty())
+        return;
+
+    if (m_autoPurge->isChecked())
+        m_results->clear();
+    m_status->setText(tr("在 %1 個專案檔案中搜尋…").arg(filePaths.size()));
+    m_searchBtn->setEnabled(false);
+    m_cancelBtn->setEnabled(true);
+
+    FindInFilesOptions opts = currentOptions();  // 沿用 regex/case/whole-word 等勾選
+    opts.pattern = pattern;
+    const QStringList paths = filePaths;
+
+    m_cancel = std::make_shared<std::atomic<bool>>(false);
+    auto cancel = m_cancel;
+    // 背景執行（NFR-005，不阻塞 GUI；可取消）；沿用 m_watcher → onSearchDone 渲染
+    m_watcher.setFuture(QtConcurrent::run([paths, opts, cancel] {
+        return FindInFilesEngine::searchInFiles(paths, opts, cancel.get());
+    }));
 }
 
 FindInFilesOptions FindInFilesDock::currentOptions() const
@@ -171,7 +214,9 @@ void FindInFilesDock::startSearch()
         m_pattern->text().isEmpty() || m_dir->text().isEmpty())
         return;
 
-    m_results->clear();
+    // 「auto-purge previous results」關閉時保留上次結果，新結果附加其後
+    if (m_autoPurge->isChecked())
+        m_results->clear();
     m_status->setText(tr("搜尋中…"));
     m_searchBtn->setEnabled(false);
     m_cancelBtn->setEnabled(true);
@@ -209,6 +254,51 @@ void FindInFilesDock::onSearchDone()
     m_status->setText(tr("找到 %1 筆").arg(matches.size()));
     m_searchBtn->setEnabled(true);
     m_cancelBtn->setEnabled(false);
+}
+
+QString FindInFilesDock::selectedResultFilePath() const
+{
+    QTreeWidgetItem *item = m_results->currentItem();
+    if (!item)
+        return {};
+    return item->data(0, Qt::UserRole).toString();
+}
+
+QString FindInFilesDock::selectedResultLineText() const
+{
+    QTreeWidgetItem *item = m_results->currentItem();
+    if (!item)
+        return {};
+    return item->text(2);
+}
+
+void FindInFilesDock::showResultsContextMenu(const QPoint &pos)
+{
+    QTreeWidgetItem *item = m_results->itemAt(pos);
+    if (item)
+        m_results->setCurrentItem(item);
+
+    QMenu menu(this);
+    QAction *copyLineAct = menu.addAction(tr("Copy Line Text"));
+    QAction *copyPathAct = menu.addAction(tr("Copy File Path"));
+    copyLineAct->setEnabled(item != nullptr);
+    copyPathAct->setEnabled(item != nullptr && !selectedResultFilePath().isEmpty());
+    menu.addSeparator();
+    QAction *collapseAct = menu.addAction(tr("Collapse All"));
+    QAction *expandAct = menu.addAction(tr("Expand All"));
+
+    QAction *chosen = menu.exec(m_results->viewport()->mapToGlobal(pos));
+    if (!chosen)
+        return;
+    if (chosen == copyLineAct) {
+        QApplication::clipboard()->setText(selectedResultLineText());
+    } else if (chosen == copyPathAct) {
+        QApplication::clipboard()->setText(selectedResultFilePath());
+    } else if (chosen == collapseAct) {
+        m_results->collapseAll();
+    } else if (chosen == expandAct) {
+        m_results->expandAll();
+    }
 }
 
 }  // namespace macpad::features

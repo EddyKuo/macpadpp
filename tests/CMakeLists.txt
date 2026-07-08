@@ -33,6 +33,9 @@ set(MACPAD_TESTS
     test_themestore
     test_recoverydialog
     test_mime
+    test_projectstore
+    test_udlxmlio
+    test_functionlistconfig
 )
 
 foreach(t ${MACPAD_TESTS})

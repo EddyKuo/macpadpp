@@ -27,12 +27,13 @@ class QsciMacro;
 class QAction;
 class QLineEdit;
 class QDockWidget;
+class QShortcut;
 
 namespace macpad::core { class EditorWidget; }
 namespace macpad::features { class FindReplaceDialog; }
 namespace macpad::ui { class EditorPane; class DocumentListDock;
     class FunctionListDock; class ClipboardHistoryDock; class DocumentMapDock; class WorkspaceDock;
-    class CharacterPanel; }
+    class CharacterPanel; class ProjectPanelDock; }
 namespace macpad::extension { class ExtensionRegistry; }
 namespace macpad::features { class FindInFilesDock; class RunDock; class FindAllDock; }
 namespace macpad::persistence { struct SessionState; struct Settings; }
@@ -125,6 +126,21 @@ private slots:
 
 private:
     void createMenus();
+    // 依偏好套用「視窗層級」外觀（工具列/狀態列/分頁列可見性與圖示大小、分頁關閉鈕等）
+    void applyWindowPrefs(const macpad::persistence::Settings &s);
+    // 依 delimiterChars 設定編輯器的 word-char 集合（影響雙擊選字邊界）
+    void applyDelimiters(macpad::core::EditorWidget *editor, const macpad::persistence::Settings &s);
+    // 依 perLangTabWidth 對單一編輯器套用其語言的 Tab 寬度覆寫（否則用全域 tabWidth）
+    void applyPerLangTabWidth(macpad::core::EditorWidget *editor, const macpad::persistence::Settings &s);
+    // 依 macros.json + macro_shortcuts.json 重建每個具名巨集的全域快捷鍵
+    void rebuildMacroShortcuts();
+    // 依 run_commands.json 中各已儲存指令的 shortcut 欄位重建全域快捷鍵
+    void rebuildRunShortcuts();
+    void openMacroManager();                   // Macro ▸ Macro Manager…
+    void runSavedCommand(const QString &command);  // 以目前文件變數上下文執行一條已儲存 Run 指令
+    void showFindInProjects();                 // Search ▸ Find in Projects…
+    void gotoLineOrOffset();                   // Go to…（行 / 字元位移雙模式）
+    QString startDirForDialog() const;         // 依 defaultDirPolicy 決定開/存檔對話框起始目錄
     void buildToolbar();                       // Notepad++ 風格的圖示工具列
     void retintToolbar();                      // 依主題重新上色圖示
     void createSearchMenu(QMenu *searchMenu);  // Notepad++ Search 選單（填入預建的選單）
@@ -191,12 +207,18 @@ private:
     macpad::ui::DocumentMapDock *m_docMap = nullptr;
     macpad::ui::WorkspaceDock *m_workspace = nullptr;
     macpad::ui::CharacterPanel *m_charPanel = nullptr;
+    macpad::ui::ProjectPanelDock *m_projectPanel = nullptr;  // Notepad++ Project Panel（FR-030 延伸）
+    QMenu *m_fileMenu = nullptr;                 // 供 rebuildRecentMenu 於 File 選單直接列出最近檔案
+    QList<QAction *> m_recentDirectActions;      // recentFilesInSubmenu=false 時直接掛在 File 選單的最近檔案動作
+    QList<QShortcut *> m_macroShortcuts;         // 具名巨集的全域快捷鍵（依 macro_shortcuts.json 重建）
+    QList<QShortcut *> m_runShortcuts;           // 已儲存 Run 指令的全域快捷鍵（依 run_commands.json 重建）
     QsciMacro *m_recordingMacro = nullptr;
     QTimer *m_snapshotTimer = nullptr;  // 當機復原快照計時器（可依偏好設定啟停/調整間隔）
     QMenu *m_windowMenu = nullptr;
     QStringList m_closedFiles;          // 最近關閉分頁堆疊（Restore Recent Closed File）
     QSet<QString> m_monitored;          // tail -f 監控中的檔案（絕對路徑）
     QString m_lastFindText;             // Find Next/Previous 的最後查詢
+    QString m_lastDir;                   // defaultDirPolicy=RememberLast 用：上次開/存檔對話框目錄
     QToolBar *m_incBar = nullptr;       // 漸進式搜尋工具列
     QLineEdit *m_incSearch = nullptr;
     QList<QDockWidget *> m_dfHidden;    // Distraction Free 時暫時隱藏的面板

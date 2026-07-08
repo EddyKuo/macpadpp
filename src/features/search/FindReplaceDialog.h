@@ -10,6 +10,7 @@ class QLineEdit;
 class QCheckBox;
 class QLabel;
 class QSlider;
+class QPushButton;
 
 namespace macpad::core { class EditorWidget; }
 
@@ -41,8 +42,14 @@ private slots:
     void countAll();       // FR-047「Count」按鈕：只計數不移動
     void swapFindReplace(); // 交換 Find/Replace 欄位文字
     void opacityChanged(int value); // 視窗透明度滑桿變更
+    void findCodepointRange(); // 依 [lo,hi] 碼點範圍尋找下一個相符字元
 
 private:
+    // 從 SettingsStore 載入 keepFindDialogOpen/confirmReplaceAll/findInSelectionThreshold 等偏好，
+    // 於每次 showFind() 呼叫（設定可能在對話框開啟期間被 Preferences 修改）。
+    void loadPreferences();
+    // keepFindDialogOpen=false 時，尋找/取代成功後自動關閉對話框。
+    void closeIfNotKeptOpen();
     // remember=false 時略過 rememberMatch（供 volatile find 使用，不覆寫最近命中記錄）
     bool doFind(bool forward, bool fromStart, bool remember = true);
     void report(const QString &msg);
@@ -74,6 +81,16 @@ private:
     QCheckBox *m_extended = nullptr;  // 「Extended (\n \r \t \0 \xNN)」：尋找/取代文字跳脫轉換
     QSlider *m_opacitySlider = nullptr;  // 視窗透明度（30%~100%）
     QLabel *m_status = nullptr;
+
+    // 碼點範圍尋找（modest 功能）：輸入 16 進位/十進位碼點下限/上限，尋找下一個落在範圍內的字元
+    QLineEdit *m_cpLoEdit = nullptr;
+    QLineEdit *m_cpHiEdit = nullptr;
+    QPushButton *m_cpFindBtn = nullptr;
+
+    // 從 SettingsStore 載入的偏好（FR-053）
+    bool m_keepFindDialogOpen = true;
+    bool m_confirmReplaceAll = true;
+    int m_findInSelectionThreshold = 0;
 
     // 最近一次成功尋找的選取範圍（-1 表示尚無）
     int m_matchLineFrom = -1;

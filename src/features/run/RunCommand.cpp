@@ -1,5 +1,10 @@
 #include "features/run/RunCommand.h"
 
+#include "persistence/AppPaths.h"
+#include "persistence/JsonFile.h"
+
+#include <QJsonArray>
+#include <QJsonObject>
 #include <QPair>
 #include <QStringView>
 #include <QVector>
@@ -65,6 +70,47 @@ QStringList RunCommand::tokenize(const QString &command)
     if (hasToken)
         tokens << cur;
     return tokens;
+}
+
+static QString runCommandsPath()
+{
+    return macpad::persistence::AppPaths::filePath(QStringLiteral("run_commands.json"));
+}
+
+QList<RunCommandEntry> RunCommandStore::load()
+{
+    QList<RunCommandEntry> out;
+    const QJsonObject root = macpad::persistence::JsonFile::load(runCommandsPath());
+    const QJsonArray items = root.value(QStringLiteral("items")).toArray();
+    for (const QJsonValue &v : items) {
+        const QJsonObject o = v.toObject();
+        const QString name = o.value(QStringLiteral("name")).toString();
+        if (name.isEmpty())
+            continue;
+        RunCommandEntry entry;
+        entry.name = name;
+        entry.command = o.value(QStringLiteral("command")).toString();
+        // shortcut 為新增欄位；舊檔缺此鍵時 toString() 預設回傳空字串（向下相容）
+        entry.shortcut = o.value(QStringLiteral("shortcut")).toString();
+        out.append(entry);
+    }
+    return out;
+}
+
+bool RunCommandStore::save(const QList<RunCommandEntry> &entries)
+{
+    QJsonObject root;
+    root.insert(QStringLiteral("schema_version"), kSchemaVersion);
+    QJsonArray items;
+    for (const RunCommandEntry &entry : entries) {
+        QJsonObject o;
+        o.insert(QStringLiteral("name"), entry.name);
+        o.insert(QStringLiteral("command"), entry.command);
+        o.insert(QStringLiteral("shortcut"), entry.shortcut);
+        items.append(o);
+    }
+    root.insert(QStringLiteral("items"), items);
+    return macpad::persistence::JsonFile::save(runCommandsPath(), root);
 }
 
 }  // namespace macpad::features

@@ -13,6 +13,7 @@
 #include "extension/builtin/MarkdownPreviewExtension.h"
 #include "features/findinfiles/FindInFilesDock.h"
 #include "features/run/RunDock.h"
+#include "features/run/RunCommand.h"
 #include "features/udl/UdlLexer.h"
 #include "features/export/HtmlExporter.h"
 #include "features/textops/TextOps.h"
@@ -54,6 +55,8 @@
 #include "ui/StyleConfiguratorDialog.h"
 #include "ui/ShortcutMapperDialog.h"
 #include "ui/UdlEditorDialog.h"
+#include "ui/ProjectPanelDock.h"
+#include "ui/MacroManagerDialog.h"
 #include "features/functionlist/FunctionListParser.h"
 #include "features/columneditor/ColumnEditor.h"
 
@@ -90,6 +93,14 @@ using macpad::ui::EditorPane;
 #include <QSplitter>
 #include <QStatusBar>
 #include <QTabWidget>
+#include <QShortcut>
+#include <QRadioButton>
+#include <QSpinBox>
+#include <QKeySequenceEdit>
+#include <QDialogButtonBox>
+#include <QVBoxLayout>
+#include <QFutureWatcher>
+#include <QtConcurrent>
 
 using macpad::core::EditorWidget;
 
@@ -243,10 +254,41 @@ MainWindow::MainWindow(QWidget *parent, bool restoreSessionOnLaunch)
         }
     });
 
+    // Project Panel（Notepad++ Project Panel；邏輯樹組織多 project，FR-030 延伸）
+    m_projectPanel = new macpad::ui::ProjectPanelDock(this);
+    addDockWidget(Qt::LeftDockWidgetArea, m_projectPanel);
+    if (m_workspace)
+        tabifyDockWidget(m_workspace, m_projectPanel);  // 與 Workspace 併為同一停靠標籤組
+    m_projectPanel->hide();
+    m_projectPanel->load();  // 讀取 projects.json（缺檔則為空，安全 no-op）
+    connect(m_projectPanel, &macpad::ui::ProjectPanelDock::openFileRequested,
+            this, &MainWindow::openFile);
+
     // Notepad++ 風格的圖示工具列——於 createMenus 前建立，讓 View 選單可加入其開關
     buildToolbar();
 
     createMenus();
+
+    // 依偏好套用視窗層級外觀（工具列/狀態列/分頁列可見性與圖示大小、分頁關閉鈕等）
+    applyWindowPrefs(macpad::persistence::SettingsStore::load());
+    // 依已儲存的巨集/Run 指令快捷鍵建立全域快捷鍵
+    rebuildMacroShortcuts();
+    rebuildRunShortcuts();
+
+    // 文件切換器（MISC 頁 docSwitcherEnabled）：Ctrl+Tab / Ctrl+Shift+Tab 前後切換分頁。
+    // 於觸發時讀取即時設定，關閉時不動作（docPeekerEnabled 的即時預覽尚未實作，見報告）。
+    {
+        auto *nextDoc = new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_Tab), this);
+        connect(nextDoc, &QShortcut::activated, this, [this] {
+            if (macpad::persistence::SettingsStore::load().docSwitcherEnabled)
+                activateTabRelative(1);
+        });
+        auto *prevDoc = new QShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_Tab), this);
+        connect(prevDoc, &QShortcut::activated, this, [this] {
+            if (macpad::persistence::SettingsStore::load().docSwitcherEnabled)
+                activateTabRelative(-1);
+        });
+    }
 
     // 狀態列（FR-022）——複刻 Notepad++ 的分格式狀態列（6 格，各格下凹分隔）
     createStatusCells();
@@ -488,6 +530,7 @@ void MainWindow::createMenus()
     m_windowMenu        = menuBar()->addMenu(tr("&Window"));
     // 以 objectName 記錄「英文選單鍵」——供 addMenuAction 穩定比對(翻譯後 title 會變,不能用 title 比)
     fileMenu->setObjectName(QStringLiteral("File"));
+    m_fileMenu = fileMenu;  // 供 rebuildRecentMenu 在 File 選單直接列出最近檔案（recentFilesInSubmenu=false）
     editMenu->setObjectName(QStringLiteral("Edit"));
     searchMenu->setObjectName(QStringLiteral("Search"));
     viewMenu->setObjectName(QStringLiteral("View"));
@@ -641,18 +684,8 @@ void MainWindow::createMenus()
     editMenu->addAction(tr("Find…"), QKeySequence::Find, this, &MainWindow::showFind);
     editMenu->addAction(tr("Replace…"), QKeySequence::Replace, this, &MainWindow::showReplace);
     editMenu->addSeparator();
-    editMenu->addAction(tr("Go to Line…"), QKeySequence(Qt::CTRL | Qt::Key_L), this, [this] {
-        EditorWidget *e = currentEditor();
-        if (!e) return;
-        bool ok = false;
-        const int line = QInputDialog::getInt(this, tr("Go to Line"), tr("Line:"),
-                                              1, 1, e->lines(), 1, &ok);
-        if (ok) {
-            e->setCursorPosition(line - 1, 0);
-            e->ensureLineVisible(line - 1);
-            e->setFocus();
-        }
-    });
+    editMenu->addAction(tr("Go to Line…"), QKeySequence(Qt::CTRL | Qt::Key_L), this,
+                        [this] { gotoLineOrOffset(); });
     editMenu->addAction(tr("Go to Matching Brace"), QKeySequence(Qt::CTRL | Qt::Key_B), this, [this] {
         if (auto *e = currentEditor()) e->moveToMatchingBrace();
     });
@@ -671,6 +704,10 @@ void MainWindow::createMenus()
         m_findInFiles->show();
         m_findInFiles->raise();
     });
+    // Find in Projects（複刻 Notepad++「Find in Projects」：限定於 Project Panel 的檔案清單搜尋）
+    // 無預設快捷鍵（Notepad++ 亦無；且 Ctrl+Alt+Shift+F 已被 Unfold All 佔用）
+    editMenu->addAction(tr("Find in Projects…"), this,
+                        [this] { showFindInProjects(); });
 
     createSearchMenu(searchMenu);  // Notepad++ Search 選單（Find Next/Prev、Mark、書籤進階等）
 
@@ -877,6 +914,13 @@ void MainWindow::createMenus()
         if (!text.isEmpty())
             e->insert(text);
     });
+    // 貼上剪貼簿 HTML／RTF 內容並去除標記，插入為純文字（EditorWidget 內建）
+    pasteSpecialMenu->addAction(tr("Paste HTML Content"), this, [this] {
+        if (EditorWidget *e = currentEditor(); e && !e->isReadOnly()) e->pasteAsHtml();
+    });
+    pasteSpecialMenu->addAction(tr("Paste RTF Content"), this, [this] {
+        if (EditorWidget *e = currentEditor(); e && !e->isReadOnly()) e->pasteAsRtf();
+    });
 
     // Plugins 選單（複刻 Notepad++ Plugins；Plugins Admin 列出內建擴充）
     pluginMenu->addAction(tr("Plugins Admin…"), this, [this] {
@@ -916,6 +960,17 @@ void MainWindow::createMenus()
     // Settings 選單（複刻 Notepad++ Settings）：Style Configurator + Shortcut Mapper
     settingsMenu->addAction(tr("Style Configurator…"), this, [this] {
         macpad::ui::StyleConfiguratorDialog dlg(this);
+        // 對話框內「Apply Theme」→ 立即套用具名主題到所有開啟編輯器（FR-056）
+        connect(&dlg, &macpad::ui::StyleConfiguratorDialog::themeSelected, this,
+                [this](const QString &name) {
+            if (name.isEmpty())
+                return;
+            forEachEditor([&name](EditorWidget *e) {
+                if (e)
+                    macpad::platform::ThemeManager::applyNamedTheme(e, name);
+            });
+            statusBar()->showMessage(tr("主題已套用：%1").arg(name), 3000);
+        });
         if (dlg.exec() == QDialog::Accepted) {
             applyTheme();  // 重建 lexer → 套主題 → 疊使用者覆寫
             statusBar()->showMessage(tr("樣式已更新"), 3000);
@@ -992,6 +1047,8 @@ void MainWindow::createMenus()
             // 逐分頁即時套用可即時生效的偏好（tabWidth/行號/游標寬/自動配對/自動完成/call tip/縮排參考線）
             forEachEditor([this, &s](EditorWidget *e) { applyEditorPrefs(e, s); });
             applySnapshotTimerSettings(s);  // 依偏好啟停/調整當機復原快照計時器
+            applyWindowPrefs(s);            // 工具列/狀態列/分頁列可見性與圖示大小、最近檔案選單
+            rebuildRunShortcuts();          // Run 指令快捷鍵（偏好可能影響，保守重建）
             applyTheme();
             statusBar()->showMessage(tr("偏好設定已儲存"), 4000);
         }
@@ -1019,8 +1076,13 @@ void MainWindow::createMenus()
     // Language 選單：手動選語法高亮（FR-003）+ UDL（FR-032）
 
     // 手動選擇語言：設定目前編輯器的 lexer（覆寫副檔名自動判斷）
+    // 偏好 disabledLanguages 中的語言（以顯示名或內部鍵比對）不列入（Notepad++ Language 選單隱藏對等）
     QMenu *setLangMenu = langMenu->addMenu(tr("Set Language"));
+    const QStringList disabledLangs = macpad::persistence::SettingsStore::load().disabledLanguages;
     for (const auto &lang : macpad::core::LexerFactory::languages()) {
+        if (disabledLangs.contains(lang.key, Qt::CaseInsensitive)
+            || disabledLangs.contains(lang.displayName, Qt::CaseInsensitive))
+            continue;
         const QString key = lang.key;
         setLangMenu->addAction(lang.displayName, this, [this, key] {
             if (EditorWidget *e = currentEditor())
@@ -1055,6 +1117,23 @@ void MainWindow::createMenus()
             }
         } else {
             QMessageBox::warning(this, tr("Import UDL"), tr("UDL 檔案無效"));
+        }
+    });
+    // 直接匯入 Notepad++ userDefineLang.xml（不開啟編輯器；UdlManager::importFromXml）
+    udlMenu->addAction(tr("Import Notepad++ UDL (XML)…"), this, [this] {
+        const QString path = QFileDialog::getOpenFileName(this, tr("Import Notepad++ UDL"),
+                                                          QString(), tr("XML (*.xml)"));
+        if (path.isEmpty())
+            return;
+        if (m_udl.importFromXml(path)) {
+            statusBar()->showMessage(tr("已匯入 Notepad++ UDL（開啟對應副檔名檔案即套用）"), 4000);
+            if (EditorWidget *e = currentEditor(); e && !e->isUntitled()) {
+                if (const auto *def = m_udl.findForExtension(QFileInfo(e->filePath()).suffix()))
+                    e->setLexer(new macpad::features::UdlLexer(*def, e));
+            }
+        } else {
+            QMessageBox::warning(this, tr("Import Notepad++ UDL"),
+                                 tr("XML 檔案無效或無法解析"));
         }
     });
 
@@ -1097,52 +1176,49 @@ void MainWindow::createMenus()
             tr("Name:"), QLineEdit::Normal, QString(), &ok);
         if (!ok || name.isEmpty())
             return;
-        const QString path = macpad::persistence::AppPaths::filePath(
-            QStringLiteral("run_commands.json"));
-        QJsonObject o = macpad::persistence::JsonFile::load(path);
-        o.insert(name, cmd);
-        macpad::persistence::JsonFile::save(path, o);
+        // 選填快捷鍵（FR-031 延伸）：以 QKeySequenceEdit 讓使用者指定
+        QDialog scDlg(this);
+        scDlg.setWindowTitle(tr("Shortcut (選填)"));
+        auto *scLayout = new QVBoxLayout(&scDlg);
+        scLayout->addWidget(new QLabel(tr("為此指令指定快捷鍵（可留空）:"), &scDlg));
+        auto *scEdit = new QKeySequenceEdit(&scDlg);
+        scLayout->addWidget(scEdit);
+        auto *scBtns = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &scDlg);
+        scLayout->addWidget(scBtns);
+        connect(scBtns, &QDialogButtonBox::accepted, &scDlg, &QDialog::accept);
+        connect(scBtns, &QDialogButtonBox::rejected, &scDlg, &QDialog::reject);
+        QString shortcut;
+        if (scDlg.exec() == QDialog::Accepted)
+            shortcut = scEdit->keySequence().toString();
+
+        QList<macpad::features::RunCommandEntry> entries =
+            macpad::features::RunCommandStore::load();
+        // 同名則覆寫
+        bool replaced = false;
+        for (auto &e : entries) {
+            if (e.name == name) { e.command = cmd; e.shortcut = shortcut; replaced = true; break; }
+        }
+        if (!replaced)
+            entries.append({name, cmd, shortcut});
+        macpad::features::RunCommandStore::save(entries);
+        rebuildRunShortcuts();  // 立即註冊/更新快捷鍵
         statusBar()->showMessage(tr("命令已儲存：%1").arg(name), 3000);
     });
     QMenu *savedRunMenu = runMenu->addMenu(tr("Saved Commands"));
     connect(savedRunMenu, &QMenu::aboutToShow, this, [this, savedRunMenu] {
         savedRunMenu->clear();
-        const QString path = macpad::persistence::AppPaths::filePath(
-            QStringLiteral("run_commands.json"));
-        const QJsonObject o = macpad::persistence::JsonFile::load(path);
-        if (o.isEmpty()) {
+        const QList<macpad::features::RunCommandEntry> entries =
+            macpad::features::RunCommandStore::load();
+        if (entries.isEmpty()) {
             savedRunMenu->addAction(tr("(無已儲存命令)"))->setEnabled(false);
             return;
         }
-        for (auto it = o.begin(); it != o.end(); ++it) {
-            const QString name = it.key();
-            const QString cmd = it.value().toString();
-            savedRunMenu->addAction(name, this, [this, cmd] {
-                if (!m_runDock) {
-                    m_runDock = new macpad::features::RunDock(this);
-                    addDockWidget(Qt::BottomDockWidgetArea, m_runDock);
-                }
-                macpad::features::RunVars vars;
-                if (EditorWidget *e = currentEditor(); e && !e->isUntitled()) {
-                    const QFileInfo fi(e->filePath());
-                    vars.fullCurrentPath = fi.absoluteFilePath();
-                    vars.currentDirectory = fi.absolutePath();
-                    vars.fileName = fi.fileName();
-                    vars.nameNoExt = fi.completeBaseName();
-                    if (e->hasSelectedText()) {
-                        vars.currentWord = e->selectedText();
-                    } else {
-                        // 與 Run… 一致：無選取時取游標實際所在位置的單字
-                        int line = 0, col = 0;
-                        e->getCursorPosition(&line, &col);
-                        vars.currentWord = e->wordAtLineIndex(line, col);
-                    }
-                }
-                m_runDock->setVars(vars);
-                m_runDock->show();
-                m_runDock->raise();
-                m_runDock->runCommand(cmd);
-            });
+        for (const auto &entry : entries) {
+            const QString cmd = entry.command;
+            QAction *a = savedRunMenu->addAction(entry.name, this,
+                                                 [this, cmd] { runSavedCommand(cmd); });
+            if (!entry.shortcut.isEmpty())
+                a->setShortcut(QKeySequence(entry.shortcut));  // 選單顯示快捷鍵（實際綁定於 rebuildRunShortcuts）
         }
     });
 
@@ -1157,6 +1233,8 @@ void MainWindow::createMenus()
     m_stopAction->setEnabled(false);
     m_playAction->setEnabled(false);
     macroMenu->addSeparator();
+    // Macro Manager（複刻 Notepad++ Modify Shortcut / Delete Macro）
+    macroMenu->addAction(tr("Macro Manager…"), this, [this] { openMacroManager(); });
     macroMenu->addAction(tr("Run a Macro Multiple Times…"), this, [this] {
         EditorWidget *e = currentEditor();
         if (!e || m_savedMacro.isEmpty()) {
@@ -1345,6 +1423,13 @@ void MainWindow::createMenus()
     viewMenu->addSeparator();
     viewMenu->addAction(tr("Toggle Split"), QKeySequence(Qt::CTRL | Qt::Key_Backslash),
                         this, &MainWindow::toggleSplit);
+    // 旋轉分割方向（水平 ↔ 垂直）——複刻 Notepad++ Rotate to left/right
+    viewMenu->addAction(tr("Rotate Split Orientation"),
+                        QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_R), this, [this] {
+        if (m_viewSplit)
+            m_viewSplit->setOrientation(
+                m_viewSplit->orientation() == Qt::Horizontal ? Qt::Vertical : Qt::Horizontal);
+    });
     QAction *syncVAct = viewMenu->addAction(tr("Synchronize Vertical Scrolling"));
     syncVAct->setCheckable(true);
     connect(syncVAct, &QAction::toggled, this, [this](bool on) {
@@ -1359,6 +1444,11 @@ void MainWindow::createMenus()
         QAction *docAct = m_docList->toggleViewAction();
         docAct->setText(tr("Document List"));
         viewMenu->addAction(docAct);
+    }
+    if (m_projectPanel) {
+        QAction *ppAct = m_projectPanel->toggleViewAction();
+        ppAct->setText(tr("Project Panel"));
+        viewMenu->addAction(ppAct);
     }
     // 停靠面板切換（FR-029）；顯示時即時刷新
     for (QDockWidget *dock : {static_cast<QDockWidget *>(m_funcList),
@@ -1683,15 +1773,314 @@ void MainWindow::applyEditorPrefs(EditorWidget *editor, const macpad::persistenc
     if (!editor)
         return;
     editor->setTabWidth(s.tabWidth);
-    editor->setShowLineNumbers(s.showLineNumbers);
+    // 行號邊界：Editing 頁 showLineNumbers 與 Margins 頁 lineNumberMargin 皆需為真才顯示（兩者調和）
+    editor->setShowLineNumbers(s.showLineNumbers && s.lineNumberMargin);
     editor->setCaretWidth(s.caretWidth);
+    // 插入點閃爍週期（毫秒；0=不閃爍）
+    editor->SendScintilla(QsciScintillaBase::SCI_SETCARETPERIOD,
+                          static_cast<unsigned long>(qMax(0, s.caretBlinkRate)));
+    // 邊界線（Margins/Border/Edge 頁）：edgeMode + edgeColumn
+    {
+        int mode = QsciScintillaBase::EDGE_NONE;
+        switch (s.edgeMode) {
+        case macpad::persistence::EdgeMode::None:       mode = QsciScintillaBase::EDGE_NONE; break;
+        case macpad::persistence::EdgeMode::Line:       mode = QsciScintillaBase::EDGE_LINE; break;
+        case macpad::persistence::EdgeMode::Background:  mode = QsciScintillaBase::EDGE_BACKGROUND; break;
+        }
+        editor->SendScintilla(QsciScintillaBase::SCI_SETEDGEMODE,
+                              static_cast<unsigned long>(mode));
+        if (s.edgeColumn > 0)
+            editor->SendScintilla(QsciScintillaBase::SCI_SETEDGECOLUMN,
+                                  static_cast<unsigned long>(s.edgeColumn));
+    }
     editor->setAutoClose(s.autoInsertPairs);          // 括號/引號自動配對
     editor->setWordCompletionEnabled(s.wordAutoComplete);
     editor->setAutoCompletionThreshold(s.acThreshold);
     editor->setCallTipsEnabled(s.showCallTips);
     editor->setCaretLineVisible(s.currentLineHighlight);  // 高亮目前所在行
     editor->setVirtualSpace(s.enableVirtualSpace);        // 允許插入點移至行尾之後
+    editor->setColumnSelectionToMultiEdit(s.columnSelectionToMultiEdit);  // 欄選轉多游標
+    applyDelimiters(editor, s);          // delimiterChars → 雙擊選字邊界
+    applyPerLangTabWidth(editor, s);     // 依語言覆寫 Tab 寬度（否則沿用上面的全域 tabWidth）
     applyViewPrefs(editor);                            // wrap/whitespace/eol/縮排參考線
+}
+
+void MainWindow::applyDelimiters(EditorWidget *editor, const macpad::persistence::Settings &s)
+{
+    if (!editor)
+        return;
+    // 以 delimiterChars 為「邊界字元」：word-char 集合 = 可見 ASCII 去除空白與這些邊界字元。
+    // 效果：雙擊選字會在這些分隔字元處斷開（如 '.' 為分隔字元則 foo.bar 拆成 foo / bar）。
+    const QString delims = s.delimiterChars;
+    QByteArray wordChars;
+    for (char c = 0x21; c < 0x7F; ++c) {
+        if (!delims.contains(QLatin1Char(c)))
+            wordChars.append(c);
+    }
+    editor->SendScintilla(QsciScintillaBase::SCI_SETWORDCHARS, 0UL, wordChars.constData());
+}
+
+void MainWindow::applyPerLangTabWidth(EditorWidget *editor, const macpad::persistence::Settings &s)
+{
+    if (!editor)
+        return;
+    // 依目前 lexer 對應的語言鍵查覆寫；未列出者維持全域 tabWidth（applyEditorPrefs 已先設過）。
+    if (s.perLangTabWidth.isEmpty())
+        return;
+    const QString langKey = languageKeyForLexer(editor->lexer());
+    if (!langKey.isEmpty() && s.perLangTabWidth.contains(langKey))
+        editor->setTabWidth(s.perLangTabWidth.value(langKey));
+}
+
+void MainWindow::applyWindowPrefs(const macpad::persistence::Settings &s)
+{
+    // 工具列可見性 + 圖示大小（FR-053 Toolbar 頁）
+    if (m_toolbar) {
+        m_toolbar->setVisible(s.showToolbar);
+        int px = 18;
+        switch (s.toolbarIconSize) {
+        case macpad::persistence::ToolbarIconSize::Small:    px = 16; break;
+        case macpad::persistence::ToolbarIconSize::Standard: px = 24; break;
+        case macpad::persistence::ToolbarIconSize::Large:    px = 32; break;
+        }
+        m_toolbar->setIconSize(QSize(px, px));
+    }
+    // 狀態列可見性
+    statusBar()->setVisible(s.showStatusBar);
+    // 分頁列：可見性 / 垂直排列 / 關閉鈕 / 多行（多行以停用捲動鈕近似，QTabBar 無原生多行）
+    for (QTabWidget *w : {m_tabs, m_tabs2}) {
+        if (!w)
+            continue;
+        w->tabBar()->setVisible(s.showTabBar);
+        w->setTabPosition(s.tabBarVertical ? QTabWidget::West : QTabWidget::North);
+        w->setTabsClosable(s.tabBarShowCloseButton);
+        w->tabBar()->setUsesScrollButtons(!s.tabBarMultiLine);
+    }
+    // 最近檔案選單依偏好（max/full-path/submenu）重建
+    rebuildRecentMenu();
+}
+
+QString MainWindow::startDirForDialog() const
+{
+    const auto s = macpad::persistence::SettingsStore::load();
+    switch (s.defaultDirPolicy) {
+    case macpad::persistence::DefaultDirPolicy::FixedPath:
+        if (!s.defaultDirFixedPath.isEmpty())
+            return s.defaultDirFixedPath;
+        break;
+    case macpad::persistence::DefaultDirPolicy::RememberLast:
+        if (!m_lastDir.isEmpty())
+            return m_lastDir;
+        break;
+    case macpad::persistence::DefaultDirPolicy::FollowCurrentDoc:
+        break;
+    }
+    // FollowCurrentDoc（或上述無值時的退回）：目前文件所在資料夾
+    if (EditorWidget *e = const_cast<MainWindow *>(this)->currentEditor(); e && !e->isUntitled())
+        return QFileInfo(e->filePath()).absolutePath();
+    return QString();
+}
+
+void MainWindow::rebuildMacroShortcuts()
+{
+    qDeleteAll(m_macroShortcuts);
+    m_macroShortcuts.clear();
+    const QString scPath = macpad::persistence::AppPaths::filePath(
+        QStringLiteral("macro_shortcuts.json"));
+    const QString mPath = macpad::persistence::AppPaths::filePath(QStringLiteral("macros.json"));
+    const QJsonObject sc = macpad::persistence::JsonFile::load(scPath);
+    const QJsonObject macros = macpad::persistence::JsonFile::load(mPath);
+    for (auto it = sc.begin(); it != sc.end(); ++it) {
+        const QString name = it.key();
+        const QString keyStr = it.value().toString();
+        if (keyStr.isEmpty() || !macros.contains(name))
+            continue;
+        const QString macroStr = macros.value(name).toString();
+        auto *shortcut = new QShortcut(QKeySequence(keyStr), this);
+        connect(shortcut, &QShortcut::activated, this, [this, macroStr] {
+            EditorWidget *e = currentEditor();
+            if (!e)
+                return;
+            QsciMacro macro(e);
+            macro.load(macroStr);
+            macro.play();
+        });
+        m_macroShortcuts.append(shortcut);
+    }
+}
+
+void MainWindow::rebuildRunShortcuts()
+{
+    qDeleteAll(m_runShortcuts);
+    m_runShortcuts.clear();
+    for (const auto &entry : macpad::features::RunCommandStore::load()) {
+        if (entry.shortcut.isEmpty())
+            continue;
+        const QString cmd = entry.command;
+        auto *sc = new QShortcut(QKeySequence(entry.shortcut), this);
+        connect(sc, &QShortcut::activated, this, [this, cmd] { runSavedCommand(cmd); });
+        m_runShortcuts.append(sc);
+    }
+}
+
+void MainWindow::runSavedCommand(const QString &command)
+{
+    if (!m_runDock) {
+        m_runDock = new macpad::features::RunDock(this);
+        addDockWidget(Qt::BottomDockWidgetArea, m_runDock);
+    }
+    macpad::features::RunVars vars;
+    if (EditorWidget *e = currentEditor(); e && !e->isUntitled()) {
+        const QFileInfo fi(e->filePath());
+        vars.fullCurrentPath = fi.absoluteFilePath();
+        vars.currentDirectory = fi.absolutePath();
+        vars.fileName = fi.fileName();
+        vars.nameNoExt = fi.completeBaseName();
+        if (e->hasSelectedText()) {
+            vars.currentWord = e->selectedText();
+        } else {
+            int line = 0, col = 0;
+            e->getCursorPosition(&line, &col);
+            vars.currentWord = e->wordAtLineIndex(line, col);
+        }
+    }
+    m_runDock->setVars(vars);
+    m_runDock->show();
+    m_runDock->raise();
+    m_runDock->runCommand(command);
+}
+
+void MainWindow::openMacroManager()
+{
+    const QString mPath = macpad::persistence::AppPaths::filePath(QStringLiteral("macros.json"));
+    const QString scPath = macpad::persistence::AppPaths::filePath(
+        QStringLiteral("macro_shortcuts.json"));
+    const QJsonObject macros = macpad::persistence::JsonFile::load(mPath);
+    if (macros.isEmpty()) {
+        QMessageBox::information(this, tr("Macro Manager"), tr("尚無已儲存的巨集"));
+        return;
+    }
+    const QJsonObject sc = macpad::persistence::JsonFile::load(scPath);
+    QMap<QString, macpad::ui::MacroData> data;
+    for (auto it = macros.begin(); it != macros.end(); ++it) {
+        macpad::ui::MacroData d;
+        d.shortcut = QKeySequence(sc.value(it.key()).toString());
+        data.insert(it.key(), d);
+    }
+    macpad::ui::MacroManagerDialog dlg(this);
+    dlg.setMacros(data);
+    connect(&dlg, &macpad::ui::MacroManagerDialog::macroShortcutChanged, this,
+            [this, scPath](const QString &name, const QKeySequence &keyseq) {
+        QJsonObject cur = macpad::persistence::JsonFile::load(scPath);
+        if (keyseq.isEmpty())
+            cur.remove(name);
+        else
+            cur.insert(name, keyseq.toString());
+        macpad::persistence::JsonFile::save(scPath, cur);
+        rebuildMacroShortcuts();
+    });
+    connect(&dlg, &macpad::ui::MacroManagerDialog::macroRenamed, this,
+            [this, mPath, scPath](const QString &oldName, const QString &newName) {
+        QJsonObject m = macpad::persistence::JsonFile::load(mPath);
+        if (m.contains(oldName)) {
+            m.insert(newName, m.value(oldName));
+            m.remove(oldName);
+            macpad::persistence::JsonFile::save(mPath, m);
+        }
+        QJsonObject cur = macpad::persistence::JsonFile::load(scPath);
+        if (cur.contains(oldName)) {
+            cur.insert(newName, cur.value(oldName));
+            cur.remove(oldName);
+            macpad::persistence::JsonFile::save(scPath, cur);
+        }
+        rebuildMacroShortcuts();
+    });
+    connect(&dlg, &macpad::ui::MacroManagerDialog::macroDeleted, this,
+            [this, mPath, scPath](const QString &name) {
+        QJsonObject m = macpad::persistence::JsonFile::load(mPath);
+        if (m.contains(name)) {
+            m.remove(name);
+            macpad::persistence::JsonFile::save(mPath, m);
+        }
+        QJsonObject cur = macpad::persistence::JsonFile::load(scPath);
+        if (cur.contains(name)) {
+            cur.remove(name);
+            macpad::persistence::JsonFile::save(scPath, cur);
+        }
+        rebuildMacroShortcuts();
+    });
+    dlg.exec();
+}
+
+void MainWindow::showFindInProjects()
+{
+    if (!m_projectPanel)
+        return;
+    const QStringList files = m_projectPanel->allFilePaths();
+    if (files.isEmpty()) {
+        QMessageBox::information(this, tr("Find in Projects"),
+            tr("Project Panel 中沒有任何檔案。請先於 Project Panel 建立 project 並加入檔案。"));
+        m_projectPanel->show();
+        m_projectPanel->raise();
+        return;
+    }
+    bool ok = false;
+    const QString pattern = QInputDialog::getText(this, tr("Find in Projects"),
+        tr("Find what:"), QLineEdit::Normal, m_lastFindText, &ok);
+    if (!ok || pattern.isEmpty())
+        return;
+    m_lastFindText = pattern;
+    if (!m_findInFiles) {
+        m_findInFiles = new macpad::features::FindInFilesDock(this);
+        addDockWidget(Qt::BottomDockWidgetArea, m_findInFiles);
+        connect(m_findInFiles, &macpad::features::FindInFilesDock::openLocation,
+                this, &MainWindow::openFileAtLine);
+    }
+    m_findInFiles->show();
+    m_findInFiles->raise();
+    // 以 Project Panel 的檔案清單為範圍，在 worker thread 搜尋（重用 Find in Files 結果渲染）
+    m_findInFiles->findInProjectFiles(pattern, files);
+}
+
+void MainWindow::gotoLineOrOffset()
+{
+    EditorWidget *e = currentEditor();
+    if (!e)
+        return;
+    QDialog dlg(this);
+    dlg.setWindowTitle(tr("Go to…"));
+    auto *layout = new QVBoxLayout(&dlg);
+    auto *lineRadio = new QRadioButton(tr("Line"), &dlg);
+    auto *offsetRadio = new QRadioButton(tr("Character offset"), &dlg);
+    lineRadio->setChecked(true);
+    auto *spin = new QSpinBox(&dlg);
+    spin->setMinimum(1);
+    auto updateMax = [e, spin, lineRadio] {
+        spin->setMaximum(lineRadio->isChecked() ? qMax(1, e->lines()) : qMax(1, e->length()));
+    };
+    updateMax();
+    connect(lineRadio, &QRadioButton::toggled, &dlg, [updateMax](bool) { updateMax(); });
+    layout->addWidget(lineRadio);
+    layout->addWidget(offsetRadio);
+    layout->addWidget(spin);
+    auto *btns = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    layout->addWidget(btns);
+    connect(btns, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
+    connect(btns, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
+    if (dlg.exec() != QDialog::Accepted)
+        return;
+    const int v = spin->value();
+    if (lineRadio->isChecked()) {
+        e->setCursorPosition(v - 1, 0);
+        e->ensureLineVisible(v - 1);
+    } else {
+        // 字元位移模式：以原始位置定位（SCI_GOTOPOS），並確保所在行可見
+        const int line = int(e->SendScintilla(QsciScintilla::SCI_LINEFROMPOSITION,
+                                              static_cast<unsigned long>(v)));
+        e->SendScintilla(QsciScintilla::SCI_GOTOPOS, static_cast<unsigned long>(v));
+        e->ensureLineVisible(line);
+    }
+    e->setFocus();
 }
 
 void MainWindow::themeEditor(EditorWidget *editor)
@@ -1750,7 +2139,7 @@ void MainWindow::onFileChangedOnDisk(const QString &path)
         return;
     }
 
-    // Monitoring（tail -f）：靜默自動重載並捲到檔尾，不打擾
+    // Monitoring（tail -f）：靜默自動重載並捲到檔尾，不打擾（無論偵測模式為何皆生效）
     if (m_monitored.contains(path)) {
         QString err;
         const bool ro = editor->isReadOnly();
@@ -1764,7 +2153,26 @@ void MainWindow::onFileChangedOnDisk(const QString &path)
         return;
     }
 
-    // 檔案被外部修改：詢問是否重新載入
+    // 檔案外部變更偵測模式（FR-053）：
+    //   New Document 頁 autoDetectFileStatus=false 或 MISC 頁 Disabled → 不處理；
+    //   EnabledSilent → 靜默自動重載（不打擾）；Enabled → 詢問使用者。
+    using macpad::persistence::FileStatusAutoDetectMode;
+    const auto s = macpad::persistence::SettingsStore::load();
+    if (!s.autoDetectFileStatus
+        || s.fileStatusAutoDetect == FileStatusAutoDetectMode::Disabled) {
+        watchPath(path);
+        return;
+    }
+    if (s.fileStatusAutoDetect == FileStatusAutoDetectMode::EnabledSilent) {
+        QString err;
+        editor->loadFile(path, &err);
+        updateTabTitle();
+        updateStatusBar();
+        watchPath(path);
+        return;
+    }
+
+    // 檔案被外部修改：詢問是否重新載入（Enabled 模式）
     const auto ret = QMessageBox::question(
         this, tr("檔案已變更"),
         tr("「%1」已被外部程式修改，是否重新載入？\n（未儲存的變更將遺失）")
@@ -1925,6 +2333,8 @@ void MainWindow::createEditMenuOps(QMenu *editMenu)
                          [this] { applyTextOp(&TextOps::trimBoth); });
     blankMenu->addAction(tr("EOL to Space"), this,
                          [this] { applyTextOp(&TextOps::eolToSpace); });
+    blankMenu->addAction(tr("Trim Both and EOL to Space"), this,
+                         [this] { applyTextOp(&TextOps::trimBothAndEolToSpace); });
     blankMenu->addAction(tr("Leading Spaces to TAB"), this, [this] {
         const int tabWidth = macpad::persistence::SettingsStore::load().tabWidth;
         applyTextOp([tabWidth](const QString &s){ return TextOps::spacesToTabsLeading(s, tabWidth); });
@@ -1979,10 +2389,34 @@ void MainWindow::createEditMenuOps(QMenu *editMenu)
         e->endUndoAction();
     });
 
-    // 插入
-    editMenu->addAction(tr("Insert Date/Time"), this, [this] {
-        if (EditorWidget *e = currentEditor())
-            e->insert(QDateTime::currentDateTime().toString(Qt::ISODate));
+    // 插入日期／時間（EditorWidget 內建三種格式；預設格式取自偏好 dateFormat/customDateFormat）
+    QMenu *insertDateMenu = editMenu->addMenu(tr("Insert Date/Time"));
+    insertDateMenu->addAction(tr("Date Time (Short Format)"), this, [this] {
+        if (EditorWidget *e = currentEditor(); e && !e->isReadOnly()) e->insertDateShort();
+    });
+    insertDateMenu->addAction(tr("Date Time (Long Format)"), this, [this] {
+        if (EditorWidget *e = currentEditor(); e && !e->isReadOnly()) e->insertDateLong();
+    });
+    insertDateMenu->addAction(tr("Date Time (Preference Format)"), this, [this] {
+        EditorWidget *e = currentEditor();
+        if (!e || e->isReadOnly())
+            return;
+        const auto s = macpad::persistence::SettingsStore::load();
+        // dateFormat == "custom" 時採用 customDateFormat，否則以 dateFormat 為格式字串
+        const QString fmt = (s.dateFormat == QLatin1String("custom") && !s.customDateFormat.isEmpty())
+                                ? s.customDateFormat : s.dateFormat;
+        e->insertDateCustom(fmt.isEmpty() ? QStringLiteral("yyyy-MM-dd HH:mm:ss") : fmt);
+    });
+    insertDateMenu->addAction(tr("Date Time (Custom…)"), this, [this] {
+        EditorWidget *e = currentEditor();
+        if (!e || e->isReadOnly())
+            return;
+        bool ok = false;
+        const QString fmt = QInputDialog::getText(this, tr("Insert Date/Time"),
+            tr("格式字串（如 yyyy-MM-dd HH:mm:ss）:"), QLineEdit::Normal,
+            macpad::persistence::SettingsStore::load().dateFormat, &ok);
+        if (ok && !fmt.isEmpty())
+            e->insertDateCustom(fmt);
     });
 
     editMenu->addSeparator();
@@ -2115,14 +2549,8 @@ void MainWindow::createSearchMenu(QMenu *searchMenu)
     searchMenu->addAction(tr("Incremental Search"), QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_I),
                           this, [this] { showIncrementalSearch(); });
     searchMenu->addSeparator();
-    searchMenu->addAction(tr("Go to…"), QKeySequence(Qt::CTRL | Qt::Key_G), this, [this] {
-        EditorWidget *e = currentEditor();
-        if (!e) return;
-        bool ok = false;
-        const int line = QInputDialog::getInt(this, tr("Go to Line"), tr("Line:"),
-                                              1, 1, e->lines(), 1, &ok);
-        if (ok) { e->setCursorPosition(line - 1, 0); e->ensureLineVisible(line - 1); e->setFocus(); }
-    });
+    searchMenu->addAction(tr("Go to…"), QKeySequence(Qt::CTRL | Qt::Key_G), this,
+                          [this] { gotoLineOrOffset(); });
     searchMenu->addAction(tr("Go to Matching Brace"), QKeySequence(Qt::CTRL | Qt::Key_B), this,
                           [this] { if (auto *e = currentEditor()) e->moveToMatchingBrace(); });
     searchMenu->addAction(tr("Select All Between Matching Braces"),
@@ -2191,6 +2619,8 @@ void MainWindow::createSearchMenu(QMenu *searchMenu)
             }
         }
         statusBar()->showMessage(tr("已在所有開啟文件中取代 %1 處").arg(total), 3000);
+        if (macpad::persistence::SettingsStore::load().enableSound)
+            QApplication::beep();  // 動作提示音（偏好 enableSound）
     });
 
     // Find All in Opened Documents（FR-058）：逐分頁搜尋並彙整到結果面板
@@ -2243,6 +2673,8 @@ void MainWindow::createSearchMenu(QMenu *searchMenu)
         m_findAllDock->show();
         m_findAllDock->raise();
         statusBar()->showMessage(tr("找到 %1 處符合").arg(all.size()), 3000);
+        if (macpad::persistence::SettingsStore::load().enableSound)
+            QApplication::beep();  // 動作提示音（偏好 enableSound）
     });
 }
 
@@ -2750,6 +3182,13 @@ void MainWindow::wireTabWidget(QTabWidget *w)
         menu.exec(w->tabBar()->mapToGlobal(pos));
     });
 
+    // 雙擊分頁關閉（偏好 tabBarDoubleClickCloses；於觸發時讀取即時設定）
+    connect(w->tabBar(), &QTabBar::tabBarDoubleClicked, this, [this, w](int idx) {
+        if (idx >= 0
+            && macpad::persistence::SettingsStore::load().tabBarDoubleClickCloses)
+            closeTabIn(w, idx);
+    });
+
     connect(w, &QTabWidget::currentChanged, this, [this, w](int) {
         setActiveTabWidget(w);
         // 若切換發生在已作用中的檢視，setActiveTabWidget 會提前 return，這裡補刷新一次
@@ -2832,14 +3271,27 @@ void MainWindow::newFile()
 
 void MainWindow::openFileDialog()
 {
-    const QString path = QFileDialog::getOpenFileName(this, tr("Open File"));
-    if (!path.isEmpty())
+    const QString path = QFileDialog::getOpenFileName(this, tr("Open File"), startDirForDialog());
+    if (!path.isEmpty()) {
+        m_lastDir = QFileInfo(path).absolutePath();  // defaultDirPolicy=RememberLast 用
         openFile(path);
+    }
 }
 
 void MainWindow::openFile(const QString &path)
 {
     const QString absPath = QFileInfo(path).absoluteFilePath();
+
+    // sessionFileExt：若副檔名匹配偏好設定的 session 副檔名，改以 session 還原開啟（FR-016 延伸）
+    const auto sset = macpad::persistence::SettingsStore::load();
+    if (!sset.sessionFileExt.isEmpty()
+        && QFileInfo(absPath).suffix().compare(sset.sessionFileExt, Qt::CaseInsensitive) == 0
+        && QFileInfo::exists(absPath)) {
+        openSessionFile(absPath);
+        macpad::persistence::RecentFiles::add(absPath);
+        rebuildRecentMenu();
+        return;
+    }
 
     // 已開啟則聚焦既有分頁（FR-001 邊界：不重複開）——兩個檢視都找
     if (focusExistingPath(absPath))
@@ -2914,11 +3366,12 @@ bool MainWindow::saveCurrentAs()
     if (!editor)
         return false;
 
-    const QString path = QFileDialog::getSaveFileName(this, tr("Save As"),
-                                                      editor->filePath());
+    const QString startPath = editor->isUntitled() ? startDirForDialog() : editor->filePath();
+    const QString path = QFileDialog::getSaveFileName(this, tr("Save As"), startPath);
     if (path.isEmpty())
         return false;
 
+    m_lastDir = QFileInfo(path).absolutePath();  // defaultDirPolicy=RememberLast 用
     QString err;
     if (!editor->saveFile(path, &err)) {
         QMessageBox::warning(this, tr("Save Failed"),
@@ -3014,6 +3467,8 @@ void MainWindow::closeEvent(QCloseEvent *event)
         }
     }
     saveSession();  // FR-016：關閉前保存 session
+    if (m_projectPanel)
+        m_projectPanel->save();  // 保存 Project Panel 樹狀內容（projects.json）
     macpad::features::BackupService::clearSnapshots();  // 正常關閉 → 清空當機復原快照
     event->accept();
 }
@@ -3150,21 +3605,71 @@ void MainWindow::rebuildRecentMenu()
 {
     if (!m_recentMenu)
         return;
+    const auto s = macpad::persistence::SettingsStore::load();
+
+    // 先清掉上一輪「直接列於 File 選單」的動作（recentFilesInSubmenu=false 模式）
+    for (QAction *a : m_recentDirectActions) {
+        if (m_fileMenu)
+            m_fileMenu->removeAction(a);
+        delete a;
+    }
+    m_recentDirectActions.clear();
     m_recentMenu->clear();
-    const QStringList recent = macpad::persistence::RecentFiles::load();
-    if (recent.isEmpty()) {
-        QAction *none = m_recentMenu->addAction(tr("(無最近檔案)"));
+
+    // recentFilesMaxEntries=0 → 停用最近檔案追蹤
+    if (s.recentFilesMaxEntries <= 0) {
+        m_recentMenu->menuAction()->setVisible(true);
+        QAction *none = m_recentMenu->addAction(tr("(最近檔案已停用)"));
         none->setEnabled(false);
         return;
     }
-    for (const QString &path : recent) {
-        m_recentMenu->addAction(path, this, [this, path] { openFile(path); });
+
+    QStringList recent = macpad::persistence::RecentFiles::load();
+    if (recent.size() > s.recentFilesMaxEntries)
+        recent = recent.mid(0, s.recentFilesMaxEntries);
+
+    const bool inSub = s.recentFilesInSubmenu;
+    m_recentMenu->menuAction()->setVisible(inSub);  // false 時隱藏「Open Recent」子選單入口
+
+    const auto label = [&s](const QString &path) {
+        return s.recentFilesShowFullPath ? path : QFileInfo(path).fileName();
+    };
+
+    if (inSub) {
+        if (recent.isEmpty()) {
+            QAction *none = m_recentMenu->addAction(tr("(無最近檔案)"));
+            none->setEnabled(false);
+            return;
+        }
+        for (const QString &path : recent)
+            m_recentMenu->addAction(label(path), this, [this, path] { openFile(path); });
+        m_recentMenu->addSeparator();
+        m_recentMenu->addAction(tr("Clear Menu"), this, [this] {
+            macpad::persistence::RecentFiles::clear();
+            rebuildRecentMenu();
+        });
+        return;
     }
-    m_recentMenu->addSeparator();
-    m_recentMenu->addAction(tr("Clear Menu"), this, [this] {
+
+    // 直接列於 File 選單：插入於「Open Recent」子選單入口之後（該入口此時隱藏，僅作定位錨點）
+    if (!m_fileMenu || recent.isEmpty())
+        return;
+    QAction *anchor = m_recentMenu->menuAction();
+    for (const QString &path : recent) {
+        auto *a = new QAction(label(path), this);
+        connect(a, &QAction::triggered, this, [this, path] { openFile(path); });
+        m_fileMenu->insertAction(anchor, a);
+        m_recentDirectActions.append(a);
+    }
+    auto *clear = new QAction(tr("Clear Recent Files"), this);
+    connect(clear, &QAction::triggered, this, [this] {
         macpad::persistence::RecentFiles::clear();
         rebuildRecentMenu();
     });
+    m_fileMenu->insertAction(anchor, clear);
+    m_recentDirectActions.append(clear);
+    QAction *sep = m_fileMenu->insertSeparator(anchor);
+    m_recentDirectActions.append(sep);
 }
 
 int MainWindow::indexOfPath(const QString &absPath) const
@@ -3358,8 +3863,13 @@ void MainWindow::updateStatusBar()
 
     m_stEol->setText(eolDisplay(editor->eol()));
     m_stEnc->setText(editor->encodingLabel());
-    // Character Panel 標頭同步顯示作用中文件的編碼
-    if (m_charPanel)
+    // Character Panel 標頭同步顯示作用中文件的編碼；並依編碼切換 128..255 區的字元對映：
+    // Latin1（或有指定 legacy save codec）→ ANSI/Latin-1 全 8-bit 顯示；其餘 Unicode 家族 → codepage 映射。
+    if (m_charPanel) {
         m_charPanel->setEncodingLabel(editor->encodingLabel());
+        const bool ansi = (editor->encoding() == macpad::core::Encoding::Latin1)
+                          || !editor->saveCodec().isEmpty();
+        m_charPanel->setUnicodeMode(!ansi);
+    }
     m_stMode->setText(s.overtype ? QStringLiteral("OVR") : QStringLiteral("INS"));
 }

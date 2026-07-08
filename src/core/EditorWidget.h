@@ -243,6 +243,26 @@ public:
     // 回傳 "</tag>"（可補），或空字串（自閉合、閉合標籤、非標籤）。純函式，供測試共用。
     static QString closingTagFor(const QString &textBeforeCaret);
 
+    // === 貼上為純文字（Edit ▸ Paste Special）===
+    // 讀取剪貼簿的 text/html 負載，盡力去除標籤後以純文字插入（取代目前選取）；
+    // 無 HTML 負載時退回一般純文字貼上。
+    void pasteAsHtml();
+    // 讀取剪貼簿的 text/rtf（或 application/rtf）負載，盡力去除 RTF 控制詞後以純文字插入；
+    // 無 RTF 負載時退回一般純文字貼上。
+    void pasteAsRtf();
+
+    // === 欄位選取轉多重編輯（Preferences ▸ Enable Column Selection to Multi-Editing）===
+    // 開啟後，endColumnSelect() 不再產生矩形選取，而是在錨點與目前游標涵蓋的每一行、
+    // 相同欄位處各放一個插入點（多重編輯游標），供直接輸入同步套用到多行。
+    void setColumnSelectionToMultiEdit(bool enabled) { m_columnSelectionToMultiEdit = enabled; }
+    bool columnSelectionToMultiEdit() const { return m_columnSelectionToMultiEdit; }
+
+    // === 插入日期／時間（Edit ▸ Insert Date/Time）===
+    // 取代目前選取（或於游標處插入）系統當地時區的日期／時間文字。
+    void insertDateShort();                       // 依 QLocale 短格式（如 3/14/26）
+    void insertDateLong();                        // 依 QLocale 長格式（如 Saturday, March 14, 2026 9:41:00 AM）
+    void insertDateCustom(const QString &format);  // 依 QDateTime::toString(format) 自訂格式字串
+
 signals:
     void dirtyChanged(bool dirty);
     void metaChanged();     // 編碼/EOL 變更（狀態列更新）
@@ -268,6 +288,9 @@ private:
     void applyLexerForPath(const QString &path);
     void applyEolMode(Eol eol);
     void toggleBookmarkAtLine(int line);
+    // 依 m_columnSelectionToMultiEdit 開關，將 [anchorPos, caretPos] 矩形涵蓋的每一行、
+    // 相同欄位處各放一個插入點（供 endColumnSelect 呼叫）。
+    void applyMultiEditCaretsForRectangle(long anchorPos, long caretPos);
 
     // 標記/清除「純中繼資料（編碼/EOL/codec）」造成的 dirty。
     // QScintilla 的 setModified(true) 在 save-point 為 no-op，無法反映這類變更，
@@ -294,6 +317,7 @@ private:
     int  m_caretWidth = 1;           // 插入點寬度（像素）
     bool m_wordCompletion = true;    // 字詞自動完成開關
     bool m_callTips = true;          // call tip 開關
+    bool m_columnSelectionToMultiEdit = false;  // 欄位選取轉多重編輯偏好開關
 
     // API 自動完成資料（FR-055）——由 EditorWidget 持有（parent 改為 this，與 lexer 生命週期解耦），
     // 銷毀前主動收斂背景 prepare() 的 worker thread，避免 async 競態造成的懸空回呼（SIGBUS）。

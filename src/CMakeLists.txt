@@ -90,6 +90,10 @@ set(MACPAD_LIB_SOURCES
     ui/PreferencesDialog.h
     ui/ColumnEditorDialog.cpp
     ui/ColumnEditorDialog.h
+    ui/MacroManagerDialog.cpp
+    ui/MacroManagerDialog.h
+    features/functionlist/FunctionListConfig.cpp
+    features/functionlist/FunctionListConfig.h
     extension/IExtension.h
     extension/ExtensionRegistry.cpp
     extension/ExtensionRegistry.h
@@ -97,6 +101,12 @@ set(MACPAD_LIB_SOURCES
     extension/builtin/WordCountExtension.h
     extension/builtin/MarkdownPreviewExtension.cpp
     extension/builtin/MarkdownPreviewExtension.h
+    persistence/ProjectStore.cpp
+    persistence/ProjectStore.h
+    ui/ProjectPanelDock.cpp
+    ui/ProjectPanelDock.h
+    features/udl/UdlXmlIo.cpp
+    features/udl/UdlXmlIo.h
     ${CMAKE_SOURCE_DIR}/resources/webview/webview.qrc
     ${CMAKE_SOURCE_DIR}/resources/i18n/i18n.qrc
     ${CMAKE_SOURCE_DIR}/resources/icons/icons.qrc

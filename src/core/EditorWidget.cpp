@@ -5,12 +5,15 @@
 
 #include <QClipboard>
 #include <QColor>
+#include <QDateTime>
 #include <QFile>
 #include <QFileInfo>
 #include <QFont>
 #include <QFontMetrics>
 #include <QGuiApplication>
 #include <QKeyEvent>
+#include <QLocale>
+#include <QMimeData>
 #include <QPair>
 #include <QRegularExpression>
 #include <QSaveFile>
@@ -61,6 +64,69 @@ bool isPathChar(QChar c)
         return false;
     return c.isLetterOrNumber() || c == QLatin1Char('_') || c == QLatin1Char('-')
         || c == QLatin1Char('.') || c == QLatin1Char('/') || c == QLatin1Char('~');
+}
+
+// === 貼上為純文字（Paste Special）共用 ===
+// 盡力去除 HTML 標籤：移除 <script>/<style> 區塊、所有標籤，並將常見具名/數值實體解回字元。
+QString stripHtmlToPlainText(QString html)
+{
+    static const QRegularExpression scriptOrStyle(
+        QStringLiteral("<(script|style)[^>]*>.*?</\\1>"),
+        QRegularExpression::CaseInsensitiveOption | QRegularExpression::DotMatchesEverythingOption);
+    html.remove(scriptOrStyle);
+    static const QRegularExpression brTag(QStringLiteral("<br\\s*/?>"), QRegularExpression::CaseInsensitiveOption);
+    html.replace(brTag, QStringLiteral("\n"));
+    static const QRegularExpression tag(QStringLiteral("<[^>]*>"));
+    html.remove(tag);
+    html.replace(QLatin1String("&nbsp;"), QLatin1String(" "));
+    html.replace(QLatin1String("&amp;"), QLatin1String("&"));
+    html.replace(QLatin1String("&lt;"), QLatin1String("<"));
+    html.replace(QLatin1String("&gt;"), QLatin1String(">"));
+    html.replace(QLatin1String("&quot;"), QLatin1String("\""));
+    html.replace(QLatin1String("&#39;"), QLatin1String("'"));
+    return html;
+}
+
+// 盡力去除 RTF 控制詞/群組，保留純文字內容（不支援完整 RTF 語法，僅供 best-effort 貼上）。
+QString stripRtfToPlainText(const QString &rtf)
+{
+    QString out;
+    out.reserve(rtf.size());
+    int depth = 0;
+    for (int i = 0; i < rtf.size(); ++i) {
+        const QChar c = rtf.at(i);
+        if (c == QLatin1Char('\\')) {
+            // 控制詞：\word[数字] 後接可選一個空白；控制符號：\ 後接單一非字母字元
+            int j = i + 1;
+            if (j < rtf.size() && rtf.at(j).isLetter()) {
+                while (j < rtf.size() && rtf.at(j).isLetter())
+                    ++j;
+                while (j < rtf.size() && (rtf.at(j).isDigit() || rtf.at(j) == QLatin1Char('-')))
+                    ++j;
+                if (j < rtf.size() && rtf.at(j) == QLatin1Char(' '))
+                    ++j;
+            } else if (j < rtf.size()) {
+                if (rtf.at(j) == QLatin1Char('\'') && j + 2 < rtf.size()) {
+                    // \'hh 十六進位跳脫字元
+                    bool ok = false;
+                    const int code = rtf.mid(j + 1, 2).toInt(&ok, 16);
+                    if (ok)
+                        out += QChar(code);
+                    j += 3;
+                } else {
+                    ++j;  // 略過控制符號本身
+                }
+            }
+            i = j - 1;
+            continue;
+        }
+        if (c == QLatin1Char('{')) { ++depth; continue; }
+        if (c == QLatin1Char('}')) { if (depth > 0) --depth; continue; }
+        if (c == QLatin1Char('\r') || c == QLatin1Char('\n'))
+            continue;
+        out += c;
+    }
+    return out;
 }
 }  // namespace
 
@@ -1240,9 +1306,37 @@ void EditorWidget::endColumnSelect()
     if (!m_hasSelectAnchor)
         return;
     const long caret = SendScintilla(SCI_GETCURRENTPOS);
+    if (m_columnSelectionToMultiEdit) {
+        // 偏好開啟：不產生矩形選取，改為每行相同欄位各放一個多重編輯插入點
+        applyMultiEditCaretsForRectangle(m_selectAnchorPos, caret);
+        return;
+    }
     SendScintilla(SCI_SETSELECTIONMODE, static_cast<unsigned long>(SC_SEL_RECTANGLE));
     SendScintilla(SCI_SETRECTANGULARSELECTIONANCHOR, static_cast<unsigned long>(m_selectAnchorPos));
     SendScintilla(SCI_SETRECTANGULARSELECTIONCARET, static_cast<unsigned long>(caret));
+}
+
+void EditorWidget::applyMultiEditCaretsForRectangle(long anchorPos, long caretPos)
+{
+    int la = 0, ca = 0, lc = 0, cc = 0;
+    lineIndexFromPosition(static_cast<int>(anchorPos), &la, &ca);
+    lineIndexFromPosition(static_cast<int>(caretPos), &lc, &cc);
+    const int firstLine = std::min(la, lc);
+    const int lastLine = std::max(la, lc);
+    const int col = cc;  // 以終點（目前游標）欄位為準，逐行放置插入點
+
+    SendScintilla(SCI_SETSELECTIONMODE, static_cast<unsigned long>(SC_SEL_STREAM));
+    bool first = true;
+    for (int ln = firstLine; ln <= lastLine; ++ln) {
+        const int useCol = std::min(col, lineLength(ln));
+        const long pos = positionFromLineIndex(ln, useCol);
+        if (first) {
+            SendScintilla(SCI_SETSELECTION, static_cast<unsigned long>(pos), static_cast<unsigned long>(pos));
+            first = false;
+        } else {
+            SendScintilla(SCI_ADDSELECTION, static_cast<unsigned long>(pos), static_cast<unsigned long>(pos));
+        }
+    }
 }
 
 // === 遮蔽選取（Redact Selection）===
@@ -1439,6 +1533,72 @@ QString EditorWidget::closingTagFor(const QString &textBeforeCaret)
     if (name.isEmpty())
         return QString();
     return QStringLiteral("</") + name + QStringLiteral(">");
+}
+
+// === 貼上為純文字（Edit ▸ Paste Special）===
+void EditorWidget::pasteAsHtml()
+{
+    const QMimeData *md = QGuiApplication::clipboard()->mimeData();
+    QString text;
+    if (md && md->hasHtml())
+        text = stripHtmlToPlainText(md->html());
+    else if (md && md->hasText())
+        text = md->text();  // 無 HTML 負載 → 退回一般純文字貼上
+    else
+        return;
+    if (text.isEmpty())
+        return;
+    beginUndoAction();
+    replaceSelectedText(text);
+    endUndoAction();
+}
+
+void EditorWidget::pasteAsRtf()
+{
+    const QMimeData *md = QGuiApplication::clipboard()->mimeData();
+    QString text;
+    if (md && (md->hasFormat(QStringLiteral("text/rtf")) || md->hasFormat(QStringLiteral("application/rtf")))) {
+        const QByteArray raw = md->hasFormat(QStringLiteral("text/rtf"))
+                                    ? md->data(QStringLiteral("text/rtf"))
+                                    : md->data(QStringLiteral("application/rtf"));
+        text = stripRtfToPlainText(QString::fromLatin1(raw));  // RTF 控制層為 ASCII，內文以 \'hh 跳脫非 ASCII
+    } else if (md && md->hasText()) {
+        text = md->text();  // 無 RTF 負載 → 退回一般純文字貼上
+    } else {
+        return;
+    }
+    if (text.isEmpty())
+        return;
+    beginUndoAction();
+    replaceSelectedText(text);
+    endUndoAction();
+}
+
+// === 插入日期／時間（Edit ▸ Insert Date/Time）===
+void EditorWidget::insertDateShort()
+{
+    const QString text = QLocale::system().toString(QDateTime::currentDateTime(), QLocale::ShortFormat);
+    beginUndoAction();
+    replaceSelectedText(text);
+    endUndoAction();
+}
+
+void EditorWidget::insertDateLong()
+{
+    const QString text = QLocale::system().toString(QDateTime::currentDateTime(), QLocale::LongFormat);
+    beginUndoAction();
+    replaceSelectedText(text);
+    endUndoAction();
+}
+
+void EditorWidget::insertDateCustom(const QString &format)
+{
+    if (format.isEmpty())
+        return;
+    const QString text = QDateTime::currentDateTime().toString(format);
+    beginUndoAction();
+    replaceSelectedText(text);
+    endUndoAction();
 }
 
 }  // namespace macpad::core

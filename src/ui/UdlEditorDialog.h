@@ -16,6 +16,7 @@ class QCheckBox;
 class QPushButton;
 class QTabWidget;
 class QComboBox;
+class QSlider;
 
 namespace macpad::features { class UdlManager; }
 
@@ -33,6 +34,11 @@ private slots:
     void loadSelectedLanguage(int index);
     void renameLanguage();
     void removeLanguage();
+    // 匯入/匯出 Notepad++ userDefineLang.xml（UDLxml 擴充）
+    void importFromNppXml();
+    void exportToNppXml();
+    // Dock/Undock 切換：以視窗旗標在浮動對話框與停駐態之間切換（簡化版，WORK 2 擴充）
+    void toggleDocked();
 
 private:
     // 單一樣式的編輯列元件（③a UDL Styler）
@@ -62,6 +68,9 @@ private:
 
     macpad::features::UdlManager *m_manager;
     QComboBox *m_languagePicker = nullptr;  // 既有 UDL 選單，供載入編輯（WORK 2）
+    QPushButton *m_dockToggleBtn = nullptr;  // Dock/Undock 切換鈕（UDLxml 擴充）
+    bool m_docked = false;                   // 目前是否為「已停駐」視窗旗標狀態
+
     QLineEdit *m_name = nullptr;
     QLineEdit *m_extensions = nullptr;
     QVector<QPlainTextEdit *> m_keywordGroups;  // 8 組關鍵字欄位

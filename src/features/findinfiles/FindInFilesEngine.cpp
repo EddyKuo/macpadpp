@@ -196,6 +196,42 @@ FindInFilesEngine::ReplaceResult FindInFilesEngine::replaceInFiles(
     return result;
 }
 
+QVector<FindMatch> FindInFilesEngine::searchInFiles(const QStringList &filePaths,
+                                                    const FindInFilesOptions &opts,
+                                                    std::atomic<bool> *cancel)
+{
+    QVector<FindMatch> out;
+    bool ok = false;
+    const QRegularExpression re = buildRegex(opts, &ok);  // 全程只編譯一次（NFR-005）
+    if (!ok || opts.pattern.isEmpty())
+        return out;
+
+    for (const QString &path : filePaths) {
+        if (cancel && cancel->load())
+            break;
+        const QFileInfo fi(path);
+        if (!fi.isFile() || fi.size() > opts.maxFileBytes)
+            continue;
+        if (!opts.excludeFilters.isEmpty() &&
+            isExcluded(fi.fileName(), fi.fileName(), opts.excludeFilters))
+            continue;
+
+        QFile f(path);
+        if (!f.open(QIODevice::ReadOnly))
+            continue;
+        const QByteArray raw = f.readAll();
+        f.close();
+
+        // 略過二進位檔（含 NUL）
+        if (raw.contains('\0'))
+            continue;
+
+        const core::DetectResult det = core::FileEncoding::detect(raw.left(65536));
+        out += searchInTextWithRe(path, core::FileEncoding::decode(raw, det.encoding), re);
+    }
+    return out;
+}
+
 QVector<FindMatch> FindInFilesEngine::search(const QString &rootDir,
                                              const FindInFilesOptions &opts,
                                              std::atomic<bool> *cancel)

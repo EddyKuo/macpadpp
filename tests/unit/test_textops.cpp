@@ -204,6 +204,18 @@ private slots:
         QCOMPARE(T::toggleLineComment("foo\n\nbar", "//"),
                  QStringLiteral("// foo\n\n// bar"));
     }
+
+    // --- Trim Both and EOL to Space（組合操作）---
+    void trimBothAndEolToSpace()
+    {
+        QCOMPARE(T::trimBothAndEolToSpace("  foo  \n  bar  "),
+                 QStringLiteral("foo bar"));
+        QCOMPARE(T::trimBothAndEolToSpace("a\n\nb"),
+                 QStringLiteral("a  b"));
+        QCOMPARE(T::trimBothAndEolToSpace("   solo   "),
+                 QStringLiteral("solo"));
+        QCOMPARE(T::trimBothAndEolToSpace(QString()), QString());
+    }
 };
 
 QTEST_APPLESS_MAIN(TestTextOps)

@@ -3,6 +3,7 @@
 #include "features/udl/UdlDefinition.h"
 #include "features/udl/UdlLexer.h"
 #include "features/udl/UdlManager.h"
+#include "features/udl/UdlXmlIo.h"
 
 #include <QCheckBox>
 #include <QColorDialog>
@@ -20,6 +21,7 @@
 #include <QRegularExpression>
 #include <QScrollArea>
 #include <QSignalBlocker>
+#include <QSlider>
 #include <QTabWidget>
 #include <QVBoxLayout>
 #include <QWidget>
@@ -47,6 +49,22 @@ UdlEditorDialog::UdlEditorDialog(macpad::features::UdlManager *manager, QWidget 
     pickerRow->addWidget(renameBtn);
     pickerRow->addWidget(removeBtn);
     root->addLayout(pickerRow);
+
+    // --- Dock/Undock 切換 + 透明度（比照 Notepad++ UDL 對話框，UDLxml 擴充） ---
+    auto *toolRow = new QHBoxLayout();
+    m_dockToggleBtn = new QPushButton(tr("Dock"), this);
+    m_dockToggleBtn->setCheckable(true);
+    toolRow->addWidget(m_dockToggleBtn);
+    toolRow->addWidget(new QLabel(tr("Transparency:"), this));
+    auto *transparencySlider = new QSlider(Qt::Horizontal, this);
+    transparencySlider->setRange(20, 100);  // 20%~100% 不透明度，避免完全消失
+    transparencySlider->setValue(100);
+    toolRow->addWidget(transparencySlider, 1);
+    root->addLayout(toolRow);
+    connect(m_dockToggleBtn, &QPushButton::clicked, this, &UdlEditorDialog::toggleDocked);
+    connect(transparencySlider, &QSlider::valueChanged, this, [this](int value) {
+        setWindowOpacity(value / 100.0);
+    });
 
     auto *tabs = new QTabWidget(this);
 
@@ -125,10 +143,14 @@ UdlEditorDialog::UdlEditorDialog(macpad::features::UdlManager *manager, QWidget 
 
     auto *box = new QDialogButtonBox(QDialogButtonBox::Save | QDialogButtonBox::Cancel, this);
     auto *exportBtn = box->addButton(tr("Export…"), QDialogButtonBox::ActionRole);
+    auto *importXmlBtn = box->addButton(tr("Import from Notepad++ XML…"), QDialogButtonBox::ActionRole);
+    auto *exportXmlBtn = box->addButton(tr("Export to XML…"), QDialogButtonBox::ActionRole);
     root->addWidget(box);
     connect(box, &QDialogButtonBox::accepted, this, &UdlEditorDialog::saveDefinition);
     connect(box, &QDialogButtonBox::rejected, this, &QDialog::reject);
     connect(exportBtn, &QPushButton::clicked, this, &UdlEditorDialog::exportDefinition);
+    connect(importXmlBtn, &QPushButton::clicked, this, &UdlEditorDialog::importFromNppXml);
+    connect(exportXmlBtn, &QPushButton::clicked, this, &UdlEditorDialog::exportToNppXml);
 
     connect(m_languagePicker, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &UdlEditorDialog::loadSelectedLanguage);
@@ -426,6 +448,67 @@ void UdlEditorDialog::exportDefinition()
 
     if (!m_manager->exportToFile(def.name, path))
         QMessageBox::warning(this, tr("Define Your Language"), tr("無法匯出 UDL。"));
+}
+
+void UdlEditorDialog::importFromNppXml()
+{
+    const QString path = QFileDialog::getOpenFileName(
+        this, tr("Import Notepad++ User Defined Language"),
+        QString(), tr("Notepad++ UDL XML (*.xml)"));
+    if (path.isEmpty())
+        return;
+
+    const macpad::features::UdlDefinition def = macpad::features::UdlXmlIo::importFromXml(path);
+    if (!def.isValid()) {
+        QMessageBox::warning(this, tr("Define Your Language"),
+                              tr("無法解析此 Notepad++ UDL XML 檔案。"));
+        return;
+    }
+    loadDefinitionIntoUi(def);
+    if (m_manager && m_manager->save(def))
+        refreshLanguagePicker(def.name);
+}
+
+void UdlEditorDialog::exportToNppXml()
+{
+    const macpad::features::UdlDefinition def = collectDefinition();
+    if (def.name.isEmpty()) {
+        QMessageBox::warning(this, tr("Define Your Language"), tr("請輸入語言名稱。"));
+        return;
+    }
+    if (!m_manager || !m_manager->save(def)) {
+        QMessageBox::warning(this, tr("Define Your Language"), tr("無法儲存 UDL。"));
+        return;
+    }
+    refreshLanguagePicker(def.name);
+
+    const QString path = QFileDialog::getSaveFileName(
+        this, tr("Export to Notepad++ User Defined Language"),
+        def.name + QStringLiteral(".xml"), tr("Notepad++ UDL XML (*.xml)"));
+    if (path.isEmpty())
+        return;
+
+    if (!macpad::features::UdlXmlIo::exportToXml(def, path))
+        QMessageBox::warning(this, tr("Define Your Language"), tr("無法匯出至 Notepad++ XML。"));
+}
+
+void UdlEditorDialog::toggleDocked()
+{
+    // 簡化版 Dock/Undock：切換視窗旗標在「一般浮動對話框」與「Qt::SubWindow 類停駐外觀」
+    // 之間變化。真正嵌入 MainWindow 的 dock widget 容器由整合層（MainWindow）決定是否採用；
+    // 此處僅切換旗標與按鈕文字，讓對話框在有需要時可由呼叫端重新 parent 至 dock 容器。
+    m_docked = !m_docked;
+    const bool wasVisible = isVisible();
+    if (m_docked) {
+        setWindowFlags(windowFlags() | Qt::SubWindow);
+        m_dockToggleBtn->setText(tr("Undock"));
+    } else {
+        setWindowFlags((windowFlags() & ~Qt::SubWindow) | Qt::Dialog);
+        m_dockToggleBtn->setText(tr("Dock"));
+    }
+    if (wasVisible)
+        show();
+    m_dockToggleBtn->setChecked(m_docked);
 }
 
 }  // namespace macpad::ui

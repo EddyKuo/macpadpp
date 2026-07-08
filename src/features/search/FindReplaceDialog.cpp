@@ -1,17 +1,20 @@
 #include "features/search/FindReplaceDialog.h"
 
 #include "core/EditorWidget.h"
+#include "persistence/SettingsStore.h"
 
 #include <QCheckBox>
 #include <QGridLayout>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMessageBox>
 #include <QPushButton>
 #include <QRegularExpression>
 #include <QSettings>
 #include <QSlider>
 
 using macpad::core::EditorWidget;
+using macpad::persistence::SettingsStore;
 
 namespace {
 // QSettings 群組名稱，統一存放本對話框的搜尋選項勾選狀態
@@ -39,8 +42,17 @@ FindReplaceDialog::FindReplaceDialog(QWidget *parent)
     m_extended->setToolTip(tr("\\n \\r \\t \\0 \\b \\\\ \\xNN \\uXXXX \\u{XXXX} \\oNNN \\dNNN"));
     m_status = new QLabel(this);
 
+    // 碼點範圍尋找：輸入下限/上限（接受 0x 前綴 16 進位或十進位），尋找下一個落在範圍內的字元
+    m_cpLoEdit = new QLineEdit(this);
+    m_cpLoEdit->setPlaceholderText(tr("lo，如 0x4E00"));
+    m_cpHiEdit = new QLineEdit(this);
+    m_cpHiEdit->setPlaceholderText(tr("hi，如 0x9FFF"));
+    m_cpFindBtn = new QPushButton(tr("Find Codepoint"), this);
+
     // 還原上次使用的搜尋選項勾選狀態（在建立按鈕/連線之前，避免載入時觸發多餘的儲存）
     loadSearchOptions();
+    // 載入 Preferences（FR-053）：keepFindDialogOpen/confirmReplaceAll/findInSelectionThreshold
+    loadPreferences();
 
     m_opacitySlider = new QSlider(Qt::Horizontal, this);
     m_opacitySlider->setRange(30, 100);  // 對應 setWindowOpacity() 0.3..1.0
@@ -79,7 +91,11 @@ FindReplaceDialog::FindReplaceDialog(QWidget *parent)
     grid->addWidget(findVolPrevBtn, 4, 5);
     grid->addWidget(new QLabel(tr("Opacity:"), this), 5, 0);
     grid->addWidget(m_opacitySlider, 5, 1, 1, 3);
-    grid->addWidget(m_status, 6, 0, 1, 7);
+    grid->addWidget(new QLabel(tr("Codepoint range:"), this), 6, 0);
+    grid->addWidget(m_cpLoEdit, 6, 1);
+    grid->addWidget(m_cpHiEdit, 6, 2);
+    grid->addWidget(m_cpFindBtn, 6, 3);
+    grid->addWidget(m_status, 7, 0, 1, 7);
 
     connect(findBtn, &QPushButton::clicked, this, &FindReplaceDialog::findNext);
     connect(replaceBtn, &QPushButton::clicked, this, &FindReplaceDialog::replaceOne);
@@ -90,6 +106,7 @@ FindReplaceDialog::FindReplaceDialog(QWidget *parent)
     connect(findVolNextBtn, &QPushButton::clicked, this, &FindReplaceDialog::findNextVolatile);
     connect(findVolPrevBtn, &QPushButton::clicked, this, &FindReplaceDialog::findPreviousVolatile);
     connect(m_opacitySlider, &QSlider::valueChanged, this, &FindReplaceDialog::opacityChanged);
+    connect(m_cpFindBtn, &QPushButton::clicked, this, &FindReplaceDialog::findCodepointRange);
     connect(m_findEdit, &QLineEdit::returnPressed, this, &FindReplaceDialog::findNext);
     // 增量搜尋（FR-012）：輸入即時定位第一個匹配
     connect(m_findEdit, &QLineEdit::textChanged, this, &FindReplaceDialog::incrementalFind);
@@ -149,14 +166,40 @@ void FindReplaceDialog::setEditor(EditorWidget *editor)
     m_editor = editor;
 }
 
+void FindReplaceDialog::loadPreferences()
+{
+    const auto s = SettingsStore::load();
+    m_keepFindDialogOpen = s.keepFindDialogOpen;
+    m_confirmReplaceAll = s.confirmReplaceAll;
+    m_findInSelectionThreshold = s.findInSelectionThreshold;
+}
+
+void FindReplaceDialog::closeIfNotKeptOpen()
+{
+    if (!m_keepFindDialogOpen)
+        close();
+}
+
 void FindReplaceDialog::showFind(bool replaceMode)
 {
+    // 每次開啟時重新讀取 Preferences（可能在對話框關閉期間被使用者調整）
+    loadPreferences();
+
     m_replaceEdit->setVisible(true);  // v1 一律顯示取代列；replaceMode 決定焦點
     m_status->clear();
 
     // 以選取文字預填尋找欄（常見便利）
     if (m_editor && m_editor->hasSelectedText())
         m_findEdit->setText(m_editor->selectedText());
+
+    // findInSelectionThreshold（FR-053）：選取範圍跨越行數 >= 門檻時，預設勾選「In selection」
+    if (m_editor && m_findInSelectionThreshold > 0 && m_editor->hasSelectedText()) {
+        int lf = 0, if_ = 0, lt = 0, it = 0;
+        m_editor->getSelection(&lf, &if_, &lt, &it);
+        const int spanLines = lt - lf + 1;
+        if (spanLines >= m_findInSelectionThreshold)
+            m_inSelection->setChecked(true);
+    }
 
     show();
     raise();
@@ -217,10 +260,12 @@ void FindReplaceDialog::findNext()
 {
     if (!m_editor)
         return;
-    if (doFind(/*forward=*/true, /*fromStart=*/false))
+    if (doFind(/*forward=*/true, /*fromStart=*/false)) {
         m_status->clear();
-    else
+        closeIfNotKeptOpen();  // keepFindDialogOpen=false 時，尋找成功後自動關閉（FR-053）
+    } else {
         report(tr("找不到「%1」").arg(m_findEdit->text()));
+    }
 }
 
 void FindReplaceDialog::findNextVolatile()
@@ -249,6 +294,62 @@ void FindReplaceDialog::opacityChanged(int value)
     setWindowOpacity(static_cast<qreal>(value) / 100.0);
 }
 
+void FindReplaceDialog::findCodepointRange()
+{
+    if (!m_editor)
+        return;
+
+    // 接受 "0x" 前綴 16 進位或純十進位（QString::toUInt base=0 自動判斷）
+    bool okLo = false, okHi = false;
+    const uint lo = m_cpLoEdit->text().trimmed().toUInt(&okLo, 0);
+    const uint hi = m_cpHiEdit->text().trimmed().toUInt(&okHi, 0);
+    if (!okLo || !okHi || lo > hi) {
+        report(tr("碼點範圍無效（請輸入 lo <= hi，可用 0x 前綴）"));
+        return;
+    }
+
+    int curLine = 0, curIndex = 0;
+    m_editor->getCursorPosition(&curLine, &curIndex);
+    const int totalLines = m_editor->lines();
+    const bool wrap = m_wrap->isChecked();
+
+    // 由 [startLine,startIndex] 掃描至 endLineExclusive（不含）之前，找到第一個碼點落在 [lo,hi] 的字元；
+    // 找到即 setSelection 並回傳 true。處理代理對（surrogate pair）以支援 BMP 外碼點。
+    auto scanFrom = [&](int startLine, int startIndex, int endLineExclusive) -> bool {
+        for (int line = startLine; line < endLineExclusive; ++line) {
+            const QString lineText = m_editor->text(line);
+            int i = (line == startLine) ? startIndex : 0;
+            while (i < lineText.size()) {
+                const QChar c = lineText.at(i);
+                uint cp = c.unicode();
+                int len = 1;
+                if (c.isHighSurrogate() && i + 1 < lineText.size()
+                    && lineText.at(i + 1).isLowSurrogate()) {
+                    cp = QChar::surrogateToUcs4(c, lineText.at(i + 1));
+                    len = 2;
+                }
+                if (cp >= lo && cp <= hi) {
+                    m_editor->setSelection(line, i, line, i + len);
+                    m_editor->ensureLineVisible(line);
+                    return true;
+                }
+                i += len;
+            }
+        }
+        return false;
+    };
+
+    if (scanFrom(curLine, curIndex, totalLines)) {
+        report(tr("找到碼點範圍 [%1,%2] 內字元").arg(lo).arg(hi));
+        return;
+    }
+    if (wrap && scanFrom(0, 0, curLine + 1)) {
+        report(tr("找到碼點範圍 [%1,%2] 內字元（已環繞）").arg(lo).arg(hi));
+        return;
+    }
+    report(tr("找不到碼點範圍 [%1,%2] 內的字元").arg(lo).arg(hi));
+}
+
 void FindReplaceDialog::replaceOne()
 {
     if (!m_editor)
@@ -256,13 +357,24 @@ void FindReplaceDialog::replaceOne()
     // 僅在目前選取正是最近一次尋找命中的匹配時才取代，避免誤刪手動選取內容；再找下一個
     if (m_editor->hasSelectedText() && selectionIsRememberedMatch())
         m_editor->replace(effectiveReplaceText());
-    findNext();
+    findNext();  // findNext() 內已依 keepFindDialogOpen 決定是否關閉
 }
 
 void FindReplaceDialog::replaceAll()
 {
     if (!m_editor || m_findEdit->text().isEmpty())
         return;
+
+    // confirmReplaceAll（FR-053）：執行前提示確認，避免誤觸大範圍取代
+    if (m_confirmReplaceAll) {
+        const auto ret = QMessageBox::question(
+            this, tr("Replace All"),
+            tr("即將把所有符合「%1」的內容取代為「%2」，是否繼續？")
+                .arg(m_findEdit->text(), m_replaceEdit->text()),
+            QMessageBox::Yes | QMessageBox::No);
+        if (ret != QMessageBox::Yes)
+            return;
+    }
 
     const QString findText = effectiveFindText();
     const QString replaceText = effectiveReplaceText();
@@ -297,6 +409,7 @@ void FindReplaceDialog::replaceAll()
         if (count > 0)
             m_editor->replaceSelectedText(selText);
         report(tr("已取代 %1 處").arg(count));
+        closeIfNotKeptOpen();
         return;
     }
 
@@ -307,6 +420,7 @@ void FindReplaceDialog::replaceAll()
         m_dotMatchesNewline->isChecked());
 
     report(tr("已取代 %1 處").arg(count));
+    closeIfNotKeptOpen();
 }
 
 void FindReplaceDialog::markAll()

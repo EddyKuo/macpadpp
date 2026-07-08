@@ -6,6 +6,7 @@
 #include <QKeyEvent>
 #include <QLabel>
 #include <QTableWidget>
+#include <QTextCodec>
 #include <QVBoxLayout>
 #include <QWidget>
 
@@ -128,6 +129,44 @@ void CharacterPanel::setEncodingLabel(const QString &encoding)
 {
     if (m_encodingLabel)
         m_encodingLabel->setText(tr("Encoding: %1").arg(encoding));
+}
+
+void CharacterPanel::setUnicodeMode(bool unicode)
+{
+    if (m_unicodeMode == unicode)
+        return;
+    m_unicodeMode = unicode;
+    rebuildHighRangeColumn();
+}
+
+void CharacterPanel::setCodepage(const QString &codepageName)
+{
+    if (m_codepageName == codepageName)
+        return;
+    m_codepageName = codepageName;
+    if (m_unicodeMode)
+        rebuildHighRangeColumn();
+}
+
+void CharacterPanel::rebuildHighRangeColumn()
+{
+    if (!m_table)
+        return;
+    for (int i = 128; i < 256; ++i) {
+        QString glyph;
+        if (m_unicodeMode) {
+            // Unicode 文件：128..255 視為系統預設 codepage 的單一位元組，映射為該 codepage 實際字元
+            QTextCodec *codec = QTextCodec::codecForName(m_codepageName.toLatin1());
+            if (codec) {
+                const char byte = static_cast<char>(i);
+                glyph = codec->toUnicode(&byte, 1);
+            }
+        }
+        if (glyph.isEmpty())
+            glyph = QString(QChar(i));  // ANSI/Latin-1 模式，或 codepage 不存在時的安全回退
+        if (auto *item = m_table->item(i, ColCharacter))
+            item->setText(glyph);
+    }
 }
 
 void CharacterPanel::emitForCell(int row, int column)

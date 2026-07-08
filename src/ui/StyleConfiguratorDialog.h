@@ -16,6 +16,7 @@ class QCheckBox;
 class QLabel;
 class QPushButton;
 class QLineEdit;
+class QPlainTextEdit;
 class QsciLexer;
 
 namespace macpad::ui {
@@ -26,13 +27,20 @@ public:
     explicit StyleConfiguratorDialog(QWidget *parent = nullptr);
     ~StyleConfiguratorDialog() override;
 
+signals:
+    // 使用者於「Select theme」下拉選單選定主題並按下 Apply theme 按鈕時發出。
+    // 整合端（MainWindow）應呼叫 ThemeManager 套用該具名主題（見 ThemeStore::load()）。
+    void themeSelected(const QString &themeName);
+
 private slots:
+    void applyThemeClicked();
     void onLanguageChanged();
     void onStyleChanged();
     void pickForeground();
     void pickBackground();
     void onBoldItalicChanged();
     void onExtensionsEdited();
+    void onKeywordsEdited();
     void pickGlobalFg();
     void pickGlobalBg();
     void onGlobalOverrideToggled();
@@ -62,6 +70,12 @@ private:
     QCheckBox *m_underline = nullptr;
 
     QLineEdit *m_userExt = nullptr;  // 每語言「User ext.」自訂副檔名輸入框（Global Styles 模式下停用）
+    QPlainTextEdit *m_keywords = nullptr;  // 每 (語言, style) 使用者自訂關鍵字覆寫（空白分隔；Global Styles 模式下停用）
+
+    // Select theme：主題清單（ThemeStore::listThemes()）+ Apply theme 按鈕（複刻 Notepad++ Style
+    // Configurator 的主題選擇區）。實際套用主題由 MainWindow 監聽 themeSelected() 訊號完成。
+    QComboBox *m_themeCombo = nullptr;
+    QPushButton *m_applyThemeBtn = nullptr;
 
     // Global override（單一 fg/bg 套用到所有語言）
     QCheckBox *m_enableGlobalFg = nullptr;

@@ -8,6 +8,8 @@
 #include "app/MainWindow.h"
 #include "core/EditorWidget.h"
 #include "core/LexerFactory.h"
+
+#include <Qsci/qsciprinter.h>
 #include "features/cli/CliArgs.h"
 #include "persistence/AppPaths.h"
 #include "persistence/SettingsStore.h"
@@ -87,8 +89,13 @@ static void openParsedArgs(MainWindow &window, const macpad::features::ParsedArg
     // -uiLangCode（-L<code>）：介面語言於啟動前決定（見 main() 內 resolveLanguage）；此處不重載。
     // -alwaysOnTop / -title:/-titleAdd:：視窗層級選項（開檔後統一套用）
     window.applyCliWindowOptions(parsed.alwaysOnTop, parsed.titleAdd);
-    // -quickPrint：直印目前檔案後保留開啟。
-    // TODO(sprint5): 需接上預設印表機直印流程（QsciPrinter 免對話框列印），暫留待補。
+    // -quickPrint：以預設印表機直印目前檔案（免對話框），列印後保留開啟。
+    if (parsed.quickPrint) {
+        if (auto *e = window.activeEditor()) {
+            QsciPrinter printer;  // 預設印表機；保留語法高亮
+            printer.printRange(e);
+        }
+    }
 }
 
 int main(int argc, char *argv[])
@@ -117,9 +124,16 @@ int main(int argc, char *argv[])
     if (translator.load(QStringLiteral(":/i18n/macpad_%1.qm").arg(lang)))
         app.installTranslator(&translator);
 
-    // 單一/多執行個體（FR-034, FR-051 -multiInst：一律以 primary 執行，略過轉送）
+    // 單一/多執行個體（FR-034, FR-051）。
+    // 偏好 multiInstanceMode（MISC 頁）決定是否轉送給既有實例：
+    //   AlwaysMulti → 一律另開新實例（永不轉送）；
+    //   MonoInstance / MultiInstOnSession → 沿用 singleInstance 旗標，轉送給既有 primary。
+    // 命令列 -multiInst 仍強制以 primary 獨立執行（不轉送）。
+    using macpad::persistence::MultiInstanceMode;
+    const bool alwaysMulti = (settings.multiInstanceMode == MultiInstanceMode::AlwaysMulti);
+    const bool routeToExisting = settings.singleInstance && !alwaysMulti;
     macpad::platform::SingleInstance instance(QStringLiteral("macpad++.instance"));
-    if (settings.singleInstance && !parsed.multiInstance && !instance.isPrimary()) {
+    if (routeToExisting && !parsed.multiInstance && !instance.isPrimary()) {
         // 已有實例在跑：把原始參數轉交後結束
         instance.sendToPrimary(rawArgs);
         return 0;
