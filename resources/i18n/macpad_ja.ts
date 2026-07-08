@@ -3222,6 +3222,10 @@ Qt6 + QScintilla</translation>
         <translation>名前フィルター（例: *.cpp;*.h）、空にするとクリア:</translation>
     </message>
     <message>
+        <source>Show Hidden Files</source>
+        <translation>隠しファイルを表示</translation>
+    </message>
+    <message>
         <source>Remove Root</source>
         <translation>ルートを削除</translation>
     </message>

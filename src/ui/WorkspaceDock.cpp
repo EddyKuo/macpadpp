@@ -68,16 +68,18 @@ void WorkspaceDock::populateChildren(QTreeWidgetItem *item, const QString &dirPa
         delete item->takeChild(0);
 
     // 資料夾一律顯示；檔案名稱過濾器（m_nameFilters）僅套用於檔案。
+    // m_showHidden 開啟時連同隱藏（dot 開頭 / 具隱藏屬性）資料夾與檔案一併列出。
+    const QDir::Filters hiddenFlag = m_showHidden ? QDir::Hidden : QDir::Filters();
     QFileInfoList entries;
     {
         QDir dirs(dirPath);
-        dirs.setFilter(QDir::Dirs | QDir::NoDotAndDotDot);
+        dirs.setFilter(QDir::Dirs | QDir::NoDotAndDotDot | hiddenFlag);
         dirs.setSorting(QDir::Name | QDir::IgnoreCase);
         entries += dirs.entryInfoList();
     }
     {
         QDir files(dirPath);
-        files.setFilter(QDir::Files);
+        files.setFilter(QDir::Files | hiddenFlag);
         files.setSorting(QDir::Name | QDir::IgnoreCase);
         if (!m_nameFilters.isEmpty())
             files.setNameFilters(m_nameFilters);
@@ -145,6 +147,16 @@ void WorkspaceDock::showContextMenu(const QPoint &pos)
         for (const QString &part : text.split(QChar(';'), Qt::SkipEmptyParts))
             filters.append(part.trimmed());
         setNameFilters(filters);
+    });
+
+    QAction *showHiddenAction = menu.addAction(tr("Show Hidden Files"));
+    showHiddenAction->setCheckable(true);
+    showHiddenAction->setChecked(m_showHidden);
+    connect(showHiddenAction, &QAction::toggled, this, [this](bool on) {
+        if (m_showHidden == on)
+            return;
+        m_showHidden = on;
+        refreshAll();
     });
 
     if (item && !item->data(0, kPlaceholderRole).toBool()) {

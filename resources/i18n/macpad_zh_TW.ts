@@ -3218,6 +3218,10 @@ Qt6 + QScintilla</translation>
         <translation>名稱篩選（例如 *.cpp;*.h），留空以清除：</translation>
     </message>
     <message>
+        <source>Show Hidden Files</source>
+        <translation>顯示隱藏檔案</translation>
+    </message>
+    <message>
         <source>Remove Root</source>
         <translation>移除根目錄</translation>
     </message>

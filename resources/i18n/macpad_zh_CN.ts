@@ -3222,6 +3222,10 @@ Qt6 + QScintilla</translation>
         <translation>名称过滤器（例如 *.cpp;*.h），留空以清除：</translation>
     </message>
     <message>
+        <source>Show Hidden Files</source>
+        <translation>显示隐藏文件</translation>
+    </message>
+    <message>
         <source>Remove Root</source>
         <translation>移除根目录</translation>
     </message>

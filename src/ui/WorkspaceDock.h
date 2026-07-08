@@ -53,6 +53,7 @@ private:
     QTreeWidget *m_tree = nullptr;
     QVector<QString> m_roots;
     QStringList m_nameFilters;
+    bool m_showHidden = true;   // 資料夾檢視是否顯示隱藏資料夾/檔案（預設顯示）
 };
 
 }  // namespace macpad::ui

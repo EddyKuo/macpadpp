@@ -3182,6 +3182,10 @@ Qt6 + QScintilla</translation>
         <translation>Name filters (e.g. *.cpp;*.h), empty to clear:</translation>
     </message>
     <message>
+        <source>Show Hidden Files</source>
+        <translation>Show Hidden Files</translation>
+    </message>
+    <message>
         <source>Remove Root</source>
         <translation>Remove Root</translation>
     </message>
