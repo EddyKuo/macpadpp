@@ -186,3 +186,39 @@ else()
 endif()
 
 target_link_libraries(macpad++ PRIVATE macpad_lib)
+
+# --- Windows：build 後就地同梱 Qt/WebEngine/QScintilla 執行期檔案 ----------
+# 讓 build/src/macpad++.exe 可直接執行，免手動把 Qt bin 加進 PATH。
+# 以 windeployqt 複製所需 Qt DLL、platforms\qwindows.dll（必要）、WebEngine 執行元件等，
+# 再補上第三方的 qscintilla2_qt6.dll（windeployqt 不處理非 Qt 函式庫）。
+# 預設開啟；快速迭代可用 -DMACPAD_WINDEPLOY=OFF 關閉（首次部署 WebEngine 較耗時，
+# 之後 windeployqt 會略過已存在檔案）。
+option(MACPAD_WINDEPLOY "Windows：build 後以 windeployqt 就地同梱 Qt 執行期檔案" ON)
+if(WIN32 AND MACPAD_WINDEPLOY)
+    find_program(WINDEPLOYQT_EXE windeployqt HINTS "${_qt_prefix}/bin")
+    get_filename_component(_qsci_libdir "${QSCINTILLA_LIBRARY}" DIRECTORY)
+    find_file(QSCINTILLA_DLL_FILE
+        NAMES qscintilla2_qt6.dll
+        HINTS "${_qsci_libdir}" "${_qt_prefix}/bin" "${_qt_prefix}/lib")
+
+    if(WINDEPLOYQT_EXE)
+        add_custom_command(TARGET macpad++ POST_BUILD
+            COMMAND "${WINDEPLOYQT_EXE}" --no-translations
+                    "$<IF:$<CONFIG:Debug>,--debug,--release>"
+                    "$<TARGET_FILE:macpad++>"
+            COMMENT "windeployqt：就地同梱 Qt 執行期 DLL 至 build 輸出"
+            VERBATIM)
+    else()
+        message(WARNING "找不到 windeployqt，跳過就地同梱；執行 macpad++.exe 前需自行將 Qt bin 加入 PATH")
+    endif()
+
+    if(QSCINTILLA_DLL_FILE)
+        add_custom_command(TARGET macpad++ POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                    "${QSCINTILLA_DLL_FILE}" "$<TARGET_FILE_DIR:macpad++>"
+            COMMENT "複製 qscintilla2_qt6.dll 至 build 輸出"
+            VERBATIM)
+    else()
+        message(WARNING "找不到 qscintilla2_qt6.dll，執行時可能缺少此 DLL")
+    endif()
+endif()

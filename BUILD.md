@@ -94,10 +94,16 @@ qmake qscintilla.pro && nmake && nmake install
 cd <repo>
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="C:\Qt\6.8.1\msvc2022_64"
 cmake --build build -j
-:: 執行測試（qscintilla DLL 在 Qt 的 lib/；Qt DLL 在 bin/）
+:: 執行 App：build 後已由 windeployqt 就地同梱 Qt/WebEngine/QScintilla DLL，可直接執行
+build\src\macpad++.exe
+:: 執行測試（測試可執行檔未同梱，需臨時把 Qt bin/lib 加入 PATH）
 set PATH=C:\Qt\6.8.1\msvc2022_64\bin;C:\Qt\6.8.1\msvc2022_64\lib;%PATH%
 ctest --test-dir build --output-on-failure
 ```
+
+> **就地同梱**：Windows build 會在 `build\src\` 以 `windeployqt` 放入所有 Qt 執行期 DLL、
+> `platforms\qwindows.dll`、WebEngine 元件與 `qscintilla2_qt6.dll`，故 `macpad++.exe` 免設定
+> PATH 即可執行。首次部署 WebEngine 較耗時；快速迭代可用 `-DMACPAD_WINDEPLOY=OFF` 關閉。
 
 ### 6.4 打包（免安裝 zip）
 
