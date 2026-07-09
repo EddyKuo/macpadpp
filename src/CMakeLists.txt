@@ -72,6 +72,8 @@ set(MACPAD_LIB_SOURCES
     platform/ThemeManager.h
     platform/SingleInstance.cpp
     platform/SingleInstance.h
+    platform/DesktopIntegration.cpp
+    platform/DesktopIntegration.h
     ui/EditorPane.cpp
     ui/EditorPane.h
     ui/DocumentListDock.cpp
@@ -137,25 +139,50 @@ target_link_libraries(macpad_lib PUBLIC
     Qt6::Svg
     ${QSCINTILLA_LIBRARY})
 
+# Windows：QScintilla 以 DLL 形式提供，消費端須定義 QSCINTILLA_DLL，
+# 使其標頭的 QSCINTILLA_EXPORT 展開為 __declspec(dllimport)，否則
+# QsciScintilla::staticMetaObject 等資料符號無法從 DLL 匯入（LNK2001）。
+# PUBLIC：讓連結 macpad_lib 且直接 include Qsci 標頭的 app/tests 也一併取得。
+if(WIN32)
+    target_compile_definitions(macpad_lib PUBLIC QSCINTILLA_DLL)
+endif()
+
 if(STRICT_WARNINGS)
-    target_compile_options(macpad_lib PRIVATE -Wall -Wextra -Werror)
+    if(MSVC)
+        # /W4：高警告等級；/WX：警告視為錯誤；/permissive-：嚴格標準符合
+        # /wd4458：停用「區域變數遮蔽繼承而來的基底類別成員」警告。此警告僅針對
+        #   Qt/QScintilla 基底類別的成員（本專案標頭未宣告 lex/data 等成員），
+        #   Clang 的 -Wall -Wextra 亦不回報，停用以維持雙平台一致（macOS 亦為 -Werror）。
+        target_compile_options(macpad_lib PRIVATE /W4 /WX /permissive- /wd4458)
+    else()
+        target_compile_options(macpad_lib PRIVATE -Wall -Wextra -Werror)
+    endif()
 endif()
 
 # --- 可執行檔（薄殼，只含 main）------------------------------------------
-# App icon：把 .icns 放進 bundle 的 Resources/，並在 Info.plist 指定 CFBundleIconFile
-set(MACPAD_ICNS "${CMAKE_SOURCE_DIR}/resources/icon/macpad.icns")
-
-add_executable(macpad++ MACOSX_BUNDLE app/main.cpp ${MACPAD_ICNS})
-
-# 讓 .icns 在建置時被複製到 macpad++.app/Contents/Resources/
-set_source_files_properties(${MACPAD_ICNS} PROPERTIES
-    MACOSX_PACKAGE_LOCATION "Resources")
+if(APPLE)
+    # App icon：把 .icns 放進 bundle 的 Resources/，並在 Info.plist 指定 CFBundleIconFile
+    set(MACPAD_ICNS "${CMAKE_SOURCE_DIR}/resources/icon/macpad.icns")
+    add_executable(macpad++ MACOSX_BUNDLE app/main.cpp ${MACPAD_ICNS})
+    # 讓 .icns 在建置時被複製到 macpad++.app/Contents/Resources/
+    set_source_files_properties(${MACPAD_ICNS} PROPERTIES
+        MACOSX_PACKAGE_LOCATION "Resources")
+    set_target_properties(macpad++ PROPERTIES
+        MACOSX_BUNDLE_BUNDLE_NAME "macpad++"
+        MACOSX_BUNDLE_GUI_IDENTIFIER "dev.macpadpp.editor"
+        MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
+        MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
+        MACOSX_BUNDLE_ICON_FILE "macpad.icns")
+elseif(WIN32)
+    # WIN32：GUI 子系統（啟動不彈 console 視窗）；.rc 嵌入應用程式圖示。
+    set(MACPAD_RC "${CMAKE_SOURCE_DIR}/resources/icon/macpad.rc")
+    if(EXISTS "${MACPAD_RC}")
+        add_executable(macpad++ WIN32 app/main.cpp ${MACPAD_RC})
+    else()
+        add_executable(macpad++ WIN32 app/main.cpp)
+    endif()
+else()
+    add_executable(macpad++ app/main.cpp)
+endif()
 
 target_link_libraries(macpad++ PRIVATE macpad_lib)
-
-set_target_properties(macpad++ PROPERTIES
-    MACOSX_BUNDLE_BUNDLE_NAME "macpad++"
-    MACOSX_BUNDLE_GUI_IDENTIFIER "dev.macpadpp.editor"
-    MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
-    MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
-    MACOSX_BUNDLE_ICON_FILE "macpad.icns")
