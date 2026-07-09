@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.21)
 
 project(macpadpp
-    VERSION 0.3.0
+    VERSION 0.3.1
     DESCRIPTION "Notepad++-equivalent native macOS editor (Qt6 + QScintilla)"
     LANGUAGES CXX)
 
