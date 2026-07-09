@@ -11,6 +11,7 @@
 #include <QLineEdit>
 #include <QListWidget>
 #include <QMap>
+#include <QMenu>
 #include <QTreeWidget>
 #include <QVBoxLayout>
 #include <QWidget>
@@ -54,6 +55,42 @@ FunctionListDock::FunctionListDock(QWidget *parent)
         const int line = it->data(0, Qt::UserRole).toInt();
         if (line >= 1)
             emit symbolActivated(line);
+    });
+
+    // 右鍵選單（複刻 Notepad++ Function List 右鍵）：跳轉 / 複製名稱 / 展開收合 / 排序
+    m_tree->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(m_tree, &QTreeWidget::customContextMenuRequested, this, [this](const QPoint &pos) {
+        QTreeWidgetItem *it = m_tree->itemAt(pos);
+        QMenu menu;
+        if (it) {
+            const int line = it->data(0, Qt::UserRole).toInt();
+            QAction *go = menu.addAction(tr("Go to Definition"));
+            go->setEnabled(line >= 1);
+            connect(go, &QAction::triggered, this, [this, line] {
+                if (line >= 1)
+                    emit symbolActivated(line);
+            });
+            menu.addAction(tr("Copy Name"), this, [it] {
+                // 去掉尾端「  (行號)」只留符號名稱
+                QString name = it->text(0);
+                const int paren = name.lastIndexOf(QStringLiteral("  ("));
+                if (paren > 0)
+                    name = name.left(paren);
+                QApplication::clipboard()->setText(name);
+            });
+            menu.addSeparator();
+        }
+        menu.addAction(tr("Expand All"), this, [this] { m_tree->expandAll(); });
+        menu.addAction(tr("Collapse All"), this, [this] { m_tree->collapseAll(); });
+        menu.addSeparator();
+        QAction *sortAct = menu.addAction(tr("Sort A-Z"));
+        sortAct->setCheckable(true);
+        sortAct->setChecked(m_sortCheck && m_sortCheck->isChecked());
+        connect(sortAct, &QAction::toggled, this, [this](bool on) {
+            if (m_sortCheck)
+                m_sortCheck->setChecked(on);   // 觸發既有 rebuildTree
+        });
+        menu.exec(m_tree->viewport()->mapToGlobal(pos));
     });
 }
 

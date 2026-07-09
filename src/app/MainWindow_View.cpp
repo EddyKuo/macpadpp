@@ -224,7 +224,42 @@ void MainWindow::wireTabWidget(QTabWidget *w)
         if (idx < 0) return;
         setActiveTabWidget(w);      // 右鍵操作前先讓該檢視成為作用中
         w->setCurrentIndex(idx);
+        EditorWidget *e = editorIn(w, idx);
+        const bool hasFile = e && !e->isUntitled();
         QMenu menu;
+
+        // --- 檔案操作（複刻 Notepad++ 分頁右鍵）---
+        menu.addAction(tr("Close"), this, [this, w, idx] { closeTabIn(w, idx); });
+        menu.addAction(tr("Close All but This"), this, [this] { closeAllButCurrent(); });
+        menu.addAction(tr("Close All to the Left"), this,
+                       [this, w, idx] { closeTabsToOneSide(w, idx, /*toLeft=*/true); });
+        menu.addAction(tr("Close All to the Right"), this,
+                       [this, w, idx] { closeTabsToOneSide(w, idx, /*toLeft=*/false); });
+        menu.addSeparator();
+        menu.addAction(tr("Save"), this, [this] { saveCurrent(); });
+        menu.addAction(tr("Save As…"), this, [this] { saveCurrentAs(); });
+        menu.addAction(tr("Rename…"), this, [this] { renameCurrentFile(); });
+        menu.addAction(tr("Reload from Disk"), this, [this] { reloadFromDisk(); })
+            ->setEnabled(hasFile);
+        menu.addAction(tr("Move to Recycle Bin"), this, [this] { moveCurrentToTrash(); })
+            ->setEnabled(hasFile);
+        menu.addSeparator();
+        menu.addAction(tr("Open Containing Folder"), this, [this] { revealInFinder(); })
+            ->setEnabled(hasFile);
+        menu.addAction(tr("Open in Default Application"), this, [this] { openInDefaultApp(); })
+            ->setEnabled(hasFile);
+        menu.addAction(tr("Copy Full File Path"), this, [e] {
+            if (e) QApplication::clipboard()->setText(e->filePath());
+        })->setEnabled(hasFile);
+        menu.addAction(tr("Copy File Name"), this, [e] {
+            if (e) QApplication::clipboard()->setText(QFileInfo(e->filePath()).fileName());
+        })->setEnabled(hasFile);
+        menu.addAction(tr("Copy Directory Path"), this, [e] {
+            if (e) QApplication::clipboard()->setText(QFileInfo(e->filePath()).absolutePath());
+        })->setEnabled(hasFile);
+        menu.addSeparator();
+
+        // --- 外觀/鎖定 ---
         menu.addAction(tr("Set Tab Color…"), this, [this, w, idx] {
             const QColor c = QColorDialog::getColor(Qt::white, this, tr("Tab Color"));
             if (c.isValid())
@@ -233,7 +268,7 @@ void MainWindow::wireTabWidget(QTabWidget *w)
         menu.addAction(tr("Clear Tab Color"), this, [w, idx] {
             w->tabBar()->setTabTextColor(idx, QColor());
         });
-        if (EditorWidget *e = editorIn(w, idx)) {
+        if (e) {
             QAction *lock = menu.addAction(tr("Read-Only"));
             lock->setCheckable(true);
             lock->setChecked(e->isReadOnly());
@@ -286,6 +321,9 @@ void MainWindow::wireEditorSignals(EditorWidget *editor)
                 editor->applyApiCompletions(macpad::features::ApiDatabase::entriesFor(langKey));
         }
     });
+    // 編輯區右鍵選單（複刻 Notepad++）：EditorWidget 已停用 Scintilla 內建 popup 並轉發此訊號
+    connect(editor, &EditorWidget::contextMenuRequested,
+            this, &MainWindow::showEditorContextMenu);
     connect(editor, &QsciScintilla::cursorPositionChanged, this,
             [this](int, int) { updateStatusBar(); updateDocMapRange(); });
     // 捲動時更新 Document Map 的可視範圍色帶（FR-029）
@@ -307,6 +345,193 @@ void MainWindow::wireEditorSignals(EditorWidget *editor)
             }
         }
     });
+}
+
+
+// 關閉樞紐分頁某一側的所有分頁（分頁右鍵 Close All to the Left/Right）。
+// 逐一關閉並偵測使用者取消存檔（count 不變即中止），避免索引錯位。
+void MainWindow::closeTabsToOneSide(QTabWidget *w, int pivot, bool toLeft)
+{
+    if (!w)
+        return;
+    if (toLeft) {
+        // 反覆關閉最左（index 0）pivot 次；每關一次樞紐左移一格
+        for (int n = 0; n < pivot; ++n) {
+            const int before = w->count();
+            closeTabIn(w, 0);
+            if (w->count() == before)   // 使用者於存檔提示取消
+                return;
+        }
+    } else {
+        // 反覆關閉樞紐右側第一個（pivot+1）直到沒有右側分頁
+        while (w->count() > pivot + 1) {
+            const int before = w->count();
+            closeTabIn(w, pivot + 1);
+            if (w->count() == before)
+                return;
+        }
+    }
+}
+
+
+// 編輯區右鍵選單（複刻 Notepad++ 編輯區 contextMenu.xml）。
+// EditorWidget 已停用 Scintilla 內建 popup 並轉發 contextMenuRequested；sender() 即被右鍵的編輯器。
+// 先把它設為作用中分頁，使以 currentEditor()/currentTabWidget() 運作的既有 slot（開檔/改名/關閉…）
+// 作用於正確文件；純編輯器操作則直接綁定該編輯器指標，Dual-View/clone 情境皆正確。
+void MainWindow::showEditorContextMenu(const QPoint &globalPos)
+{
+    EditorWidget *ed = qobject_cast<EditorWidget *>(sender());
+    if (!ed)
+        ed = currentEditor();
+    if (!ed)
+        return;
+
+    // 讓被右鍵的編輯器成為作用中分頁
+    for (QTabWidget *w : {m_tabs, m_tabs2}) {
+        if (!w)
+            continue;
+        for (int i = 0; i < w->count(); ++i) {
+            if (editorIn(w, i) == ed) {
+                setActiveTabWidget(w);
+                w->setCurrentIndex(i);
+            }
+        }
+    }
+
+    QMenu *menu = buildEditorContextMenu(ed, this);
+    menu->setAttribute(Qt::WA_DeleteOnClose);
+    menu->exec(globalPos);
+}
+
+
+// 建構編輯區右鍵選單本體（複刻 Notepad++ contextMenu.xml）。各項作用於 ed 本身，
+// enable 狀態依 ed 當下狀態決定，故可於單元測試中直接斷言項目與啟用狀態。
+QMenu *MainWindow::buildEditorContextMenu(EditorWidget *ed, QWidget *parent)
+{
+    const bool hasSel = ed->hasSelectedText();
+    const bool hasFile = !ed->isUntitled();
+    const bool ro = ed->isReadOnly();
+
+    auto *menu = new QMenu(parent);
+
+    // --- 復原 / 重做 ---
+    menu->addAction(tr("Undo"), this, [ed] { ed->undo(); })->setEnabled(ed->isUndoAvailable());
+    menu->addAction(tr("Redo"), this, [ed] { ed->redo(); })->setEnabled(ed->isRedoAvailable());
+    menu->addSeparator();
+
+    // --- 剪貼簿基本操作 ---
+    menu->addAction(tr("Cut"), this, [ed] { ed->cut(); })->setEnabled(hasSel && !ro);
+    menu->addAction(tr("Copy"), this, [ed] { ed->copy(); })->setEnabled(hasSel);
+    menu->addAction(tr("Paste"), this, [ed] { ed->paste(); })->setEnabled(!ro);
+    menu->addAction(tr("Delete"), this, [ed] { ed->removeSelectedText(); })
+        ->setEnabled(hasSel && !ro);
+    menu->addAction(tr("Select All"), this, [ed] { ed->selectAll(); });
+    menu->addSeparator();
+
+    // --- 兩段式選取 ---
+    QMenu *selMenu = menu->addMenu(tr("Selection"));
+    selMenu->addAction(tr("Begin Select"), this, [ed] { ed->beginSelect(); });
+    selMenu->addAction(tr("End Select"), this, [ed] { ed->endSelect(); });
+    selMenu->addAction(tr("Begin Column Select"), this, [ed] { ed->beginColumnSelect(); });
+    selMenu->addAction(tr("End Column Select"), this, [ed] { ed->endColumnSelect(); });
+
+    // --- 複製路徑到剪貼簿 ---
+    QMenu *copyMenu = menu->addMenu(tr("Copy to Clipboard"));
+    copyMenu->setEnabled(hasFile);
+    copyMenu->addAction(tr("Copy Full File Path"), this,
+                        [ed] { QApplication::clipboard()->setText(ed->filePath()); });
+    copyMenu->addAction(tr("Copy File Name"), this, [ed] {
+        QApplication::clipboard()->setText(QFileInfo(ed->filePath()).fileName());
+    });
+    copyMenu->addAction(tr("Copy Directory Path"), this, [ed] {
+        QApplication::clipboard()->setText(QFileInfo(ed->filePath()).absolutePath());
+    });
+
+    // --- 貼上特殊（去格式）---
+    QMenu *pasteMenu = menu->addMenu(tr("Paste Special"));
+    pasteMenu->setEnabled(!ro);
+    pasteMenu->addAction(tr("Paste as Plain Text"), this, [ed] {
+        if (ed->isReadOnly())
+            return;
+        const QString text = QApplication::clipboard()->text();
+        if (!text.isEmpty())
+            ed->insert(text);
+    });
+    pasteMenu->addAction(tr("Paste HTML Content"), this,
+                         [ed] { if (!ed->isReadOnly()) ed->pasteAsHtml(); });
+    pasteMenu->addAction(tr("Paste RTF Content"), this,
+                         [ed] { if (!ed->isReadOnly()) ed->pasteAsRtf(); });
+    menu->addSeparator();
+
+    // --- 詞彙上色（5 色 Style Token）---
+    QMenu *tokenMenu = menu->addMenu(tr("Style Token"));
+    for (int c = 0; c < 5; ++c)
+        tokenMenu->addAction(tr("Style Token Color %1").arg(c + 1), this,
+                             [ed, c] { ed->styleTokenOccurrences(c); });
+    tokenMenu->addSeparator();
+    tokenMenu->addAction(tr("Clear Styled Tokens"), this, [ed] { ed->clearStyledTokens(); });
+
+    // --- 書籤 ---
+    menu->addAction(tr("Toggle Bookmark"), this, [ed] { ed->toggleBookmark(); });
+    menu->addSeparator();
+
+    // --- 針對選取內容 ---
+    QMenu *onSelMenu = menu->addMenu(tr("On Selection"));
+    onSelMenu->setEnabled(hasSel);
+    onSelMenu->addAction(tr("Open Selected File"), this, [this, ed] {
+        const QString sel = ed->selectedText().trimmed();
+        if (sel.isEmpty())
+            return;
+        QString path = sel;
+        if (QFileInfo(path).isRelative() && !ed->isUntitled())
+            path = QFileInfo(QDir(QFileInfo(ed->filePath()).absolutePath()), path).absoluteFilePath();
+        if (QFileInfo::exists(path))
+            openFile(path);
+        else
+            QDesktopServices::openUrl(QUrl::fromUserInput(sel));
+    });
+    onSelMenu->addAction(tr("Search on Internet"), this, [ed] {
+        const QString sel = ed->selectedText().trimmed();
+        if (sel.isEmpty())
+            return;
+        QString tmpl = macpad::persistence::SettingsStore::load().searchEngineUrl;
+        if (tmpl.isEmpty())
+            tmpl = QStringLiteral("https://www.google.com/search?q=%1");
+        const QString encoded = QString::fromUtf8(QUrl::toPercentEncoding(sel));
+        const QString url = tmpl.contains(QStringLiteral("%1")) ? tmpl.arg(encoded) : tmpl + encoded;
+        QDesktopServices::openUrl(QUrl(url));
+    });
+    menu->addSeparator();
+
+    // --- 檔案 / 分頁操作（作用於作用中分頁，即上面設定的被右鍵編輯器）---
+    menu->addAction(tr("Open in Default Application"), this, [this] { openInDefaultApp(); })
+        ->setEnabled(hasFile);
+    menu->addAction(tr("Open Containing Folder"), this, [this] { revealInFinder(); })
+        ->setEnabled(hasFile);
+    menu->addSeparator();
+    menu->addAction(tr("Reload from Disk"), this, [this] { reloadFromDisk(); })
+        ->setEnabled(hasFile);
+    menu->addAction(tr("Rename…"), this, [this] { renameCurrentFile(); });
+    menu->addAction(tr("Move to Recycle Bin"), this, [this] { moveCurrentToTrash(); })
+        ->setEnabled(hasFile);
+    menu->addSeparator();
+
+    // --- 唯讀切換 ---
+    QAction *roAct = menu->addAction(tr("Read-Only"));
+    roAct->setCheckable(true);
+    roAct->setChecked(ro);
+    connect(roAct, &QAction::toggled, this, [this, ed](bool on) {
+        ed->setReadOnly(on);
+        statusBar()->showMessage(on ? tr("唯讀已開啟") : tr("唯讀已關閉"), 2000);
+    });
+    menu->addSeparator();
+    menu->addAction(tr("Close"), this, [this] {
+        QTabWidget *w = currentTabWidget();
+        if (w->count() > 0)
+            closeTab(w->currentIndex());
+    });
+
+    return menu;
 }
 
 

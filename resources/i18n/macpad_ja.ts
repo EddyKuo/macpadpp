@@ -23,6 +23,30 @@
 <context>
     <name>MainWindow</name>
     <message>
+        <source>Close</source>
+        <translation>閉じる</translation>
+    </message>
+    <message>
+        <source>Close All to the Left</source>
+        <translation>左側をすべて閉じる</translation>
+    </message>
+    <message>
+        <source>Close All to the Right</source>
+        <translation>右側をすべて閉じる</translation>
+    </message>
+    <message>
+        <source>Copy Full File Path</source>
+        <translation>フルパスをコピー</translation>
+    </message>
+    <message>
+        <source>Copy File Name</source>
+        <translation>ファイル名をコピー</translation>
+    </message>
+    <message>
+        <source>Copy Directory Path</source>
+        <translation>ディレクトリパスをコピー</translation>
+    </message>
+    <message>
         <source>Set Tab Color…</source>
         <translation>タブの色を設定…</translation>
     </message>
@@ -33,6 +57,14 @@
     <message>
         <source>Clear Tab Color</source>
         <translation>タブの色をクリア</translation>
+    </message>
+    <message>
+        <source>唯讀已開啟</source>
+        <translation>読み取り専用: オン</translation>
+    </message>
+    <message>
+        <source>唯讀已關閉</source>
+        <translation>読み取り専用: オフ</translation>
     </message>
     <message>
         <source>Read-Only</source>
@@ -1726,7 +1758,7 @@ Qt6 + QScintilla</translation>
         <translation>選択範囲内</translation>
     </message>
     <message>
-        <source>'.' matches newline</source>
+        <source>&apos;.&apos; matches newline</source>
         <translation>「.」が改行にマッチする</translation>
     </message>
     <message>
@@ -2026,6 +2058,22 @@ Qt6 + QScintilla</translation>
         <source>Sort A-Z</source>
         <translation>A-Z で並べ替え</translation>
     </message>
+    <message>
+        <source>Go to Definition</source>
+        <translation>定義へ移動</translation>
+    </message>
+    <message>
+        <source>Copy Name</source>
+        <translation>名前をコピー</translation>
+    </message>
+    <message>
+        <source>Expand All</source>
+        <translation>すべて展開</translation>
+    </message>
+    <message>
+        <source>Collapse All</source>
+        <translation>すべて折りたたむ</translation>
+    </message>
 </context>
 <context>
     <name>macpad::ui::MacroManagerDialog</name>
@@ -2074,7 +2122,7 @@ Qt6 + QScintilla</translation>
         <translation>新しい名前:</translation>
     </message>
     <message>
-        <source>A macro named "%1" already exists.</source>
+        <source>A macro named &quot;%1&quot; already exists.</source>
         <translation>「%1」という名前のマクロは既に存在します。</translation>
     </message>
     <message>
@@ -2082,7 +2130,7 @@ Qt6 + QScintilla</translation>
         <translation>マクロを削除</translation>
     </message>
     <message>
-        <source>Delete macro "%1"? This cannot be undone.</source>
+        <source>Delete macro &quot;%1&quot;? This cannot be undone.</source>
         <translation>マクロ「%1」を削除しますか？この操作は元に戻せません。</translation>
     </message>
 </context>
@@ -2711,7 +2759,7 @@ Qt6 + QScintilla</translation>
         <translation>ショートカットの競合</translation>
     </message>
     <message>
-        <source>"%1" is already assigned to "%2". Assign it here anyway?</source>
+        <source>&quot;%1&quot; is already assigned to &quot;%2&quot;. Assign it here anyway?</source>
         <translation>「%1」はすでに「%2」に割り当てられています。ここに割り当て直しますか？</translation>
     </message>
 </context>
@@ -3067,8 +3115,8 @@ Qt6 + QScintilla</translation>
         <translation>演算子:</translation>
     </message>
     <message>
-        <source>每行一組，格式：開始|跳脫|結束，如："|\|"</source>
-        <translation>1行に1組、形式：開始|エスケープ|終了、例："|\|"</translation>
+        <source>每行一組，格式：開始|跳脫|結束，如：&quot;|\|&quot;</source>
+        <translation>1行に1組、形式：開始|エスケープ|終了、例：&quot;|\|&quot;</translation>
     </message>
     <message>
         <source>Delimiters:</source>
@@ -3282,7 +3330,7 @@ Qt6 + QScintilla</translation>
         <translation>削除</translation>
     </message>
     <message>
-        <source>Move "%1" to Trash?</source>
+        <source>Move &quot;%1&quot; to Trash?</source>
         <translation>「%1」をゴミ箱に移動しますか?</translation>
     </message>
     <message>

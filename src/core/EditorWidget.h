@@ -292,11 +292,16 @@ signals:
     void metaChanged();     // 編碼/EOL 變更（狀態列更新）
     void lexerChanged();    // lexer 重建（供 MainWindow 重新套主題/降飽和）
     void callTipRequested(const QString &functionName);  // 鍵入 '(' 時發出，供上層查簽名
+    // 右鍵選單請求（複刻 Notepad++ 編輯區右鍵選單）：停用 Scintilla 內建 popup 後，
+    // 由 EditorWidget 攔截 contextMenuEvent 並轉發全域座標，交由 MainWindow 建構完整選單。
+    void contextMenuRequested(const QPoint &globalPos);
 
 protected:
     void keyPressEvent(QKeyEvent *event) override;
     // 攔截 viewport 的雙擊事件以支援 Ctrl/⌘+雙擊選整個字（見 m_ctrlDoubleClickWholeWord）。
     bool eventFilter(QObject *watched, QEvent *event) override;
+    // 右鍵：停用 Scintilla 內建 popup（見建構子 SCI_USEPOPUP），改發 contextMenuRequested。
+    void contextMenuEvent(QContextMenuEvent *event) override;
 
 private slots:
     void onMarginClicked(int margin, int line, Qt::KeyboardModifiers state);

@@ -5,6 +5,7 @@
 
 #include <QClipboard>
 #include <QColor>
+#include <QContextMenuEvent>
 #include <QDateTime>
 #include <QEvent>
 #include <QFile>
@@ -152,6 +153,10 @@ EditorWidget::EditorWidget(QWidget *parent)
 
     // 攔截 viewport 雙擊事件：支援 Ctrl/⌘+雙擊選整個字（ctrlDoubleClickWholeWord）
     viewport()->installEventFilter(this);
+
+    // 停用 Scintilla 內建右鍵 popup（SCI_USEPOPUP, SC_POPUP_NEVER=0），
+    // 改由 contextMenuEvent 轉發給 MainWindow 建構完整的 Notepad++ 風格右鍵選單。
+    SendScintilla(SCI_USEPOPUP, 0UL);
 }
 
 EditorWidget::~EditorWidget()
@@ -951,6 +956,14 @@ QChar EditorWidget::closerFor(QChar opener)
     case '\'': return QChar(u'\'');
     default:  return QChar();
     }
+}
+
+void EditorWidget::contextMenuEvent(QContextMenuEvent *event)
+{
+    // 停用 Scintilla 內建 popup（見建構子 SCI_USEPOPUP）後，右鍵改由此攔截並轉發
+    // 全域座標給上層（MainWindow）建構完整的 Notepad++ 風格右鍵選單（複刻 contextMenu.xml）。
+    event->accept();
+    emit contextMenuRequested(event->globalPos());
 }
 
 void EditorWidget::keyPressEvent(QKeyEvent *event)

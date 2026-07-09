@@ -41,6 +41,8 @@ namespace macpad::persistence { struct SessionState; struct Settings; }
 
 class MainWindow : public QMainWindow, public macpad::extension::IHostServices {
     Q_OBJECT
+    // 單元測試存取私有成員（分頁容器、右鍵選單建構、關閉側邊分頁等）——Qt 慣用測試模式
+    friend class TestContextMenu;
 public:
     // restoreSessionOnLaunch=false 供命令列 -nosession（FR-051）略過本次啟動的 session 還原
     explicit MainWindow(QWidget *parent = nullptr, bool restoreSessionOnLaunch = true);
@@ -124,6 +126,14 @@ private slots:
     void setPostIt(bool on);
     void showIncrementalSearch();
     void viewCurrentFileInBrowser(const QString &appName);
+    // 編輯區右鍵選單（複刻 Notepad++ 編輯區右鍵）：由 EditorWidget::contextMenuRequested 觸發，
+    // sender() 即被右鍵的編輯器；先將其設為作用中分頁再建構選單，使選單各項作用於正確文件。
+    void showEditorContextMenu(const QPoint &globalPos);
+    // 建構編輯區右鍵選單（複刻 Notepad++ contextMenu.xml），各項作用於 ed 本身；
+    // 回傳的 QMenu 以 parent 為擁有者（傳 nullptr 時由呼叫端負責釋放）。抽出以利單元測試斷言。
+    QMenu *buildEditorContextMenu(macpad::core::EditorWidget *ed, QWidget *parent);
+    // 分頁右鍵的檔案操作輔助（Close to Left/Right 需指定檢視與基準索引）
+    void closeTabsToOneSide(QTabWidget *w, int pivot, bool toLeft);
 
 private:
     void createMenus();

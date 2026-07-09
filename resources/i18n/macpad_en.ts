@@ -12,7 +12,7 @@
     <name>MainWindow</name>
     <message>
         <source>Session「%1」已儲存</source>
-        <translation>Session "%1" saved</translation>
+        <translation>Session &quot;%1&quot; saved</translation>
     </message>
     <message>
         <source>尚無已儲存的 session</source>
@@ -788,7 +788,7 @@
     </message>
     <message>
         <source>要把「%1」移到垃圾桶嗎？</source>
-        <translation>Move "%1" to the trash?</translation>
+        <translation>Move &quot;%1&quot; to the trash?</translation>
     </message>
     <message>
         <source>無法移到垃圾桶。</source>
@@ -815,12 +815,44 @@
         <translation>Set Tab Color…</translation>
     </message>
     <message>
+        <source>Close</source>
+        <translation>Close</translation>
+    </message>
+    <message>
+        <source>Close All to the Left</source>
+        <translation>Close All to the Left</translation>
+    </message>
+    <message>
+        <source>Close All to the Right</source>
+        <translation>Close All to the Right</translation>
+    </message>
+    <message>
+        <source>Copy Full File Path</source>
+        <translation>Copy Full File Path</translation>
+    </message>
+    <message>
+        <source>Copy File Name</source>
+        <translation>Copy File Name</translation>
+    </message>
+    <message>
+        <source>Copy Directory Path</source>
+        <translation>Copy Directory Path</translation>
+    </message>
+    <message>
         <source>Tab Color</source>
         <translation>Tab Color</translation>
     </message>
     <message>
         <source>Clear Tab Color</source>
         <translation>Clear Tab Color</translation>
+    </message>
+    <message>
+        <source>唯讀已開啟</source>
+        <translation>Read-only enabled</translation>
+    </message>
+    <message>
+        <source>唯讀已關閉</source>
+        <translation>Read-only disabled</translation>
     </message>
     <message>
         <source>Open File</source>
@@ -864,7 +896,7 @@
     </message>
     <message>
         <source>「%1」有未儲存的變更，是否儲存？</source>
-        <translation>"%1" has unsaved changes. Save?</translation>
+        <translation>&quot;%1&quot; has unsaved changes. Save?</translation>
     </message>
     <message>
         <source>(最近檔案已停用)</source>
@@ -901,12 +933,12 @@
     <message>
         <source>「%1」已被外部程式修改，是否重新載入？
 （未儲存的變更將遺失）</source>
-        <translation>"%1" was modified by another program. Reload?
+        <translation>&quot;%1&quot; was modified by another program. Reload?
 (Unsaved changes will be lost)</translation>
     </message>
     <message>
         <source>「%1」有未儲存的變更，重新載入將捨棄它們，確定？</source>
-        <translation>"%1" has unsaved changes. Reloading will discard them. Continue?</translation>
+        <translation>&quot;%1&quot; has unsaved changes. Reloading will discard them. Continue?</translation>
     </message>
     <message>
         <source>字元數：%1
@@ -1632,7 +1664,7 @@ Qt6 + QScintilla</translation>
     </message>
     <message>
         <source>將在目錄「%1」中把符合項全部取代並**寫回檔案**，此操作無法復原。是否繼續？</source>
-        <translation>This will replace all matches in "%1" and write back to files. This cannot be undone. Continue?</translation>
+        <translation>This will replace all matches in &quot;%1&quot; and write back to files. This cannot be undone. Continue?</translation>
     </message>
     <message>
         <source>取代中…</source>
@@ -1694,8 +1726,8 @@ Qt6 + QScintilla</translation>
         <translation>In selection</translation>
     </message>
     <message>
-        <source>'.' matches newline</source>
-        <translation>'.' matches newline</translation>
+        <source>&apos;.&apos; matches newline</source>
+        <translation>&apos;.&apos; matches newline</translation>
     </message>
     <message>
         <source>Extended (\n \r \t \0 \xNN)</source>
@@ -1771,7 +1803,7 @@ Qt6 + QScintilla</translation>
     </message>
     <message>
         <source>找不到「%1」</source>
-        <translation>"%1" not found</translation>
+        <translation>&quot;%1&quot; not found</translation>
     </message>
     <message>
         <source>碼點範圍無效（請輸入 lo &lt;= hi，可用 0x 前綴）</source>
@@ -1990,6 +2022,22 @@ Qt6 + QScintilla</translation>
         <source>Sort A-Z</source>
         <translation>Sort A-Z</translation>
     </message>
+    <message>
+        <source>Go to Definition</source>
+        <translation>Go to Definition</translation>
+    </message>
+    <message>
+        <source>Copy Name</source>
+        <translation>Copy Name</translation>
+    </message>
+    <message>
+        <source>Expand All</source>
+        <translation>Expand All</translation>
+    </message>
+    <message>
+        <source>Collapse All</source>
+        <translation>Collapse All</translation>
+    </message>
 </context>
 <context>
     <name>macpad::ui::MacroManagerDialog</name>
@@ -2038,16 +2086,16 @@ Qt6 + QScintilla</translation>
         <translation>New name:</translation>
     </message>
     <message>
-        <source>A macro named "%1" already exists.</source>
-        <translation>A macro named "%1" already exists.</translation>
+        <source>A macro named &quot;%1&quot; already exists.</source>
+        <translation>A macro named &quot;%1&quot; already exists.</translation>
     </message>
     <message>
         <source>Delete Macro</source>
         <translation>Delete Macro</translation>
     </message>
     <message>
-        <source>Delete macro "%1"? This cannot be undone.</source>
-        <translation>Delete macro "%1"? This cannot be undone.</translation>
+        <source>Delete macro &quot;%1&quot;? This cannot be undone.</source>
+        <translation>Delete macro &quot;%1&quot;? This cannot be undone.</translation>
     </message>
 </context>
 <context>
@@ -2675,8 +2723,8 @@ Qt6 + QScintilla</translation>
         <translation>Shortcut Conflict</translation>
     </message>
     <message>
-        <source>"%1" is already assigned to "%2". Assign it here anyway?</source>
-        <translation>"%1" is already assigned to "%2". Assign it here anyway?</translation>
+        <source>&quot;%1&quot; is already assigned to &quot;%2&quot;. Assign it here anyway?</source>
+        <translation>&quot;%1&quot; is already assigned to &quot;%2&quot;. Assign it here anyway?</translation>
     </message>
 </context>
 <context>
@@ -3027,8 +3075,8 @@ Qt6 + QScintilla</translation>
         <translation>Operators:</translation>
     </message>
     <message>
-        <source>每行一組，格式：開始|跳脫|結束，如："|\|"</source>
-        <translation>每行一組，格式：開始|跳脫|結束，如："|\|"</translation>
+        <source>每行一組，格式：開始|跳脫|結束，如：&quot;|\|&quot;</source>
+        <translation>每行一組，格式：開始|跳脫|結束，如：&quot;|\|&quot;</translation>
     </message>
     <message>
         <source>Delimiters:</source>
@@ -3242,8 +3290,8 @@ Qt6 + QScintilla</translation>
         <translation>Delete</translation>
     </message>
     <message>
-        <source>Move "%1" to Trash?</source>
-        <translation>Move "%1" to Trash?</translation>
+        <source>Move &quot;%1&quot; to Trash?</source>
+        <translation>Move &quot;%1&quot; to Trash?</translation>
     </message>
     <message>
         <source>Failed to move to Trash: %1</source>

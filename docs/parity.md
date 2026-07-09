@@ -62,6 +62,7 @@ Plugins · Window · **Project**(macpad++ 新增)
 | Character Panel | ✅ | 6 欄(ASCII/HTML Name/Dec/Hex…),雙擊插入、依編碼碼頁 |
 | Clipboard History | ✅ | |
 | Set Read-Only | ✅ | |
+| 編輯區右鍵選單(Context Menu) | ✅ | 複刻 Notepad++ contextMenu.xml:Undo/Redo、剪貼、Selection(Begin/End·欄位)、Copy 路徑/檔名/目錄、Paste Special、Style Token、書籤、On Selection(開檔/網路搜尋)、開啟位置、Reload/Rename/垃圾桶、唯讀、Close |
 
 ## 搜尋 Search
 
@@ -96,7 +97,7 @@ Plugins · Window · **Project**(macpad++ 新增)
 | Monitoring(tail -f) | ✅ | 自動重載捲到檔尾 |
 | View Current File In Browser | ✅ | 預設 / Safari / Chrome / Firefox |
 | Split View + Sync Scrolling | ✅ | 垂直/水平同步捲動;可旋轉方向(Rotate) |
-| Document Map / List / Function List / **Project Panel** | ✅ | 停靠面板;Function List 可外部 XML/JSON 規則設定,不限內建語言 |
+| Document Map / List / Function List / **Project Panel** | ✅ | 停靠面板;Function List 可外部 XML/JSON 規則設定,不限內建語言;右鍵選單:跳至定義/複製名稱/全部展開·收合/排序 |
 | ⌘/Ctrl+雙擊選整字 | ✅ | 依偏好設定開關 |
 | Document Peeker(懸停預覽) | ✅ | Document List 面板滑鼠懸停顯示檔案前 ~15 行預覽 |
 | Highlight Matching HTML/XML Tags | ✅ | 游標移入標籤時高亮成對開合標籤 |
@@ -157,6 +158,7 @@ Plugins · Window · **Project**(macpad++ 新增)
 | 開啟中文件清單 | ✅ | 打勾標示目前分頁 |
 | Next / Previous Document | ✅ | ⌃Tab / ⌃⇧Tab |
 | 分頁標色 / 唯讀鎖定 | ✅ | 右鍵分頁 |
+| 分頁右鍵選單(Tab Context Menu) | ✅ | Close/Close All but This/Close to Left·Right、Save/Save As/Rename、Reload、垃圾桶、Open Containing Folder、Open in Default App、Copy 路徑/檔名/目錄、標色、唯讀、Move/Clone to Other View |
 | Tab Bar 多列(Multi-Line) | ◐ | **平台限制**:Qt QTabBar 無原生多列換行,best-effort 以捲動按鈕近似(`tabBarMultiLine`) |
 
 ## 專案 Project(macpad++ 新增選單)

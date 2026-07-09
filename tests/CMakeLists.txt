@@ -36,6 +36,7 @@ set(MACPAD_TESTS
     test_projectstore
     test_udlxmlio
     test_functionlistconfig
+    test_contextmenu
 )
 
 foreach(t ${MACPAD_TESTS})

@@ -8,7 +8,7 @@
 [![Platform](https://img.shields.io/badge/platform-macOS%20(Apple%20Silicon)-000000?logo=apple&logoColor=white)](#下載安裝發佈版)
 [![C++17](https://img.shields.io/badge/C%2B%2B-17-00599C?logo=cplusplus&logoColor=white)](CMakeLists.txt)
 [![Qt6](https://img.shields.io/badge/Qt-6-41CD52?logo=qt&logoColor=white)](https://www.qt.io/)
-[![Tests](https://img.shields.io/badge/tests-34%20passing-brightgreen)](tests/)
+[![Tests](https://img.shields.io/badge/tests-35%20passing-brightgreen)](tests/)
 [![Coverage](https://img.shields.io/badge/coverage-90%25-brightgreen)](docs/design.md)
 
 **Notepad++ 對等的原生 macOS 文字/程式碼編輯器。** 以 C++17 + Qt6 + QScintilla 打造,
@@ -24,8 +24,12 @@
 
 ## 特色一覽
 
-- **多分頁編輯** — 拖曳排序、關閉確認、分頁標色、唯讀鎖定;**雙 View 分割視窗**(水平/垂直、可旋轉方向、
-  Move/Clone to Other View)含同步捲動。
+- **多分頁編輯** — 拖曳排序、關閉確認、分頁標色、唯讀鎖定;**分頁右鍵選單**(Close / Close All but This /
+  Close to Left·Right、Save/Rename、Reload、Open Containing Folder、Copy 路徑…);**雙 View 分割視窗**
+  (水平/垂直、可旋轉方向、Move/Clone to Other View)含同步捲動。
+- **完整右鍵選單** — 複刻 Notepad++ 編輯區 `contextMenu.xml`:Undo/Redo、剪貼、Selection(Begin/End、
+  欄位)、Copy 路徑/檔名/目錄、Paste Special、Style Token 5 色、書籤、On Selection(開檔 / 網路搜尋)、
+  開啟位置、Reload/Rename/垃圾桶、唯讀切換;Function List 面板亦有右鍵(跳至定義 / 複製 / 展開收合 / 排序)。
 - **語法高亮** — 35+ 內建語言,可手動指定;支援 **自訂語言(UDL)** 圖形化建立、Prefix Mode,以及與
   Notepad++ 相容的 `userDefineLang.xml` 匯入/匯出。
 - **多游標 / 欄位編輯** — ⌘+Click 多游標、⌥+拖曳矩形選取、欄位插入遞增數列(重複次數 + Text 模式)、
@@ -94,7 +98,7 @@ open build/src/macpad++.app
 ## 測試與效能基準
 
 ```bash
-ctest --test-dir build --output-on-failure                    # 34 個 QtTest 套件
+ctest --test-dir build --output-on-failure                    # 35 個 QtTest 套件
 QT_QPA_PLATFORM=offscreen ./build/tests/bench_largefile 100    # 大檔案基準
 ```
 

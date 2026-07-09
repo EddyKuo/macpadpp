@@ -23,6 +23,30 @@
 <context>
     <name>MainWindow</name>
     <message>
+        <source>Close</source>
+        <translation>关闭</translation>
+    </message>
+    <message>
+        <source>Close All to the Left</source>
+        <translation>关闭左侧全部</translation>
+    </message>
+    <message>
+        <source>Close All to the Right</source>
+        <translation>关闭右侧全部</translation>
+    </message>
+    <message>
+        <source>Copy Full File Path</source>
+        <translation>复制完整文件路径</translation>
+    </message>
+    <message>
+        <source>Copy File Name</source>
+        <translation>复制文件名</translation>
+    </message>
+    <message>
+        <source>Copy Directory Path</source>
+        <translation>复制目录路径</translation>
+    </message>
+    <message>
         <source>Set Tab Color…</source>
         <translation>设置标签颜色…</translation>
     </message>
@@ -33,6 +57,14 @@
     <message>
         <source>Clear Tab Color</source>
         <translation>清除标签颜色</translation>
+    </message>
+    <message>
+        <source>唯讀已開啟</source>
+        <translation>只读已开启</translation>
+    </message>
+    <message>
+        <source>唯讀已關閉</source>
+        <translation>只读已关闭</translation>
     </message>
     <message>
         <source>Read-Only</source>
@@ -1726,7 +1758,7 @@ Qt6 + QScintilla</translation>
         <translation>在选定内容中</translation>
     </message>
     <message>
-        <source>'.' matches newline</source>
+        <source>&apos;.&apos; matches newline</source>
         <translation>“.”匹配换行符</translation>
     </message>
     <message>
@@ -2026,6 +2058,22 @@ Qt6 + QScintilla</translation>
         <source>Sort A-Z</source>
         <translation>排序 A-Z</translation>
     </message>
+    <message>
+        <source>Go to Definition</source>
+        <translation>跳转到定义</translation>
+    </message>
+    <message>
+        <source>Copy Name</source>
+        <translation>复制名称</translation>
+    </message>
+    <message>
+        <source>Expand All</source>
+        <translation>全部展开</translation>
+    </message>
+    <message>
+        <source>Collapse All</source>
+        <translation>全部折叠</translation>
+    </message>
 </context>
 <context>
     <name>macpad::ui::MacroManagerDialog</name>
@@ -2074,7 +2122,7 @@ Qt6 + QScintilla</translation>
         <translation>新名称：</translation>
     </message>
     <message>
-        <source>A macro named "%1" already exists.</source>
+        <source>A macro named &quot;%1&quot; already exists.</source>
         <translation>名为“%1”的宏已存在。</translation>
     </message>
     <message>
@@ -2082,7 +2130,7 @@ Qt6 + QScintilla</translation>
         <translation>删除宏</translation>
     </message>
     <message>
-        <source>Delete macro "%1"? This cannot be undone.</source>
+        <source>Delete macro &quot;%1&quot;? This cannot be undone.</source>
         <translation>要删除宏“%1”吗？此操作无法撤销。</translation>
     </message>
 </context>
@@ -2711,7 +2759,7 @@ Qt6 + QScintilla</translation>
         <translation>快捷键冲突</translation>
     </message>
     <message>
-        <source>"%1" is already assigned to "%2". Assign it here anyway?</source>
+        <source>&quot;%1&quot; is already assigned to &quot;%2&quot;. Assign it here anyway?</source>
         <translation>“%1”已分配给“%2”。仍要在此处分配吗？</translation>
     </message>
 </context>
@@ -3067,8 +3115,8 @@ Qt6 + QScintilla</translation>
         <translation>运算符：</translation>
     </message>
     <message>
-        <source>每行一組，格式：開始|跳脫|結束，如："|\|"</source>
-        <translation>每行一组，格式：开始|转义|结束，如："|\|"</translation>
+        <source>每行一組，格式：開始|跳脫|結束，如：&quot;|\|&quot;</source>
+        <translation>每行一组，格式：开始|转义|结束，如：&quot;|\|&quot;</translation>
     </message>
     <message>
         <source>Delimiters:</source>
@@ -3282,7 +3330,7 @@ Qt6 + QScintilla</translation>
         <translation>删除</translation>
     </message>
     <message>
-        <source>Move "%1" to Trash?</source>
+        <source>Move &quot;%1&quot; to Trash?</source>
         <translation>要将“%1”移到废纸篓吗？</translation>
     </message>
     <message>

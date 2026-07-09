@@ -130,6 +130,30 @@ private slots:
         const QString unmatched = QStringLiteral("<p>hello");
         QVERIFY(!EditorWidget::matchingTagRanges(unmatched, 1, &os, &oe, &cs, &ce));
     }
+
+    // 右鍵選單：有接收者時攔截 contextMenuEvent，改發 contextMenuRequested 並帶全域座標
+    // （複刻 Notepad++ 編輯區右鍵：停用 Scintilla 內建 popup 後由上層建構完整選單）。
+    void contextMenuRequestedSignal()
+    {
+        EditorWidget e;
+        e.setText(QStringLiteral("hello world"));
+        e.resize(200, 100);
+
+        QSignalSpy spy(&e, &EditorWidget::contextMenuRequested);
+        QVERIFY(spy.isValid());
+
+        const QPoint local(20, 10);
+        const QPoint global = e.viewport()->mapToGlobal(local);
+        QContextMenuEvent ev(QContextMenuEvent::Mouse, local, global);
+        QApplication::sendEvent(e.viewport(), &ev);
+
+        QCOMPARE(spy.count(), 1);
+        // 事件被接受（不再冒泡到父層 / Scintilla 內建 popup）
+        QVERIFY(ev.isAccepted());
+        // 轉發的座標即事件的全域座標
+        const QPoint emitted = spy.takeFirst().at(0).toPoint();
+        QCOMPARE(emitted, global);
+    }
 };
 
 QTEST_MAIN(TestEditor)
