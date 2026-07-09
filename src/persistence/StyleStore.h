@@ -4,6 +4,7 @@
 // 儲存全域字型 + 每語言每 style 的前景/背景/粗體/斜體覆寫；ThemeManager 在套用主題後疊上這些覆寫。
 
 #include <QHash>
+#include <QJsonObject>
 #include <QString>
 #include <QVector>
 
@@ -24,6 +25,8 @@ struct StyleOverride {
 // GlobalStyles — 編輯器全域（非 lexer）樣式覆寫（複刻 Notepad++ Style Configurator 的
 // 「Global Styles」分類）。每個欄位為 #RRGGBB，空字串 = 沿用主題預設色。
 struct GlobalStyles {
+    QString editorBg;           // 編輯器基礎背景（paper）；空 = 沿用主題 dark/light 預設底色
+    QString editorFg;           // 編輯器基礎文字（預設前景）；空 = 沿用主題 dark/light 預設文字色
     QString indentGuide;        // 縮排參考線顏色
     QString caretLineBg;        // 目前行反白背景色
     QString selectionBg;        // 選取範圍背景色
@@ -63,6 +66,11 @@ class StyleStore {
 public:
     static StyleSettings load();
     static bool save(const StyleSettings &s);
+
+    // StyleSettings ↔ JSON 的單一序列化實作（含字型 + 每語言覆寫 + global + user_extensions）。
+    // styles.json（StyleStore）與具名主題（ThemeStore）共用同一份 schema，避免欄位漂移（IL-3）。
+    static QJsonObject styleSettingsToJson(const StyleSettings &s);
+    static StyleSettings styleSettingsFromJson(const QJsonObject &o);
 
     // 查詢指定語言（LexerFactory language() 字串）、指定 style 的使用者自訂關鍵字覆寫；
     // 未設定則回傳空字串（呼叫端應維持使用該 lexer 的內建關鍵字集）。

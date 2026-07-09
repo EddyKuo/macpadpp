@@ -85,9 +85,20 @@ static void applyWithStyles(macpad::core::EditorWidget *editor, bool dark,
     if (!editor)
         return;
 
-    // 柔和的基礎配色（降低整體對比）
-    const QColor paper     = dark ? QColor(0x22, 0x24, 0x26) : QColor(0xfb, 0xfb, 0xf8);
-    const QColor text      = dark ? QColor(0xc4, 0xc6, 0xc8) : QColor(0x3a, 0x3c, 0x3e);
+    // 柔和的基礎配色（降低整體對比）。具名主題可透過 global.editorBg/editorFg 覆寫基礎底色，
+    // 讓不同主題有各自的背景色調（如 Monokai #272822、Dracula #282A36）；未指定則沿用 dark/light 預設。
+    QColor paper     = dark ? QColor(0x22, 0x24, 0x26) : QColor(0xfb, 0xfb, 0xf8);
+    QColor text      = dark ? QColor(0xc4, 0xc6, 0xc8) : QColor(0x3a, 0x3c, 0x3e);
+    if (!styleCfg.global.editorBg.isEmpty()) {
+        const QColor c(styleCfg.global.editorBg);
+        if (c.isValid())
+            paper = c;
+    }
+    if (!styleCfg.global.editorFg.isEmpty()) {
+        const QColor c(styleCfg.global.editorFg);
+        if (c.isValid())
+            text = c;
+    }
     const QColor marginBg  = dark ? QColor(0x26, 0x28, 0x2a) : QColor(0xf1, 0xf1, 0xee);
     const QColor marginFg  = dark ? QColor(0x6a, 0x6c, 0x6e) : QColor(0xa6, 0xa6, 0xa2);
     const QColor caretLine = dark ? QColor(0x2a, 0x2c, 0x2f) : QColor(0xf2, 0xf1, 0xea);

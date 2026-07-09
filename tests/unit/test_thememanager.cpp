@@ -10,6 +10,7 @@
 #include "platform/ThemeManager.h"
 #include "core/EditorWidget.h"
 #include "persistence/StyleStore.h"
+#include "persistence/ThemeStore.h"
 #include "persistence/AppPaths.h"
 
 using namespace macpad::platform;
@@ -349,6 +350,36 @@ private slots:
         QVERIFY(lex != nullptr);
         QVERIFY(lex->color(0) != QColor(QStringLiteral("#aa11bb")));
         QVERIFY(lex->paper(0) != QColor(QStringLiteral("#cc22dd")));
+    }
+
+    // global.editorBg/editorFg：具名主題可覆寫編輯器基礎底色（讓不同主題有不同背景色調）。
+    // 純文字（無 lexer）時，editor->paper()/color() 應為主題指定色，而非 dark/light 寫死預設。
+    void editorBgFgOverridesBaseColors()
+    {
+        EditorWidget editor;
+        QVERIFY(editor.lexer() == nullptr);
+
+        StyleSettings cfg;
+        cfg.global.editorBg = QStringLiteral("#272822");   // Monokai 底色
+        cfg.global.editorFg = QStringLiteral("#F8F8F2");
+        QVERIFY(StyleStore::save(cfg));
+
+        // 即使傳 dark=true，基礎底色也應被主題的 editorBg/editorFg 覆寫（而非 #222426 預設）
+        ThemeManager::applyToEditor(&editor, true);
+        QCOMPARE(editor.paper(), QColor(QStringLiteral("#272822")));
+        QCOMPARE(editor.color(), QColor(QStringLiteral("#F8F8F2")));
+        QVERIFY(editor.paper() != QColor(0x22, 0x24, 0x26));
+    }
+
+    // 具名主題整合：applyNamedTheme 套用內建 Monokai 後，編輯器底色應為 Monokai 的 #272822
+    void applyNamedBundledThemeAppliesBackground()
+    {
+        Q_INIT_RESOURCE(themes);
+        ThemeStore::seedBundledThemes();
+
+        EditorWidget editor;
+        ThemeManager::applyNamedTheme(&editor, QStringLiteral("Monokai"));
+        QCOMPARE(editor.paper(), QColor(QStringLiteral("#272822")));
     }
 };
 

@@ -24,63 +24,14 @@ static QString themeFilePath(const QString &name)
     return themesDir() + QLatin1Char('/') + name + QStringLiteral(".json");
 }
 
-static QJsonObject styleSettingsToJson(const StyleSettings &s)
-{
-    QJsonObject o;
-    o.insert(QStringLiteral("font_family"), s.fontFamily);
-    o.insert(QStringLiteral("font_size"), s.fontSize);
-
-    QJsonObject langs;
-    for (auto it = s.byLang.begin(); it != s.byLang.end(); ++it) {
-        QJsonArray arr;
-        for (const StyleOverride &ov : it.value()) {
-            QJsonObject so;
-            so.insert(QStringLiteral("style"), ov.style);
-            so.insert(QStringLiteral("fg"), ov.fg);
-            so.insert(QStringLiteral("bg"), ov.bg);
-            so.insert(QStringLiteral("bold"), ov.bold);
-            so.insert(QStringLiteral("italic"), ov.italic);
-            so.insert(QStringLiteral("underline"), ov.underline);
-            arr.append(so);
-        }
-        langs.insert(it.key(), arr);
-    }
-    o.insert(QStringLiteral("languages"), langs);
-    return o;
-}
-
-static StyleSettings styleSettingsFromJson(const QJsonObject &o)
-{
-    StyleSettings s;
-    s.fontFamily = o.value(QStringLiteral("font_family")).toString();
-    s.fontSize = o.value(QStringLiteral("font_size")).toInt(0);
-
-    const QJsonObject langs = o.value(QStringLiteral("languages")).toObject();
-    for (auto it = langs.begin(); it != langs.end(); ++it) {
-        QVector<StyleOverride> list;
-        const QJsonArray arr = it.value().toArray();
-        for (const QJsonValue &v : arr) {
-            const QJsonObject so = v.toObject();
-            StyleOverride ov;
-            ov.style = so.value(QStringLiteral("style")).toInt();
-            ov.fg = so.value(QStringLiteral("fg")).toString();
-            ov.bg = so.value(QStringLiteral("bg")).toString();
-            ov.bold = so.value(QStringLiteral("bold")).toBool();
-            ov.italic = so.value(QStringLiteral("italic")).toBool();
-            ov.underline = so.value(QStringLiteral("underline")).toBool();  // 舊主題檔缺此鍵預設 false
-            list.append(ov);
-        }
-        s.byLang.insert(it.key(), list);
-    }
-    return s;
-}
-
+// 主題的 styles 區塊與 styles.json 共用同一份 schema（含 global 邊界/底色 + 每語言覆寫），
+// 序列化統一委派給 StyleStore，確保欄位不漂移（IL-3 單一真相）。
 static QJsonObject themeToJson(const Theme &t)
 {
     QJsonObject o;
     o.insert(QStringLiteral("name"), t.name);
     o.insert(QStringLiteral("dark"), t.dark);
-    o.insert(QStringLiteral("styles"), styleSettingsToJson(t.styles));
+    o.insert(QStringLiteral("styles"), StyleStore::styleSettingsToJson(t.styles));
     return o;
 }
 
@@ -89,7 +40,7 @@ static Theme themeFromJson(const QJsonObject &o)
     Theme t;
     t.name = o.value(QStringLiteral("name")).toString();
     t.dark = o.value(QStringLiteral("dark")).toBool();
-    t.styles = styleSettingsFromJson(o.value(QStringLiteral("styles")).toObject());
+    t.styles = StyleStore::styleSettingsFromJson(o.value(QStringLiteral("styles")).toObject());
     return t;
 }
 
@@ -149,6 +100,27 @@ bool ThemeStore::remove(const QString &name)
     if (name.isEmpty())
         return false;
     return QFile::remove(themeFilePath(name));
+}
+
+int ThemeStore::seedBundledThemes()
+{
+    const QDir res(QStringLiteral(":/themes"));
+    const QStringList files = res.entryList(QStringList() << QStringLiteral("*.json"),
+                                             QDir::Files, QDir::Name);
+    int seeded = 0;
+    for (const QString &f : files) {
+        const QString name = QFileInfo(f).completeBaseName();
+        const QString target = themeFilePath(name);
+        if (QFileInfo::exists(target))
+            continue;  // 已存在（使用者可能已修改）→ 不覆蓋；使用者刪掉的也不還原
+        // 直接複製資源檔內容（本身已是合法的主題 JSON）；QFile::copy 對唯讀資源可正常讀取。
+        if (QFile::copy(res.filePath(f), target)) {
+            QFile::setPermissions(target, QFile::ReadOwner | QFile::WriteOwner
+                                          | QFile::ReadGroup | QFile::ReadOther);  // 資源檔為唯讀，放寬使其可被匯出/刪除
+            ++seeded;
+        }
+    }
+    return seeded;
 }
 
 }  // namespace macpad::persistence

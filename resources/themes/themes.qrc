@@ -1,0 +1,21 @@
+<!DOCTYPE RCC><RCC version="1.0">
+<qresource prefix="/themes">
+    <file>Cobalt.json</file>
+    <file>Cyberpunk.json</file>
+    <file>Dracula.json</file>
+    <file>GitHub Dark.json</file>
+    <file>GitHub Light.json</file>
+    <file>Gruvbox Dark.json</file>
+    <file>Gruvbox Light.json</file>
+    <file>Material Palenight.json</file>
+    <file>Monokai.json</file>
+    <file>Night Owl.json</file>
+    <file>Nord.json</file>
+    <file>One Dark.json</file>
+    <file>Solarized Dark.json</file>
+    <file>Solarized Light.json</file>
+    <file>Tomorrow Night.json</file>
+    <file>VS Code Dark+.json</file>
+    <file>VS Code Light.json</file>
+</qresource>
+</RCC>

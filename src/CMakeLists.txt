@@ -116,6 +116,7 @@ set(MACPAD_LIB_SOURCES
     ${CMAKE_SOURCE_DIR}/resources/webview/webview.qrc
     ${CMAKE_SOURCE_DIR}/resources/i18n/i18n.qrc
     ${CMAKE_SOURCE_DIR}/resources/icons/icons.qrc
+    ${CMAKE_SOURCE_DIR}/resources/themes/themes.qrc
 )
 
 add_library(macpad_lib STATIC ${MACPAD_LIB_SOURCES})

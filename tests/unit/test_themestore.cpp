@@ -122,6 +122,63 @@ private slots:
         QVERIFY(ThemeStore::remove(QStringLiteral("ToDelete")));
         QVERIFY(!ThemeStore::listThemes().contains(QStringLiteral("ToDelete")));
     }
+
+    // 主題現在也序列化 global 區塊（含編輯器基礎底色 editorBg/editorFg），round-trip 應保留
+    void globalBlockRoundtrips()
+    {
+        Theme t;
+        t.name = QStringLiteral("WithGlobals");
+        t.dark = true;
+        t.styles.global.editorBg = QStringLiteral("#272822");
+        t.styles.global.editorFg = QStringLiteral("#F8F8F2");
+        t.styles.global.selectionBg = QStringLiteral("#49483E");
+        t.styles.global.marginFg = QStringLiteral("#90908A");
+        QVERIFY(ThemeStore::save(t));
+
+        const Theme out = ThemeStore::load(QStringLiteral("WithGlobals"));
+        QCOMPARE(out.styles.global.editorBg, QStringLiteral("#272822"));
+        QCOMPARE(out.styles.global.editorFg, QStringLiteral("#F8F8F2"));
+        QCOMPARE(out.styles.global.selectionBg, QStringLiteral("#49483E"));
+        QCOMPARE(out.styles.global.marginFg, QStringLiteral("#90908A"));
+    }
+
+    // 內建主題（:/themes/*.json）植入：安裝到使用者目錄、可載入且帶基礎底色、且為冪等（第二次補 0 個）
+    void seedBundledThemesInstallsAndIsIdempotent()
+    {
+        Q_INIT_RESOURCE(themes);   // 靜態庫資源須顯式初始化
+        const int seeded = ThemeStore::seedBundledThemes();
+        QVERIFY2(seeded > 0, "應至少植入一個內建主題");
+
+        const QStringList names = ThemeStore::listThemes();
+        QVERIFY(names.contains(QStringLiteral("Monokai")));
+        QVERIFY(names.contains(QStringLiteral("Dracula")));
+
+        // 載入其中一個內建主題，應帶 dark 旗標與非空的編輯器基礎底色（新格式）
+        const Theme mono = ThemeStore::load(QStringLiteral("Monokai"));
+        QVERIFY(mono.dark);
+        QVERIFY(!mono.styles.global.editorBg.isEmpty());
+        QVERIFY(mono.styles.byLang.contains(QStringLiteral("cpp")));
+
+        // 冪等：已存在者不再重植
+        QCOMPARE(ThemeStore::seedBundledThemes(), 0);
+    }
+
+    // 植入時不覆蓋使用者已存在（可能已修改）的同名主題
+    void seedDoesNotOverwriteExisting()
+    {
+        Q_INIT_RESOURCE(themes);
+        Theme mine;
+        mine.name = QStringLiteral("Monokai");
+        mine.dark = false;   // 與內建版本刻意不同的標記
+        mine.styles.global.editorBg = QStringLiteral("#010101");
+        QVERIFY(ThemeStore::save(mine));
+
+        ThemeStore::seedBundledThemes();
+
+        const Theme after = ThemeStore::load(QStringLiteral("Monokai"));
+        QCOMPARE(after.dark, false);                                  // 仍是使用者版本
+        QCOMPARE(after.styles.global.editorBg, QStringLiteral("#010101"));
+    }
 };
 
 QTEST_GUILESS_MAIN(TestThemeStore)

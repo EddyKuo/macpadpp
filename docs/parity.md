@@ -129,6 +129,7 @@ Plugins · Window · **Project**(macpad++ 新增)
 |------|:----:|------|
 | Preferences | ✅ | 全分類均有真實 runtime 效果(無死設定):主題/Tab 寬/自動存檔、Toolbar/Tab Bar/狀態列可見性+圖示大小、Margins·Border·Edge(caret 寬/行號欄/多重邊界)、Default Directory 策略、Recent Files 數量/全路徑/子選單、語言啟停、逐語言縮排、Multi-Instance 模式、Delimiter 字元(影響雙擊選字範圍)、檔案狀態自動偵測、Session 副檔名、音效提示 |
 | Style Configurator | ✅ | 逐語言逐 style 改色 + 字型、底線、全域覆寫、主題下拉套用、完整 Global Styles(含 caret line/選取/空白/邊欄/badBrace/foldActive/change history/urlHovered) |
+| 內建主題(Theme) | ✅ | 隨附 17 套具名主題:複刻大廠 IDE(Monokai/Dracula/One Dark/Nord/Solarized 深淺/Gruvbox 深淺/VS Code Dark+·Light/GitHub 深淺/Night Owl/Tomorrow Night/Material Palenight/Cobalt)+ 原創 **Cyberpunk 暗色霓虹**,各帶專屬編輯器底色·選取·邊欄色 + 12 語言逐 style 語法色;啟動時自動植入使用者主題目錄(可自由改/刪/匯入匯出) |
 | Shortcut Mapper | ✅ | 重綁快捷鍵並持久化、衝突偵測 |
 | Check for Updates(自動更新) | ✕ | **平台限制**:依設計不做連網自我更新(`autoUpdater` 偏好僅記錄使用者選擇,不執行實際檢查/下載);macOS 應用分發慣例交由外部管道處理 |
 

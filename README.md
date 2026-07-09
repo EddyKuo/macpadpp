@@ -44,6 +44,10 @@
   Distraction Free、Post-It、瀏覽器預覽。
 - **自動化** — 巨集錄製/播放/具名儲存 + **管理對話框**(Modify Shortcut/Delete/Rename)、外部命令執行
   (可存具名命令並**各自綁定快捷鍵**)、Style Configurator(含主題下拉套用)、Shortcut Mapper(衝突偵測)。
+- **內建主題** — 隨附 **17 套具名主題**:複刻大廠 IDE(Monokai、Dracula、One Dark、Nord、Solarized 深/淺、
+  Gruvbox 深/淺、VS Code Dark+/Light、GitHub 深/淺、Night Owl、Tomorrow Night、Material Palenight、Cobalt)
+  再加原創 **Cyberpunk 暗色霓虹**(深紫黑底 + 霓虹粉/青/綠/黃),各帶專屬編輯器底色·選取·邊欄色與
+  12 語言逐 style 語法色;首次啟動自動植入,可自由改/刪/匯入匯出。
 - **Session 快照** — 複刻 Notepad++「session snapshot」:未存內容(含**未命名 untitled 緩衝**與已命名檔的未存
   編輯)跨關閉/重開自動保留——直接關閉不提示,重開後內容還在、分頁維持 untitled 與未存標記(可於偏好關閉)。
 - **原生 macOS** — 選單列原生整合(Preferences/About/Quit 自動歸入應用程式選單)、跟隨系統深/淺色、

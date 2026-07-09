@@ -32,6 +32,11 @@ public:
     static bool exportToFile(const QString &name, const QString &path);
     // 刪除指定名稱的主題
     static bool remove(const QString &name);
+
+    // 把打包的內建主題（Qt 資源 :/themes/*.json，複刻各大廠 IDE 配色）植入使用者主題目錄。
+    // 僅在同名主題「尚未存在」時寫入——不覆蓋使用者的修改或刪除（刪掉的內建主題不會被還原）。
+    // 應在啟動時呼叫一次；回傳本次新植入的主題數。
+    static int seedBundledThemes();
 };
 
 }  // namespace macpad::persistence

@@ -12,11 +12,20 @@ static QString stylesPath() { return AppPaths::filePath(QStringLiteral("styles.j
 
 StyleSettings StyleStore::load()
 {
-    StyleSettings s;
     const QJsonObject o = JsonFile::load(stylesPath());
     if (o.isEmpty())
-        return s;
+        return StyleSettings();
+    return styleSettingsFromJson(o);
+}
 
+bool StyleStore::save(const StyleSettings &s)
+{
+    return JsonFile::save(stylesPath(), styleSettingsToJson(s));
+}
+
+StyleSettings StyleStore::styleSettingsFromJson(const QJsonObject &o)
+{
+    StyleSettings s;
     s.fontFamily = o.value(QStringLiteral("font_family")).toString();
     s.fontSize = o.value(QStringLiteral("font_size")).toInt(0);
 
@@ -41,6 +50,8 @@ StyleSettings StyleStore::load()
 
     // global：缺欄位（舊版 styles.json）→ 對應欄位維持預設空字串（向後相容）
     const QJsonObject g = o.value(QStringLiteral("global")).toObject();
+    s.global.editorBg = g.value(QStringLiteral("editor_bg")).toString();
+    s.global.editorFg = g.value(QStringLiteral("editor_fg")).toString();
     s.global.indentGuide = g.value(QStringLiteral("indent_guide")).toString();
     s.global.caretLineBg = g.value(QStringLiteral("caret_line_bg")).toString();
     s.global.selectionBg = g.value(QStringLiteral("selection_bg")).toString();
@@ -75,7 +86,7 @@ StyleSettings StyleStore::load()
     return s;
 }
 
-bool StyleStore::save(const StyleSettings &s)
+QJsonObject StyleStore::styleSettingsToJson(const StyleSettings &s)
 {
     QJsonObject o;
     o.insert(QStringLiteral("font_family"), s.fontFamily);
@@ -100,6 +111,8 @@ bool StyleStore::save(const StyleSettings &s)
     o.insert(QStringLiteral("languages"), langs);
 
     QJsonObject g;
+    g.insert(QStringLiteral("editor_bg"), s.global.editorBg);
+    g.insert(QStringLiteral("editor_fg"), s.global.editorFg);
     g.insert(QStringLiteral("indent_guide"), s.global.indentGuide);
     g.insert(QStringLiteral("caret_line_bg"), s.global.caretLineBg);
     g.insert(QStringLiteral("selection_bg"), s.global.selectionBg);
@@ -129,7 +142,7 @@ bool StyleStore::save(const StyleSettings &s)
         exts.insert(it.key(), it.value());
     o.insert(QStringLiteral("user_extensions"), exts);
 
-    return JsonFile::save(stylesPath(), o);
+    return o;
 }
 
 QString StyleStore::userKeywordsFor(const StyleSettings &s, const QString &lang, int style)

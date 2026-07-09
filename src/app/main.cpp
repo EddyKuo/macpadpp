@@ -13,6 +13,7 @@
 #include "features/cli/CliArgs.h"
 #include "persistence/AppPaths.h"
 #include "persistence/SettingsStore.h"
+#include "persistence/ThemeStore.h"
 #include "platform/SingleInstance.h"
 
 // 依設定(或系統語系)決定介面語言碼,對應到內建 .qm。
@@ -113,6 +114,11 @@ int main(int argc, char *argv[])
         macpad::persistence::AppPaths::setConfigDirOverride(parsed.settingsDir);
 
     const auto settings = macpad::persistence::SettingsStore::load();
+
+    // 內建主題（複刻各大廠 IDE 配色）：把打包資源 :/themes/*.json 植入使用者主題目錄。
+    // themes.qrc 編在靜態庫，須顯式初始化資源；僅補齊缺少者，不覆蓋使用者的修改/刪除。
+    Q_INIT_RESOURCE(themes);
+    macpad::persistence::ThemeStore::seedBundledThemes();
 
     // 介面語言(i18n):載入對應 .qm 並安裝翻譯器(須在建立 MainWindow 前,選單才會被翻譯)。
     // i18n.qrc 編在靜態庫,須顯式初始化資源。

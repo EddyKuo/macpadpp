@@ -1,0 +1,918 @@
+{
+  "name": "One Dark",
+  "dark": true,
+  "styles": {
+    "font_family": "",
+    "font_size": 0,
+    "global": {
+      "editor_bg": "#282C34",
+      "editor_fg": "#ABB2BF",
+      "caret_color": "#528BFF",
+      "caret_line_bg": "#2C313C",
+      "selection_bg": "#3E4451",
+      "margin_bg": "#282C34",
+      "margin_fg": "#636D83",
+      "current_line_number": "#ABB2BF",
+      "indent_guide": "#3B4048",
+      "whitespace_fg": "#3B4048",
+      "fold_margin": "#282C34",
+      "bad_brace": "#E06C75",
+      "mark_color": "#E5C07B"
+    },
+    "languages": {
+      "cpp": [
+        {
+          "style": 0,
+          "fg": "#ABB2BF"
+        },
+        {
+          "style": 1,
+          "fg": "#5C6370",
+          "italic": true
+        },
+        {
+          "style": 2,
+          "fg": "#5C6370",
+          "italic": true
+        },
+        {
+          "style": 3,
+          "fg": "#5C6370",
+          "italic": true
+        },
+        {
+          "style": 15,
+          "fg": "#5C6370",
+          "italic": true
+        },
+        {
+          "style": 23,
+          "fg": "#5C6370",
+          "italic": true
+        },
+        {
+          "style": 24,
+          "fg": "#5C6370",
+          "italic": true
+        },
+        {
+          "style": 4,
+          "fg": "#D19A66"
+        },
+        {
+          "style": 5,
+          "fg": "#C678DD",
+          "bold": true
+        },
+        {
+          "style": 16,
+          "fg": "#C678DD",
+          "bold": true
+        },
+        {
+          "style": 6,
+          "fg": "#98C379"
+        },
+        {
+          "style": 7,
+          "fg": "#98C379"
+        },
+        {
+          "style": 13,
+          "fg": "#98C379"
+        },
+        {
+          "style": 20,
+          "fg": "#98C379"
+        },
+        {
+          "style": 22,
+          "fg": "#98C379"
+        },
+        {
+          "style": 9,
+          "fg": "#C678DD"
+        },
+        {
+          "style": 10,
+          "fg": "#56B6C2"
+        },
+        {
+          "style": 11,
+          "fg": "#ABB2BF"
+        },
+        {
+          "style": 14,
+          "fg": "#98C379"
+        },
+        {
+          "style": 19,
+          "fg": "#E5C07B",
+          "italic": true
+        },
+        {
+          "style": 27,
+          "fg": "#56B6C2"
+        }
+      ],
+      "java": [
+        {
+          "style": 0,
+          "fg": "#ABB2BF"
+        },
+        {
+          "style": 1,
+          "fg": "#5C6370",
+          "italic": true
+        },
+        {
+          "style": 2,
+          "fg": "#5C6370",
+          "italic": true
+        },
+        {
+          "style": 3,
+          "fg": "#5C6370",
+          "italic": true
+        },
+        {
+          "style": 15,
+          "fg": "#5C6370",
+          "italic": true
+        },
+        {
+          "style": 23,
+          "fg": "#5C6370",
+          "italic": true
+        },
+        {
+          "style": 24,
+          "fg": "#5C6370",
+          "italic": true
+        },
+        {
+          "style": 4,
+          "fg": "#D19A66"
+        },
+        {
+          "style": 5,
+          "fg": "#C678DD",
+          "bold": true
+        },
+        {
+          "style": 16,
+          "fg": "#C678DD",
+          "bold": true
+        },
+        {
+          "style": 6,
+          "fg": "#98C379"
+        },
+        {
+          "style": 7,
+          "fg": "#98C379"
+        },
+        {
+          "style": 13,
+          "fg": "#98C379"
+        },
+        {
+          "style": 20,
+          "fg": "#98C379"
+        },
+        {
+          "style": 22,
+          "fg": "#98C379"
+        },
+        {
+          "style": 9,
+          "fg": "#C678DD"
+        },
+        {
+          "style": 10,
+          "fg": "#56B6C2"
+        },
+        {
+          "style": 11,
+          "fg": "#ABB2BF"
+        },
+        {
+          "style": 14,
+          "fg": "#98C379"
+        },
+        {
+          "style": 19,
+          "fg": "#E5C07B",
+          "italic": true
+        },
+        {
+          "style": 27,
+          "fg": "#56B6C2"
+        }
+      ],
+      "javascript": [
+        {
+          "style": 0,
+          "fg": "#ABB2BF"
+        },
+        {
+          "style": 1,
+          "fg": "#5C6370",
+          "italic": true
+        },
+        {
+          "style": 2,
+          "fg": "#5C6370",
+          "italic": true
+        },
+        {
+          "style": 3,
+          "fg": "#5C6370",
+          "italic": true
+        },
+        {
+          "style": 15,
+          "fg": "#5C6370",
+          "italic": true
+        },
+        {
+          "style": 23,
+          "fg": "#5C6370",
+          "italic": true
+        },
+        {
+          "style": 24,
+          "fg": "#5C6370",
+          "italic": true
+        },
+        {
+          "style": 4,
+          "fg": "#D19A66"
+        },
+        {
+          "style": 5,
+          "fg": "#C678DD",
+          "bold": true
+        },
+        {
+          "style": 16,
+          "fg": "#C678DD",
+          "bold": true
+        },
+        {
+          "style": 6,
+          "fg": "#98C379"
+        },
+        {
+          "style": 7,
+          "fg": "#98C379"
+        },
+        {
+          "style": 13,
+          "fg": "#98C379"
+        },
+        {
+          "style": 20,
+          "fg": "#98C379"
+        },
+        {
+          "style": 22,
+          "fg": "#98C379"
+        },
+        {
+          "style": 9,
+          "fg": "#C678DD"
+        },
+        {
+          "style": 10,
+          "fg": "#56B6C2"
+        },
+        {
+          "style": 11,
+          "fg": "#ABB2BF"
+        },
+        {
+          "style": 14,
+          "fg": "#98C379"
+        },
+        {
+          "style": 19,
+          "fg": "#E5C07B",
+          "italic": true
+        },
+        {
+          "style": 27,
+          "fg": "#56B6C2"
+        }
+      ],
+      "python": [
+        {
+          "style": 0,
+          "fg": "#ABB2BF"
+        },
+        {
+          "style": 1,
+          "fg": "#5C6370",
+          "italic": true
+        },
+        {
+          "style": 12,
+          "fg": "#5C6370",
+          "italic": true
+        },
+        {
+          "style": 2,
+          "fg": "#D19A66"
+        },
+        {
+          "style": 3,
+          "fg": "#98C379"
+        },
+        {
+          "style": 4,
+          "fg": "#98C379"
+        },
+        {
+          "style": 6,
+          "fg": "#98C379"
+        },
+        {
+          "style": 7,
+          "fg": "#98C379"
+        },
+        {
+          "style": 16,
+          "fg": "#98C379"
+        },
+        {
+          "style": 17,
+          "fg": "#98C379"
+        },
+        {
+          "style": 18,
+          "fg": "#98C379"
+        },
+        {
+          "style": 19,
+          "fg": "#98C379"
+        },
+        {
+          "style": 5,
+          "fg": "#C678DD",
+          "bold": true
+        },
+        {
+          "style": 8,
+          "fg": "#E5C07B",
+          "italic": true
+        },
+        {
+          "style": 9,
+          "fg": "#61AFEF"
+        },
+        {
+          "style": 10,
+          "fg": "#56B6C2"
+        },
+        {
+          "style": 11,
+          "fg": "#ABB2BF"
+        },
+        {
+          "style": 15,
+          "fg": "#61AFEF"
+        }
+      ],
+      "json": [
+        {
+          "style": 0,
+          "fg": "#ABB2BF"
+        },
+        {
+          "style": 1,
+          "fg": "#D19A66"
+        },
+        {
+          "style": 2,
+          "fg": "#98C379"
+        },
+        {
+          "style": 4,
+          "fg": "#E06C75"
+        },
+        {
+          "style": 5,
+          "fg": "#56B6C2"
+        },
+        {
+          "style": 6,
+          "fg": "#5C6370",
+          "italic": true
+        },
+        {
+          "style": 7,
+          "fg": "#5C6370",
+          "italic": true
+        },
+        {
+          "style": 8,
+          "fg": "#56B6C2"
+        },
+        {
+          "style": 11,
+          "fg": "#C678DD"
+        },
+        {
+          "style": 12,
+          "fg": "#C678DD"
+        }
+      ],
+      "css": [
+        {
+          "style": 0,
+          "fg": "#ABB2BF"
+        },
+        {
+          "style": 1,
+          "fg": "#C678DD"
+        },
+        {
+          "style": 2,
+          "fg": "#61AFEF"
+        },
+        {
+          "style": 3,
+          "fg": "#E5C07B"
+        },
+        {
+          "style": 20,
+          "fg": "#E5C07B"
+        },
+        {
+          "style": 21,
+          "fg": "#E5C07B"
+        },
+        {
+          "style": 5,
+          "fg": "#56B6C2"
+        },
+        {
+          "style": 6,
+          "fg": "#E06C75"
+        },
+        {
+          "style": 15,
+          "fg": "#E06C75"
+        },
+        {
+          "style": 17,
+          "fg": "#E06C75"
+        },
+        {
+          "style": 19,
+          "fg": "#E06C75"
+        },
+        {
+          "style": 8,
+          "fg": "#98C379"
+        },
+        {
+          "style": 9,
+          "fg": "#5C6370",
+          "italic": true
+        },
+        {
+          "style": 10,
+          "fg": "#61AFEF"
+        },
+        {
+          "style": 11,
+          "fg": "#C678DD",
+          "bold": true
+        },
+        {
+          "style": 12,
+          "fg": "#C678DD"
+        },
+        {
+          "style": 22,
+          "fg": "#C678DD"
+        },
+        {
+          "style": 13,
+          "fg": "#98C379"
+        },
+        {
+          "style": 14,
+          "fg": "#98C379"
+        },
+        {
+          "style": 16,
+          "fg": "#E06C75"
+        },
+        {
+          "style": 18,
+          "fg": "#E5C07B"
+        },
+        {
+          "style": 23,
+          "fg": "#E06C75"
+        }
+      ],
+      "bash": [
+        {
+          "style": 0,
+          "fg": "#ABB2BF"
+        },
+        {
+          "style": 2,
+          "fg": "#5C6370",
+          "italic": true
+        },
+        {
+          "style": 3,
+          "fg": "#D19A66"
+        },
+        {
+          "style": 4,
+          "fg": "#C678DD",
+          "bold": true
+        },
+        {
+          "style": 5,
+          "fg": "#98C379"
+        },
+        {
+          "style": 6,
+          "fg": "#98C379"
+        },
+        {
+          "style": 13,
+          "fg": "#98C379"
+        },
+        {
+          "style": 7,
+          "fg": "#56B6C2"
+        },
+        {
+          "style": 8,
+          "fg": "#ABB2BF"
+        },
+        {
+          "style": 9,
+          "fg": "#E06C75"
+        },
+        {
+          "style": 10,
+          "fg": "#E06C75"
+        },
+        {
+          "style": 11,
+          "fg": "#98C379"
+        }
+      ],
+      "sql": [
+        {
+          "style": 0,
+          "fg": "#ABB2BF"
+        },
+        {
+          "style": 1,
+          "fg": "#5C6370",
+          "italic": true
+        },
+        {
+          "style": 2,
+          "fg": "#5C6370",
+          "italic": true
+        },
+        {
+          "style": 3,
+          "fg": "#5C6370",
+          "italic": true
+        },
+        {
+          "style": 13,
+          "fg": "#5C6370",
+          "italic": true
+        },
+        {
+          "style": 17,
+          "fg": "#5C6370",
+          "italic": true
+        },
+        {
+          "style": 4,
+          "fg": "#D19A66"
+        },
+        {
+          "style": 5,
+          "fg": "#C678DD",
+          "bold": true
+        },
+        {
+          "style": 19,
+          "fg": "#C678DD",
+          "bold": true
+        },
+        {
+          "style": 20,
+          "fg": "#C678DD",
+          "bold": true
+        },
+        {
+          "style": 21,
+          "fg": "#C678DD",
+          "bold": true
+        },
+        {
+          "style": 22,
+          "fg": "#C678DD",
+          "bold": true
+        },
+        {
+          "style": 6,
+          "fg": "#98C379"
+        },
+        {
+          "style": 7,
+          "fg": "#98C379"
+        },
+        {
+          "style": 10,
+          "fg": "#56B6C2"
+        },
+        {
+          "style": 11,
+          "fg": "#ABB2BF"
+        }
+      ],
+      "yaml": [
+        {
+          "style": 0,
+          "fg": "#ABB2BF"
+        },
+        {
+          "style": 1,
+          "fg": "#5C6370",
+          "italic": true
+        },
+        {
+          "style": 2,
+          "fg": "#E06C75"
+        },
+        {
+          "style": 3,
+          "fg": "#C678DD"
+        },
+        {
+          "style": 4,
+          "fg": "#D19A66"
+        },
+        {
+          "style": 5,
+          "fg": "#E06C75"
+        },
+        {
+          "style": 6,
+          "fg": "#5C6370"
+        },
+        {
+          "style": 9,
+          "fg": "#56B6C2"
+        }
+      ],
+      "markdown": [
+        {
+          "style": 0,
+          "fg": "#ABB2BF"
+        },
+        {
+          "style": 1,
+          "fg": "#C678DD"
+        },
+        {
+          "style": 2,
+          "fg": "#C678DD",
+          "bold": true
+        },
+        {
+          "style": 3,
+          "fg": "#C678DD",
+          "bold": true
+        },
+        {
+          "style": 4,
+          "fg": "#E5C07B",
+          "italic": true
+        },
+        {
+          "style": 5,
+          "fg": "#E5C07B",
+          "italic": true
+        },
+        {
+          "style": 6,
+          "fg": "#61AFEF",
+          "bold": true
+        },
+        {
+          "style": 7,
+          "fg": "#61AFEF",
+          "bold": true
+        },
+        {
+          "style": 8,
+          "fg": "#61AFEF",
+          "bold": true
+        },
+        {
+          "style": 9,
+          "fg": "#61AFEF",
+          "bold": true
+        },
+        {
+          "style": 10,
+          "fg": "#61AFEF",
+          "bold": true
+        },
+        {
+          "style": 11,
+          "fg": "#61AFEF",
+          "bold": true
+        },
+        {
+          "style": 13,
+          "fg": "#C678DD"
+        },
+        {
+          "style": 14,
+          "fg": "#C678DD"
+        },
+        {
+          "style": 15,
+          "fg": "#5C6370",
+          "italic": true
+        },
+        {
+          "style": 16,
+          "fg": "#5C6370"
+        },
+        {
+          "style": 17,
+          "fg": "#5C6370"
+        },
+        {
+          "style": 18,
+          "fg": "#98C379"
+        },
+        {
+          "style": 19,
+          "fg": "#98C379"
+        },
+        {
+          "style": 20,
+          "fg": "#98C379"
+        },
+        {
+          "style": 21,
+          "fg": "#98C379"
+        }
+      ],
+      "html": [
+        {
+          "style": 0,
+          "fg": "#ABB2BF"
+        },
+        {
+          "style": 1,
+          "fg": "#C678DD"
+        },
+        {
+          "style": 3,
+          "fg": "#61AFEF"
+        },
+        {
+          "style": 5,
+          "fg": "#D19A66"
+        },
+        {
+          "style": 6,
+          "fg": "#98C379"
+        },
+        {
+          "style": 7,
+          "fg": "#98C379"
+        },
+        {
+          "style": 9,
+          "fg": "#5C6370",
+          "italic": true
+        },
+        {
+          "style": 10,
+          "fg": "#D19A66"
+        },
+        {
+          "style": 42,
+          "fg": "#5C6370",
+          "italic": true
+        },
+        {
+          "style": 43,
+          "fg": "#5C6370",
+          "italic": true
+        },
+        {
+          "style": 44,
+          "fg": "#5C6370",
+          "italic": true
+        },
+        {
+          "style": 45,
+          "fg": "#D19A66"
+        },
+        {
+          "style": 47,
+          "fg": "#C678DD",
+          "bold": true
+        },
+        {
+          "style": 48,
+          "fg": "#98C379"
+        },
+        {
+          "style": 49,
+          "fg": "#98C379"
+        }
+      ],
+      "xml": [
+        {
+          "style": 0,
+          "fg": "#ABB2BF"
+        },
+        {
+          "style": 1,
+          "fg": "#C678DD"
+        },
+        {
+          "style": 3,
+          "fg": "#61AFEF"
+        },
+        {
+          "style": 5,
+          "fg": "#D19A66"
+        },
+        {
+          "style": 6,
+          "fg": "#98C379"
+        },
+        {
+          "style": 7,
+          "fg": "#98C379"
+        },
+        {
+          "style": 9,
+          "fg": "#5C6370",
+          "italic": true
+        },
+        {
+          "style": 10,
+          "fg": "#D19A66"
+        },
+        {
+          "style": 42,
+          "fg": "#5C6370",
+          "italic": true
+        },
+        {
+          "style": 43,
+          "fg": "#5C6370",
+          "italic": true
+        },
+        {
+          "style": 44,
+          "fg": "#5C6370",
+          "italic": true
+        },
+        {
+          "style": 45,
+          "fg": "#D19A66"
+        },
+        {
+          "style": 47,
+          "fg": "#C678DD",
+          "bold": true
+        },
+        {
+          "style": 48,
+          "fg": "#98C379"
+        },
+        {
+          "style": 49,
+          "fg": "#98C379"
+        }
+      ]
+    }
+  }
+}
