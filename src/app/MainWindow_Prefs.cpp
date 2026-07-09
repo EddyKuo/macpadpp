@@ -189,7 +189,8 @@ void MainWindow::applyDelimiters(EditorWidget *editor, const macpad::persistence
         if (!delims.contains(QLatin1Char(c)))
             wordChars.append(c);
     }
-    editor->SendScintilla(QsciScintillaBase::SCI_SETWORDCHARS, 0UL, wordChars.constData());
+    editor->SendScintilla(QsciScintillaBase::SCI_SETWORDCHARS,
+                          static_cast<quintptr>(0), wordChars.constData());
 }
 
 

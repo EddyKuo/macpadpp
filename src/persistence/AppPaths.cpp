@@ -19,7 +19,8 @@ QString AppPaths::configDir()
         QDir().mkpath(g_configDirOverride);
         return g_configDirOverride;
     }
-    // profile §1：~/Library/Application Support/macpad++/（macOS = AppDataLocation）
+    // profile §1：AppDataLocation（macOS: ~/Library/Application Support/macpad++/；
+    //                              Windows: %APPDATA%\macpad++\）
     QString base = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
     if (base.isEmpty())
         base = QDir::homePath() + QStringLiteral("/.macpad++");

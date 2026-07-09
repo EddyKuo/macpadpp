@@ -1,6 +1,7 @@
 #include "app/MainWindow.h"
 
 #include "core/EditorWidget.h"
+#include "platform/DesktopIntegration.h"
 #include "core/LexerFactory.h"
 #include "features/search/FindReplaceDialog.h"
 #include "persistence/RecentFiles.h"
@@ -558,7 +559,7 @@ void MainWindow::createEditMenu(QMenu *editMenu)
         const QString sel = e->selectedText().trimmed();
         if (sel.isEmpty())
             return;
-        QProcess::startDetached(QStringLiteral("open"), {QStringLiteral("-R"), sel});
+        macpad::platform::revealInFileManager(sel);
     });
     onSelectionMenu->addAction(tr("Search on Internet"), this,
                                [this] { searchSelectionOnInternet(currentEditor()); });
@@ -1358,7 +1359,7 @@ void MainWindow::createEditMenuOps(QMenu *editMenu)
         e->SendScintilla(QsciScintilla::SCI_SETTARGETSTART, 0UL);
         e->SendScintilla(QsciScintilla::SCI_SETTARGETEND, static_cast<unsigned long>(e->length()));
         e->SendScintilla(QsciScintilla::SCI_REPLACETARGET,
-                         static_cast<unsigned long>(b.size()), b.constData());
+                         static_cast<quintptr>(b.size()), b.constData());
         e->endUndoAction();
     });
 

@@ -1,6 +1,7 @@
 #include "app/MainWindow.h"
 
 #include "core/EditorWidget.h"
+#include "platform/DesktopIntegration.h"
 #include "core/LexerFactory.h"
 #include "features/search/FindReplaceDialog.h"
 #include "persistence/RecentFiles.h"
@@ -443,8 +444,7 @@ void MainWindow::revealInFinder()
     EditorWidget *e = currentEditor();
     if (!e || e->isUntitled())
         return;
-    QProcess::startDetached(QStringLiteral("open"),
-                            {QStringLiteral("-R"), e->filePath()});
+    macpad::platform::revealInFileManager(e->filePath());
 }
 
 

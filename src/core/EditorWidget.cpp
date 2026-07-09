@@ -2,6 +2,7 @@
 
 #include "core/LexerFactory.h"
 #include "features/autocomplete/ApiDatabase.h"
+#include "platform/DesktopIntegration.h"
 
 #include <QClipboard>
 #include <QColor>
@@ -173,8 +174,8 @@ EditorWidget::~EditorWidget()
 
 void EditorWidget::applyDefaultConfig()
 {
-    // 等寬字型（DR-001 預設 Menlo 13；正式值待 settings 載入）
-    QFont font(QStringLiteral("Menlo"), 13);
+    // 等寬字型（DR-001；平台預設 Menlo/Cascadia Mono/Consolas 13，正式值待 settings 載入）
+    QFont font(macpad::platform::defaultMonospaceFamily(), 13);
     font.setStyleHint(QFont::Monospace);
     setFont(font);
 
@@ -269,7 +270,7 @@ void EditorWidget::applyLexerForPath(const QString &path)
         delete old;
     if (lexer) {
         // lexer 會覆寫字型，統一回等寬
-        QFont font(QStringLiteral("Menlo"), 13);
+        QFont font(macpad::platform::defaultMonospaceFamily(), 13);
         font.setStyleHint(QFont::Monospace);
         lexer->setDefaultFont(font);
         lexer->setFont(font);
@@ -285,7 +286,7 @@ void EditorWidget::setLanguageLexer(QsciLexer *lexer)
     if (old && old != lexer)
         delete old;
     if (lexer) {
-        QFont font(QStringLiteral("Menlo"), 13);
+        QFont font(macpad::platform::defaultMonospaceFamily(), 13);
         font.setStyleHint(QFont::Monospace);
         lexer->setDefaultFont(font);
         lexer->setFont(font);
@@ -548,7 +549,7 @@ int EditorWidget::replaceAll(const QString &find, const QString &replaceStr,
         SendScintilla(SCI_SETTARGETSTART, 0UL);
         SendScintilla(SCI_SETTARGETEND, static_cast<unsigned long>(length()));
         SendScintilla(SCI_REPLACETARGET,
-                      static_cast<unsigned long>(bytes.size()), bytes.constData());
+                      static_cast<quintptr>(bytes.size()), bytes.constData());
         endUndoAction();
         const int total = static_cast<int>(lines());
         for (int ln : marks) {
@@ -580,7 +581,7 @@ int EditorWidget::markAll(const QString &find, bool regex, bool caseSensitive, b
         SendScintilla(SCI_SETTARGETSTART, static_cast<unsigned long>(start));
         SendScintilla(SCI_SETTARGETEND, static_cast<unsigned long>(end));
         const long found = SendScintilla(SCI_SEARCHINTARGET,
-                                         static_cast<unsigned long>(fb.size()), fb.constData());
+                                         static_cast<quintptr>(fb.size()), fb.constData());
         if (found < 0)
             break;
         const long ms = SendScintilla(SCI_GETTARGETSTART);
@@ -619,7 +620,7 @@ int EditorWidget::countMatches(const QString &find, bool regex, bool caseSensiti
         SendScintilla(SCI_SETTARGETSTART, static_cast<unsigned long>(start));
         SendScintilla(SCI_SETTARGETEND, static_cast<unsigned long>(end));
         const long found = SendScintilla(SCI_SEARCHINTARGET,
-                                         static_cast<unsigned long>(fb.size()), fb.constData());
+                                         static_cast<quintptr>(fb.size()), fb.constData());
         if (found < 0)
             break;
         const long ms = SendScintilla(SCI_GETTARGETSTART);
@@ -881,7 +882,7 @@ void EditorWidget::pasteReplaceBookmarkedLines()
         SendScintilla(SCI_SETTARGETEND, static_cast<unsigned long>(lineEnd));
         const QByteArray bytes = replacement.toUtf8();
         SendScintilla(SCI_REPLACETARGET,
-                      static_cast<unsigned long>(bytes.size()), bytes.constData());
+                      static_cast<quintptr>(bytes.size()), bytes.constData());
     }
     endUndoAction();
 }
@@ -918,7 +919,7 @@ void EditorWidget::showCallTip(const QString &text)
     const long pos = SendScintilla(SCI_GETCURRENTPOS);
     // SCI_CALLTIPSHOW 會複製字串，臨時 QByteArray 即可
     const QByteArray bytes = text.toUtf8();
-    SendScintilla(SCI_CALLTIPSHOW, static_cast<unsigned long>(pos), bytes.constData());
+    SendScintilla(SCI_CALLTIPSHOW, static_cast<quintptr>(pos), bytes.constData());
 }
 
 void EditorWidget::cancelCallTip()
@@ -1002,7 +1003,7 @@ void EditorWidget::keyPressEvent(QKeyEvent *event)
             if (insertCloser) {
                 const long pos = SendScintilla(SCI_GETCURRENTPOS);
                 const QByteArray cb = QString(closer).toUtf8();
-                SendScintilla(SCI_INSERTTEXT, static_cast<unsigned long>(pos), cb.constData());
+                SendScintilla(SCI_INSERTTEXT, static_cast<quintptr>(pos), cb.constData());
                 SendScintilla(SCI_GOTOPOS, static_cast<unsigned long>(pos));  // 游標留在兩符號之間
             }
         }
@@ -1021,7 +1022,7 @@ void EditorWidget::keyPressEvent(QKeyEvent *event)
         const QString closing = closingTagFor(QString::fromUtf8(beforeBytes));
         if (!closing.isEmpty()) {
             const QByteArray cb = closing.toUtf8();
-            SendScintilla(SCI_INSERTTEXT, static_cast<unsigned long>(pos), cb.constData());
+            SendScintilla(SCI_INSERTTEXT, static_cast<quintptr>(pos), cb.constData());
             SendScintilla(SCI_GOTOPOS, static_cast<unsigned long>(pos));  // 游標留在標籤之間
         }
     }
@@ -1296,7 +1297,7 @@ void EditorWidget::onUserListActivated(int id, const QString &string)
 
     const long insertPos = SendScintilla(SCI_GETCURRENTPOS);
     const QByteArray bytes = string.toUtf8();
-    SendScintilla(SCI_INSERTTEXT, static_cast<unsigned long>(insertPos), bytes.constData());
+    SendScintilla(SCI_INSERTTEXT, static_cast<quintptr>(insertPos), bytes.constData());
     SendScintilla(SCI_GOTOPOS, static_cast<unsigned long>(insertPos + bytes.size()));
 }
 
@@ -1406,7 +1407,7 @@ void EditorWidget::redactSelection()
         SendScintilla(SCI_SETTARGETSTART, static_cast<unsigned long>(r.first));
         SendScintilla(SCI_SETTARGETEND, static_cast<unsigned long>(r.second));
         SendScintilla(SCI_REPLACETARGET,
-                      static_cast<unsigned long>(mb.size()), mb.constData());
+                      static_cast<quintptr>(mb.size()), mb.constData());
     }
     endUndoAction();
 }
@@ -1433,7 +1434,7 @@ int EditorWidget::fillWordOccurrences(const QString &word, int indicator)
         SendScintilla(SCI_SETTARGETSTART, static_cast<unsigned long>(start));
         SendScintilla(SCI_SETTARGETEND, static_cast<unsigned long>(end));
         const long found = SendScintilla(SCI_SEARCHINTARGET,
-                                         static_cast<unsigned long>(fb.size()), fb.constData());
+                                         static_cast<quintptr>(fb.size()), fb.constData());
         if (found < 0)
             break;
         const long ms = SendScintilla(SCI_GETTARGETSTART);

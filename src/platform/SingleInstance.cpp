@@ -1,6 +1,9 @@
 #include "platform/SingleInstance.h"
 
+#include <QCoreApplication>
 #include <QDataStream>
+#include <QElapsedTimer>
+#include <QEventLoop>
 #include <QLocalServer>
 #include <QLocalSocket>
 #include <QSharedPointer>
@@ -76,7 +79,16 @@ bool SingleInstance::sendToPrimary(const QStringList &args)
     out.device()->seek(0);
     out << quint32(block.size() - int(sizeof(quint32)));
     sock.write(block);
-    const bool ok = sock.waitForBytesWritten(200);
+    // Windows named pipe：QLocalSocket 寫入為完全非同步——實測 waitForBytesWritten() /
+    // waitForDisconnected() 皆不推進寫入（bytesToWrite() 維持不變），唯有事件迴圈能將
+    // 緩衝實際寫出。故以事件迴圈泵動直到緩衝排空（或逾時），再以 bytesToWrite()==0 判定
+    // 成功，避免在資料實際已送出時誤報失敗（IL-4）。macOS/Unix socket 通常即刻排空。
+    // sendToPrimary 於程式啟動階段（app.exec() 之前）呼叫，此處 processEvents 無重入疑慮。
+    QElapsedTimer timer;
+    timer.start();
+    while (sock.bytesToWrite() > 0 && timer.elapsed() < 1000)
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 50);
+    const bool ok = (sock.bytesToWrite() == 0);
     sock.disconnectFromServer();
     return ok;
 }

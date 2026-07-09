@@ -1,6 +1,7 @@
 #include "app/MainWindow.h"
 
 #include "core/EditorWidget.h"
+#include "platform/DesktopIntegration.h"
 #include "core/LexerFactory.h"
 #include "features/search/FindReplaceDialog.h"
 #include "persistence/RecentFiles.h"
@@ -437,7 +438,7 @@ void MainWindow::applyTextOp(const std::function<QString(const QString &)> &op)
         e->SendScintilla(QsciScintilla::SCI_SETTARGETEND,
                          static_cast<unsigned long>(e->length()));
         e->SendScintilla(QsciScintilla::SCI_REPLACETARGET,
-                         static_cast<unsigned long>(b.size()), b.constData());
+                         static_cast<quintptr>(b.size()), b.constData());
     }
     e->endUndoAction();
 }
@@ -465,7 +466,7 @@ void MainWindow::moveCurrentLines(bool up)
     e->SendScintilla(QsciScintilla::SCI_SETTARGETSTART, 0UL);
     e->SendScintilla(QsciScintilla::SCI_SETTARGETEND, static_cast<unsigned long>(e->length()));
     e->SendScintilla(QsciScintilla::SCI_REPLACETARGET,
-                     static_cast<unsigned long>(b.size()), b.constData());
+                     static_cast<quintptr>(b.size()), b.constData());
     e->endUndoAction();
     e->setCursorPosition(newFirst, 0);
 }
@@ -516,13 +517,8 @@ void MainWindow::viewCurrentFileInBrowser(const QString &appName)
         return;
     }
     const QString path = e->filePath();
-    if (appName.isEmpty()) {
-        QDesktopServices::openUrl(QUrl::fromLocalFile(path));
-    } else {
-        // macOS：open -a "<App>" <file>
-        QProcess::startDetached(QStringLiteral("open"),
-                                {QStringLiteral("-a"), appName, path});
-    }
+    // 平台整合：appName 為空→系統預設程式；否則以指定 app 開啟（見 DesktopIntegration）。
+    macpad::platform::openInApp(appName, path);
 }
 
 

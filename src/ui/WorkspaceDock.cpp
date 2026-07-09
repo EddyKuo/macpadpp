@@ -11,8 +11,9 @@
 #include <QLineEdit>
 #include <QMenu>
 #include <QMessageBox>
-#include <QProcess>
 #include <QTreeWidget>
+
+#include "platform/DesktopIntegration.h"
 
 namespace macpad::ui {
 
@@ -271,13 +272,13 @@ void WorkspaceDock::showContextMenu(const QPoint &pos)
         connect(revealAction, &QAction::triggered, this, [item, this]() {
             const QString path = pathOf(item);
             if (!path.isEmpty())
-                QProcess::startDetached(QStringLiteral("open"), {QStringLiteral("-R"), path});
+                macpad::platform::revealInFileManager(path);
         });
 
         QAction *terminalAction = menu.addAction(tr("Open Terminal Here"));
         connect(terminalAction, &QAction::triggered, this, [containingDir]() {
             if (!containingDir.isEmpty())
-                QProcess::startDetached(QStringLiteral("open"), {QStringLiteral("-a"), QStringLiteral("Terminal"), containingDir});
+                macpad::platform::openInTerminal(containingDir);
         });
     }
 
