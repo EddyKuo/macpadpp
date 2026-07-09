@@ -41,6 +41,8 @@ private slots:
         QVERIFY(spy.isValid());
 
         const QStringList args{QStringLiteral("/tmp/a.txt"), QStringLiteral(":5")};
+        // sendToPrimary 內部會泵動事件迴圈直到寫入緩衝排空（Windows named pipe 非同步寫入
+        // 需要事件迴圈才能實際送出），故此處直接斷言其回傳 true。
         QVERIFY(secondary.sendToPrimary(args));
 
         // 等候 primary 端 readyRead + 反序列化完成

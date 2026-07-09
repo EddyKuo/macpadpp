@@ -38,6 +38,7 @@ set(MACPAD_TESTS
     test_functionlistconfig
     test_contextmenu
     test_session_snapshot
+    test_desktopintegration
 )
 
 foreach(t ${MACPAD_TESTS})
