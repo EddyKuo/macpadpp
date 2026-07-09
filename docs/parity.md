@@ -39,6 +39,8 @@ Plugins · Window · **Project**(macpad++ 新增)
 | Restore Recent Closed File | ✅ | ⌘⇧T |
 | Move to Recycle Bin | ✅ | 移到垃圾桶 |
 | Load / Save Session | ✅ | 具名 session |
+| Session 快照(未存內容跨重啟保留) | ✅ | 複刻 Notepad++「session snapshot」:啟用時關閉不提示存檔,**多個未命名分頁各自的未存內容**與 dirty 已命名檔重開後靜默還原、保持 dirty(`enableSessionSnapshot`,預設開) |
+| 未命名分頁編號 untitled(N) | ✅ | 複刻 Notepad++「new N」:多個未存分頁以 `untitled(1)`/`untitled(2)`… 區分,關閉後號碼回收(取最小未用號) |
 | Print | ✅ | 保留語法高亮;CLI `-quickPrint` 免對話框直印(QsciPrinter) |
 | Export as HTML / RTF | ◐ | Export as HTML(存檔) ✅;RTF 無存檔匯出,但 Edit ▸ Paste as HTML/RTF 可貼到其他應用並保留語法高亮色彩 |
 

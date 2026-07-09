@@ -535,12 +535,29 @@ QMenu *MainWindow::buildEditorContextMenu(EditorWidget *ed, QWidget *parent)
 }
 
 
+// 未命名分頁的最小可用序號：掃描兩檢視所有 untitled 分頁已用號，回傳最小未用正整數（複刻 Notepad++ new N，會回收已關閉的號）
+int MainWindow::nextUntitledNumber() const
+{
+    QSet<int> used;
+    forEachEditor([&used](EditorWidget *e) {
+        if (e && e->isUntitled() && e->untitledNumber() > 0)
+            used.insert(e->untitledNumber());
+    });
+    int n = 1;
+    while (used.contains(n))
+        ++n;
+    return n;
+}
+
+
 EditorWidget *MainWindow::addEditorTab()
 {
     // 新分頁一律加入作用中檢視（單一檢視時即 m_tabs，行為與改動前一致）
     QTabWidget *w = currentTabWidget();
     auto *pane = new EditorPane(w);
     EditorWidget *editor = pane->primary();
+    // 指派未命名序號（untitled(N)）——於加入分頁前計算，故不會把自己算進去
+    editor->setUntitledNumber(nextUntitledNumber());
 
     wireEditorSignals(editor);
 

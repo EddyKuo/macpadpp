@@ -37,6 +37,7 @@ set(MACPAD_TESTS
     test_udlxmlio
     test_functionlistconfig
     test_contextmenu
+    test_session_snapshot
 )
 
 foreach(t ${MACPAD_TESTS})

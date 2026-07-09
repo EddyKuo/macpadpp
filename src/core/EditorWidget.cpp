@@ -358,7 +358,8 @@ bool EditorWidget::saveFile(const QString &path, QString *errorMessage)
 QString EditorWidget::displayName() const
 {
     const QString base = isUntitled()
-        ? QStringLiteral("Untitled")
+        ? (m_untitledNumber > 0 ? QStringLiteral("untitled(%1)").arg(m_untitledNumber)
+                                : QStringLiteral("Untitled"))
         : QFileInfo(m_filePath).fileName();
     return isDirty() ? QStringLiteral("● ") + base : base;
 }

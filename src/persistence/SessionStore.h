@@ -20,6 +20,10 @@ struct TabState {
     QList<int> bookmarks;      // FR-052：已加書籤的行號
     QString languageOverride;  // FR-052：詞法分析器 key，空字串表示自動偵測
     int view = 0;              // FR-062：分頁所屬檢視（0=主檢視、1=第二檢視），還原時歸位
+    // Notepad++ session 快照：未存內容跨重啟保留（含未命名 untitled 緩衝與 dirty 已命名檔）
+    bool untitled = false;     // 此分頁為未命名（無檔）的未存緩衝區
+    bool dirty = false;        // 有未存變更（還原後維持 dirty 標記）
+    QString unsavedContent;    // dirty 時的完整緩衝內容：untitled 用以重建、named 用以覆蓋磁碟版
 };
 
 struct SessionState {

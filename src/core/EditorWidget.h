@@ -29,6 +29,11 @@ public:
 
     QString filePath() const { return m_filePath; }
     bool isUntitled() const { return m_filePath.isEmpty(); }
+
+    // 未命名分頁序號（複刻 Notepad++「new N」）：>0 時 displayName 顯示 untitled(N) 以區分多個未存分頁。
+    // 由 MainWindow::addEditorTab 於建立時指派最小可用號；命名後（有 filePath）即不再顯示。
+    int untitledNumber() const { return m_untitledNumber; }
+    void setUntitledNumber(int n) { m_untitledNumber = n; }
     bool isDirty() const { return isModified() || m_metaDirty; }
 
     // 顯示用標題：檔名或 "Untitled"，dirty 時前綴 ●
@@ -348,6 +353,7 @@ private:
     bool m_virtualSpace = false;          // 虛擬空間開關狀態（FR-060）
 
     // Preferences 即時套用相關狀態
+    int  m_untitledNumber = 0;       // 未命名分頁序號（0=未指派/已命名，>0 顯示 untitled(N)）
     bool m_showLineNumbers = true;   // 行號邊欄顯示狀態
     int  m_caretWidth = 1;           // 插入點寬度（像素）
     bool m_wordCompletion = true;    // 字詞自動完成開關

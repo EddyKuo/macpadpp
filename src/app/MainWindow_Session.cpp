@@ -113,17 +113,34 @@ macpad::persistence::SessionState MainWindow::buildCurrentSession() const
     SessionState state;
     EditorWidget *active = currentEditor();
     state.activeIndex = 0;
+    // Notepad++ session 快照：啟用時連未命名/未存內容也一併保留（見 openSessionState 還原）
+    const bool snapshot = macpad::persistence::SettingsStore::load().enableSessionSnapshot;
     for (QTabWidget *w : {m_tabs, m_tabs2}) {
         if (!w)
             continue;
         for (int i = 0; i < w->count(); ++i) {
             EditorWidget *e = editorIn(w, i);
-            if (!e || e->isUntitled())
-                continue;  // 只還原已命名檔（DR-002）；clone 亦為 untitled 故排除
+            if (!e)
+                continue;
+            // clone 與來源共享文件，不獨立持久化（避免內容重覆還原）
+            if (EditorPane *p = paneIn(w, i); p && p->isClone())
+                continue;
+            const bool untitled = e->isUntitled();
+            if (untitled) {
+                // 未命名分頁：僅在啟用快照且有未存內容時保留（空白未動的分頁不值得還原）
+                if (!snapshot || !e->isDirty() || e->text().isEmpty())
+                    continue;
+            }
             if (e == active)
                 state.activeIndex = int(state.tabs.size());
             TabState t;
-            t.path = e->filePath();
+            t.path = untitled ? QString() : e->filePath();
+            t.untitled = untitled;
+            // 未存內容（含 untitled 緩衝與 dirty 已命名檔）——啟用快照時捕捉，還原時覆蓋磁碟版
+            if (snapshot && e->isDirty()) {
+                t.dirty = true;
+                t.unsavedContent = e->text();
+            }
             int line = 0, index = 0;
             e->getCursorPosition(&line, &index);
             t.line = line;
@@ -164,19 +181,33 @@ void MainWindow::openSessionState(const macpad::persistence::SessionState &state
     using namespace macpad::persistence;
     QVector<QPair<QTabWidget *, EditorPane *>> restored;  // 依序記錄（供 activeIndex 歸位）
     for (const TabState &t : state.tabs) {
-        if (!QFileInfo::exists(t.path))
-            continue;  // 檔案已刪除則略過（FR-016 AC2）
+        const bool hasUnsaved = t.dirty && !t.unsavedContent.isEmpty();
+        // 一般已命名檔且無未存快照時，磁碟上不存在則略過（FR-016 AC2）。
+        // untitled 未存緩衝、或已命名檔帶未存快照者，即使磁碟無此檔仍要還原內容。
+        if (!t.untitled && !QFileInfo::exists(t.path) && !hasUnsaved)
+            continue;
         // FR-062：把分頁還原到它原本所屬的檢視；view==1 但第二檢視尚未建立時退回主檢視。
         QTabWidget *target = (t.view == 1 && m_tabs2) ? m_tabs2 : m_tabs;
         setActiveTabWidget(target);         // addEditorTab 會加入作用中檢視
         EditorWidget *editor = addEditorTab();
-        QString err;
-        if (!editor->loadFile(t.path, &err)) {
-            // 讀取失敗略過該分頁，不中斷還原
-            const int idx = target->indexOf(target->widget(target->count() - 1));
-            if (idx >= 0) { EditorPane *p = paneIn(target, idx); target->removeTab(idx);
-                            if (p) p->deleteLater(); }
-            continue;
+        if (t.untitled) {
+            // Notepad++ session 快照：未命名未存緩衝 → 直接填入內容，維持 untitled 標題與 dirty
+            editor->setText(t.unsavedContent);
+        } else if (!QFileInfo::exists(t.path)) {
+            // 已命名檔已從磁碟消失，但有未存快照 → 以快照內容還原（退化為 untitled 緩衝，仍保住使用者的工作）
+            editor->setText(t.unsavedContent);
+        } else {
+            QString err;
+            if (!editor->loadFile(t.path, &err)) {
+                // 讀取失敗略過該分頁，不中斷還原
+                const int idx = target->indexOf(target->widget(target->count() - 1));
+                if (idx >= 0) { EditorPane *p = paneIn(target, idx); target->removeTab(idx);
+                                if (p) p->deleteLater(); }
+                continue;
+            }
+            // dirty 已命名檔：以未存快照覆蓋磁碟版，維持 dirty（loadFile 會清 dirty，故 setText 後恢復 modified）
+            if (hasUnsaved)
+                editor->setText(t.unsavedContent);
         }
         restored.append({target, paneIn(target, target->count() - 1)});
         // FR-052：先還原書籤（逐行移動游標並切換，載入後全新分頁尚無書籤，切換即新增）

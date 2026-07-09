@@ -75,6 +75,54 @@ private slots:
         QVERIFY(out.tabs[0].languageOverride.isEmpty());
     }
 
+    void sessionSnapshotUnsavedRoundtrip()
+    {
+        // Notepad++ session 快照：untitled 未存緩衝 + dirty 已命名檔的未存內容 round-trip。
+        SessionState in;
+        in.activeIndex = 1;
+        TabState untitled;              // 未命名未存緩衝（無 path）
+        untitled.untitled = true;
+        untitled.dirty = true;
+        untitled.unsavedContent = QStringLiteral("draft not yet saved\nline2");
+        TabState named;                 // 已命名但有未存變更
+        named.path = QStringLiteral("/tmp/edited.cpp");
+        named.dirty = true;
+        named.unsavedContent = QStringLiteral("int main() { /* unsaved edit */ }");
+        in.tabs = {untitled, named};
+        QVERIFY(SessionStore::save(in));
+
+        const SessionState out = SessionStore::load();
+        // 關鍵：untitled（空 path）分頁不再被丟棄
+        QCOMPARE(out.tabs.size(), 2);
+        QVERIFY(out.tabs[0].untitled);
+        QVERIFY(out.tabs[0].path.isEmpty());
+        QVERIFY(out.tabs[0].dirty);
+        QCOMPARE(out.tabs[0].unsavedContent, QStringLiteral("draft not yet saved\nline2"));
+        QVERIFY(!out.tabs[1].untitled);
+        QCOMPARE(out.tabs[1].path, QStringLiteral("/tmp/edited.cpp"));
+        QVERIFY(out.tabs[1].dirty);
+        QCOMPARE(out.tabs[1].unsavedContent,
+                 QStringLiteral("int main() { /* unsaved edit */ }"));
+        QCOMPARE(out.activeIndex, 1);
+    }
+
+    void sessionCleanTabHasNoUnsavedPayload()
+    {
+        // 非 dirty 的已命名檔不應寫出 unsaved/dirty（避免膨脹 session.json）
+        SessionState in;
+        TabState clean;
+        clean.path = QStringLiteral("/tmp/clean.txt");
+        clean.dirty = false;
+        clean.unsavedContent = QStringLiteral("should not persist");
+        in.tabs = {clean};
+        QVERIFY(SessionStore::save(in));
+
+        const SessionState out = SessionStore::load();
+        QCOMPARE(out.tabs.size(), 1);
+        QVERIFY(!out.tabs[0].dirty);
+        QVERIFY(out.tabs[0].unsavedContent.isEmpty());
+    }
+
     void corruptSessionIsSafe()
     {
         // 寫入損毀 JSON → load 應回空 session 不崩潰（FR-016 AC3）

@@ -8,7 +8,7 @@
 [![Platform](https://img.shields.io/badge/platform-macOS%20(Apple%20Silicon)-000000?logo=apple&logoColor=white)](#下載安裝發佈版)
 [![C++17](https://img.shields.io/badge/C%2B%2B-17-00599C?logo=cplusplus&logoColor=white)](CMakeLists.txt)
 [![Qt6](https://img.shields.io/badge/Qt-6-41CD52?logo=qt&logoColor=white)](https://www.qt.io/)
-[![Tests](https://img.shields.io/badge/tests-35%20passing-brightgreen)](tests/)
+[![Tests](https://img.shields.io/badge/tests-36%20passing-brightgreen)](tests/)
 [![Coverage](https://img.shields.io/badge/coverage-90%25-brightgreen)](docs/design.md)
 
 **Notepad++ 對等的原生 macOS 文字/程式碼編輯器。** 以 C++17 + Qt6 + QScintilla 打造,
@@ -44,6 +44,8 @@
   Distraction Free、Post-It、瀏覽器預覽。
 - **自動化** — 巨集錄製/播放/具名儲存 + **管理對話框**(Modify Shortcut/Delete/Rename)、外部命令執行
   (可存具名命令並**各自綁定快捷鍵**)、Style Configurator(含主題下拉套用)、Shortcut Mapper(衝突偵測)。
+- **Session 快照** — 複刻 Notepad++「session snapshot」:未存內容(含**未命名 untitled 緩衝**與已命名檔的未存
+  編輯)跨關閉/重開自動保留——直接關閉不提示,重開後內容還在、分頁維持 untitled 與未存標記(可於偏好關閉)。
 - **原生 macOS** — 選單列原生整合(Preferences/About/Quit 自動歸入應用程式選單)、跟隨系統深/淺色、
   單一實例(可設定 multi-instance 模式)、命令列 `file:line` 跳轉、18+ CLI 旗標;**Notepad++ 風格圖示
   工具列**(隨主題自動變色)。
@@ -98,7 +100,7 @@ open build/src/macpad++.app
 ## 測試與效能基準
 
 ```bash
-ctest --test-dir build --output-on-failure                    # 35 個 QtTest 套件
+ctest --test-dir build --output-on-failure                    # 36 個 QtTest 套件
 QT_QPA_PLATFORM=offscreen ./build/tests/bench_largefile 100    # 大檔案基準
 ```
 

@@ -52,6 +52,13 @@ static QJsonObject stateToJson(const SessionState &state)
         o.insert(QStringLiteral("bookmarks"), bookmarks);
         o.insert(QStringLiteral("language_override"), t.languageOverride);
         o.insert(QStringLiteral("view"), t.view);
+        // Notepad++ session 快照：未存內容（僅在 dirty 時寫出，避免膨脹 session.json）
+        if (t.untitled)
+            o.insert(QStringLiteral("untitled"), true);
+        if (t.dirty) {
+            o.insert(QStringLiteral("dirty"), true);
+            o.insert(QStringLiteral("unsaved"), t.unsavedContent);
+        }
         tabs.append(o);
     }
     root.insert(QStringLiteral("tabs"), tabs);
@@ -69,7 +76,10 @@ static SessionState jsonToState(const QJsonObject &root)
     for (int i = 0; i < tabs.size(); ++i) {
         const QJsonObject o = tabs.at(i).toObject();
         const QString path = o.value(QStringLiteral("path")).toString();
-        if (path.isEmpty()) {
+        const bool untitled = o.value(QStringLiteral("untitled")).toBool(false);
+        // 空 path 且非 untitled 快照 → 真正的無效項目，略過（維持舊行為與 activeIndex 映射）。
+        // untitled 快照（Notepad++ 未存緩衝）即使無 path 也要保留還原。
+        if (path.isEmpty() && !untitled) {
             if (i < rawActive)
                 ++skippedBeforeActive;
             continue;
@@ -85,6 +95,9 @@ static SessionState jsonToState(const QJsonObject &root)
             t.bookmarks.append(bv.toInt(0));
         t.languageOverride = o.value(QStringLiteral("language_override")).toString();
         t.view = o.value(QStringLiteral("view")).toInt(0);
+        t.untitled = untitled;
+        t.dirty = o.value(QStringLiteral("dirty")).toBool(false);
+        t.unsavedContent = o.value(QStringLiteral("unsaved")).toString();
         state.tabs.push_back(t);
     }
     state.activeIndex = rawActive - skippedBeforeActive;  // 依過濾後的陣列重新映射

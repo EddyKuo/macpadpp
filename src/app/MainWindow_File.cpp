@@ -529,21 +529,27 @@ void MainWindow::closeTabIn(QTabWidget *w, int index)
 
 void MainWindow::closeEvent(QCloseEvent *event)
 {
-    // 逐一確認未存分頁（FR-001 AC2）——涵蓋兩個檢視；clone 略過（共享文件由來源負責）
-    for (QTabWidget *w : {m_tabs, m_tabs2}) {
-        if (!w)
-            continue;
-        for (int i = 0; i < w->count(); ++i) {
-            EditorPane *p = paneIn(w, i);
-            if (p && p->isClone())
+    // Notepad++ session 快照：啟用時關閉不再逐一提示存檔（未存內容——含 untitled——
+    // 由 saveSession/buildCurrentSession 持久化，下次啟動 restoreSession 靜默還原）。
+    // 停用時維持傳統行為：逐一確認未存分頁（FR-001 AC2），使用者可存/捨棄/取消。
+    const bool sessionSnapshot = macpad::persistence::SettingsStore::load().enableSessionSnapshot;
+    if (!sessionSnapshot) {
+        // 涵蓋兩個檢視；clone 略過（共享文件由來源負責）
+        for (QTabWidget *w : {m_tabs, m_tabs2}) {
+            if (!w)
                 continue;
-            if (!maybeSave(p ? p->primary() : nullptr)) {
-                event->ignore();
-                return;
+            for (int i = 0; i < w->count(); ++i) {
+                EditorPane *p = paneIn(w, i);
+                if (p && p->isClone())
+                    continue;
+                if (!maybeSave(p ? p->primary() : nullptr)) {
+                    event->ignore();
+                    return;
+                }
             }
         }
     }
-    saveSession();  // FR-016：關閉前保存 session
+    saveSession();  // FR-016：關閉前保存 session（快照啟用時含未存內容）
     if (m_projectPanel)
         m_projectPanel->save();  // 保存 Project Panel 樹狀內容（projects.json）
     macpad::features::BackupService::clearSnapshots();  // 正常關閉 → 清空當機復原快照

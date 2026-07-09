@@ -43,6 +43,7 @@ class MainWindow : public QMainWindow, public macpad::extension::IHostServices {
     Q_OBJECT
     // 單元測試存取私有成員（分頁容器、右鍵選單建構、關閉側邊分頁等）——Qt 慣用測試模式
     friend class TestContextMenu;
+    friend class TestSessionSnapshot;
 public:
     // restoreSessionOnLaunch=false 供命令列 -nosession（FR-051）略過本次啟動的 session 還原
     explicit MainWindow(QWidget *parent = nullptr, bool restoreSessionOnLaunch = true);
@@ -185,6 +186,8 @@ private:
     macpad::core::EditorWidget *currentEditor() const;
     macpad::core::EditorWidget *editorAt(int index) const;
     macpad::core::EditorWidget *addEditorTab();
+    // 未命名分頁的最小可用序號（複刻 Notepad++「new N」）：掃描兩檢視現有 untitled 分頁，回傳最小未用正整數
+    int nextUntitledNumber() const;
 
     // === Dual-View 支援（兩個 QTabWidget 檢視容器）===
     // 目前作用中的檢視（最後取得焦點 / 切換分頁者）；預設 m_tabs
