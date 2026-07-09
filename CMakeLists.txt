@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.21)
 
 project(macpadpp
-    VERSION 0.5.0
+    VERSION 0.5.1
     DESCRIPTION "Notepad++-equivalent native cross-platform (macOS/Windows) editor (Qt6 + QScintilla)"
     LANGUAGES CXX)
 
