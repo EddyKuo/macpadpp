@@ -24,3 +24,58 @@ jobs:
 
       - name: 測試（CTest）
         run: ctest --test-dir build --output-on-failure
+
+  build-test-windows:
+    name: Build & Test (Windows x64)
+    runs-on: windows-latest
+    timeout-minutes: 60
+    env:
+      QT_VERSION: 6.8.1
+      QSCI_VERSION: 2.14.1
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安裝 Qt（含 WebEngine / Core5Compat 等模組）
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          host: windows
+          target: desktop
+          arch: win64_msvc2022_64
+          modules: qt5compat qtwebengine qtwebchannel qtpositioning qtimageformats
+          cache: true
+
+      - name: 啟用 MSVC 開發者環境
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: 還原 QScintilla 快取
+        id: qsci-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.QT_ROOT_DIR }}/include/Qsci
+          key: qscintilla-${{ env.QSCI_VERSION }}-qt${{ env.QT_VERSION }}-msvc2022
+
+      - name: 建置並安裝 QScintilla（未命中快取時）
+        if: steps.qsci-cache.outputs.cache-hit != 'true'
+        shell: cmd
+        run: |
+          curl -L -o qsci.tar.gz https://www.riverbankcomputing.com/static/Downloads/QScintilla/%QSCI_VERSION%/QScintilla_src-%QSCI_VERSION%.tar.gz
+          tar -xzf qsci.tar.gz
+          cd QScintilla_src-%QSCI_VERSION%\src
+          qmake qscintilla.pro
+          nmake
+          nmake install
+
+      - name: 設定（Release，/W4 /WX 由 STRICT_WARNINGS 預設開啟）
+        shell: cmd
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="%QT_ROOT_DIR%"
+
+      - name: 建置
+        shell: cmd
+        run: cmake --build build -j
+
+      - name: 測試（CTest；qscintilla DLL 於 Qt lib/bin）
+        shell: cmd
+        run: |
+          set "PATH=%QT_ROOT_DIR%\bin;%QT_ROOT_DIR%\lib;%PATH%"
+          ctest --test-dir build --output-on-failure

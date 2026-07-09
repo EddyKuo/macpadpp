@@ -53,9 +53,63 @@ jobs:
           path: dist/*.dmg
           if-no-files-found: error
 
+  build-windows:
+    name: Build Windows x64
+    runs-on: windows-latest
+    timeout-minutes: 60
+    env:
+      QT_VERSION: 6.8.1
+      QSCI_VERSION: 2.14.1
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 解析版本號
+        id: ver
+        shell: bash
+        run: |
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then V="${GITHUB_REF_NAME#v}"; else V="${{ github.event.inputs.version }}"; fi
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+
+      - name: 安裝 Qt（含 WebEngine / Core5Compat 等模組）
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          host: windows
+          target: desktop
+          arch: win64_msvc2022_64
+          modules: qt5compat qtwebengine qtwebchannel qtpositioning qtimageformats
+          cache: true
+
+      - name: 啟用 MSVC 開發者環境
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: 建置並安裝 QScintilla
+        shell: cmd
+        run: |
+          curl -L -o qsci.tar.gz https://www.riverbankcomputing.com/static/Downloads/QScintilla/%QSCI_VERSION%/QScintilla_src-%QSCI_VERSION%.tar.gz
+          tar -xzf qsci.tar.gz
+          cd QScintilla_src-%QSCI_VERSION%\src
+          qmake qscintilla.pro && nmake && nmake install
+
+      - name: 建置 + windeployqt 打包 zip
+        shell: pwsh
+        run: |
+          $env:QTDIR = $env:QT_ROOT_DIR
+          $env:PATH = "$env:QT_ROOT_DIR\bin;$env:PATH"
+          pwsh scripts/package_windows.ps1 -Version "${{ steps.ver.outputs.version }}" -QtPrefix "$env:QT_ROOT_DIR"
+
+      - name: 上傳 zip artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macpad-win-x64
+          path: dist/*.zip
+          if-no-files-found: error
+
   release:
     name: Publish GitHub Release
-    needs: build
+    needs: [build, build-windows]
     if: github.ref_type == 'tag'   # 只有打 tag 才真正發佈
     runs-on: ubuntu-latest
     steps:
