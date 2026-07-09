@@ -548,22 +548,9 @@ void MainWindow::createEditMenu(QMenu *editMenu)
 
     // On Selection（把選取內容當路徑/搜尋字串處理）
     QMenu *onSelectionMenu = editMenu->addMenu(tr("On Selection"));
-    onSelectionMenu->addAction(tr("Open Selected File"), this, [this] {
-        EditorWidget *e = currentEditor();
-        if (!e || !e->hasSelectedText())
-            return;
-        const QString sel = e->selectedText().trimmed();
-        if (sel.isEmpty())
-            return;
-        QString path = sel;
-        // 相對路徑 → 以目前檔案所在目錄為基準（若目前分頁已存檔）
-        if (QFileInfo(path).isRelative() && !e->isUntitled())
-            path = QFileInfo(QDir(QFileInfo(e->filePath()).absolutePath()), path).absoluteFilePath();
-        if (QFileInfo::exists(path))
-            openFile(path);
-        else
-            QDesktopServices::openUrl(QUrl::fromUserInput(sel));
-    });
+    // Open Selected File / Search on Internet 與編輯區右鍵選單共用同一實作（見 MainWindow_View.cpp）
+    onSelectionMenu->addAction(tr("Open Selected File"), this,
+                               [this] { openSelectionAsPathOrUrl(currentEditor()); });
     onSelectionMenu->addAction(tr("Open Containing Folder"), this, [this] {
         EditorWidget *e = currentEditor();
         if (!e || !e->hasSelectedText())
@@ -573,20 +560,8 @@ void MainWindow::createEditMenu(QMenu *editMenu)
             return;
         QProcess::startDetached(QStringLiteral("open"), {QStringLiteral("-R"), sel});
     });
-    onSelectionMenu->addAction(tr("Search on Internet"), this, [this] {
-        EditorWidget *e = currentEditor();
-        if (!e || !e->hasSelectedText())
-            return;
-        const QString sel = e->selectedText().trimmed();
-        if (sel.isEmpty())
-            return;
-        QString tmpl = macpad::persistence::SettingsStore::load().searchEngineUrl;
-        if (tmpl.isEmpty())
-            tmpl = QStringLiteral("https://www.google.com/search?q=%1");
-        const QString encoded = QString::fromUtf8(QUrl::toPercentEncoding(sel));
-        const QString url = tmpl.contains(QStringLiteral("%1")) ? tmpl.arg(encoded) : tmpl + encoded;
-        QDesktopServices::openUrl(QUrl(url));
-    });
+    onSelectionMenu->addAction(tr("Search on Internet"), this,
+                               [this] { searchSelectionOnInternet(currentEditor()); });
 
     // Paste Special（貼上時去除格式，只留純文字）
     QMenu *pasteSpecialMenu = editMenu->addMenu(tr("Paste Special"));

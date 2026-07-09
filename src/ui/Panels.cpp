@@ -12,6 +12,7 @@
 #include <QListWidget>
 #include <QMap>
 #include <QMenu>
+#include <QRegularExpression>
 #include <QTreeWidget>
 #include <QVBoxLayout>
 #include <QWidget>
@@ -71,12 +72,7 @@ FunctionListDock::FunctionListDock(QWidget *parent)
                     emit symbolActivated(line);
             });
             menu.addAction(tr("Copy Name"), this, [it] {
-                // 去掉尾端「  (行號)」只留符號名稱
-                QString name = it->text(0);
-                const int paren = name.lastIndexOf(QStringLiteral("  ("));
-                if (paren > 0)
-                    name = name.left(paren);
-                QApplication::clipboard()->setText(name);
+                QApplication::clipboard()->setText(symbolNameFromLabel(it->text(0)));
             });
             menu.addSeparator();
         }
@@ -92,6 +88,15 @@ FunctionListDock::FunctionListDock(QWidget *parent)
         });
         menu.exec(m_tree->viewport()->mapToGlobal(pos));
     });
+}
+
+QString FunctionListDock::symbolNameFromLabel(const QString &label)
+{
+    // 標籤格式為 "名稱  (行號)"（見 rebuildTree）。只在尾端確實是「兩空白 + (數字)」時裁掉，
+    // 名稱本身含 "  (" 者不會被誤裁（僅比對字串結尾）。
+    static const QRegularExpression suffix(QStringLiteral("\\s\\s\\(\\d+\\)$"));
+    QString name = label;
+    return name.remove(suffix);
 }
 
 void FunctionListDock::update(const QString &content, const QString &suffix)

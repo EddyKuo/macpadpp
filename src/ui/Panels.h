@@ -25,6 +25,10 @@ class FunctionListDock : public QDockWidget {
 public:
     explicit FunctionListDock(QWidget *parent = nullptr);
     void update(const QString &content, const QString &suffix);
+
+    // 由樹狀項目標籤（"名稱  (行號)"）取回純符號名稱（去掉尾端行號後綴）。
+    // 純函式，供右鍵「Copy Name」與單元測試共用；標籤本身即含 "  (" 的名稱不會被誤裁。
+    static QString symbolNameFromLabel(const QString &label);
 signals:
     void symbolActivated(int line);
 private:

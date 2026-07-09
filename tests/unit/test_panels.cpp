@@ -3,6 +3,7 @@
 
 #include "features/functionlist/FunctionListParser.h"
 #include "features/clipboard/ClipboardHistory.h"
+#include "ui/Panels.h"
 
 using namespace macpad::features;
 
@@ -127,6 +128,23 @@ private slots:
 
         h.add("");  // 空字串忽略
         QCOMPARE(h.items().size(), 3);
+    }
+
+    // Function List 右鍵「Copy Name」的名稱裁切：去掉尾端「  (行號)」，不誤裁名稱內的 "  ("
+    void functionListSymbolNameFromLabel()
+    {
+        using macpad::ui::FunctionListDock;
+        QCOMPARE(FunctionListDock::symbolNameFromLabel(QStringLiteral("doStuff  (42)")),
+                 QStringLiteral("doStuff"));
+        // 名稱本身含 "  (" → 只裁掉真正的尾端行號後綴
+        QCOMPARE(FunctionListDock::symbolNameFromLabel(QStringLiteral("weird  (name)  (7)")),
+                 QStringLiteral("weird  (name)"));
+        // 無行號後綴 → 原樣返回
+        QCOMPARE(FunctionListDock::symbolNameFromLabel(QStringLiteral("plain")),
+                 QStringLiteral("plain"));
+        // 群組節點（無括號）→ 原樣
+        QCOMPARE(FunctionListDock::symbolNameFromLabel(QStringLiteral("MyClass")),
+                 QStringLiteral("MyClass"));
     }
 };
 

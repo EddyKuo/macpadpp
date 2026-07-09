@@ -6,10 +6,15 @@
 #include <QTemporaryDir>
 #include <QTabWidget>
 
+#include <QTimer>
+#include <QListWidget>
+#include <QApplication>
+
 #include "app/MainWindow.h"
 #include "core/EditorWidget.h"
 #include "persistence/SessionStore.h"
 #include "features/backup/BackupService.h"
+#include "ui/SnapshotRecoveryDialog.h"
 
 using macpad::core::EditorWidget;
 using macpad::persistence::SessionState;
@@ -178,6 +183,62 @@ private slots:
         QVERIFY2(restored, "已命名檔未還原");
         QCOMPARE(restored->text(), QStringLiteral("EDITED IN MEMORY"));  // 未存編輯而非磁碟版
         QVERIFY(restored->isDirty());
+    }
+
+    // closeEvent：啟用快照時 untitled dirty 分頁關閉「不跳存檔提示」（若跳 modal 本測試會卡住）
+    void closeEventSilentForUntitledWhenSnapshotEnabled()
+    {
+        // enableSessionSnapshot 預設為 true
+        MainWindow w(nullptr, /*restoreSessionOnLaunch=*/false);
+        w.currentEditor()->setText(QStringLiteral("dirty untitled draft"));
+        QVERIFY(w.currentEditor()->isDirty());
+        w.show();
+        const bool closed = w.close();   // untitled → 略過 maybeSave，不出現 modal
+        QVERIFY(closed);
+        QVERIFY(!w.isVisible());
+    }
+
+    // crash 快照與 session 還原內容相同時，不重複開啟同一份草稿（去重）
+    void crashSnapshotDedupWithSession()
+    {
+        macpad::features::BackupService::clearSnapshots();
+        const QString draft = QStringLiteral("SAME DRAFT CONTENT");
+        // session.json：一個 untitled dirty 分頁
+        SessionState st;
+        macpad::persistence::TabState t;
+        t.untitled = true; t.dirty = true; t.unsavedContent = draft;
+        st.tabs = { t };
+        QVERIFY(macpad::persistence::SessionStore::save(st));
+        // crash 快照：同一份內容（模擬 timer 已寫入、之後非正常結束）
+        QVERIFY(macpad::features::BackupService::writeSnapshot(
+            QStringLiteral("session"), QStringLiteral("untitled-0"), draft.toUtf8()));
+
+        // 於當機復原對話框出現時（exec 阻塞建構子期間）自動選第 0 項並「還原」
+        QTimer killer;
+        killer.setInterval(5);
+        QObject::connect(&killer, &QTimer::timeout, [&killer]() {
+            for (QWidget *tw : QApplication::topLevelWidgets()) {
+                if (auto *dlg = qobject_cast<macpad::ui::SnapshotRecoveryDialog *>(tw)) {
+                    if (auto *list = dlg->findChild<QListWidget *>())
+                        list->setCurrentRow(0);
+                    dlg->accept();   // Accepted + !discardAll → 走還原分支（含去重）
+                    killer.stop();
+                    return;
+                }
+            }
+        });
+        killer.start();
+        MainWindow w2(nullptr, /*restoreSessionOnLaunch=*/true);
+        killer.stop();
+        macpad::features::BackupService::clearSnapshots();
+
+        // 該草稿內容應只出現一次（session 還原 1 份，crash 快照因去重被略過）
+        int occurrences = 0;
+        QTabWidget *tabs = w2.m_tabs;
+        for (int i = 0; i < tabs->count(); ++i)
+            if (EditorWidget *e = w2.editorIn(tabs, i); e && e->text() == draft)
+                ++occurrences;
+        QCOMPARE(occurrences, 1);
     }
 
     // 空白未動的 untitled 分頁不應被持久化（避免每次啟動堆積空白分頁）

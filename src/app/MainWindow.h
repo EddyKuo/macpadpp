@@ -133,6 +133,13 @@ private slots:
     // 建構編輯區右鍵選單（複刻 Notepad++ contextMenu.xml），各項作用於 ed 本身；
     // 回傳的 QMenu 以 parent 為擁有者（傳 nullptr 時由呼叫端負責釋放）。抽出以利單元測試斷言。
     QMenu *buildEditorContextMenu(macpad::core::EditorWidget *ed, QWidget *parent);
+    // On Selection 共用實作（Edit 選單與編輯區右鍵選單共用，避免路徑解析 / 搜尋 URL 組裝邏輯重複）
+    void openSelectionAsPathOrUrl(macpad::core::EditorWidget *ed);
+    void searchSelectionOnInternet(macpad::core::EditorWidget *ed);
+    // 建構分頁右鍵選單（僅建構+回傳，不 exec）——抽出以利單元測試斷言 enable 狀態
+    QMenu *buildTabContextMenu(QTabWidget *w, int index, QWidget *parent);
+    // 加入「複製完整路徑 / 檔名 / 目錄」三個動作（分頁右鍵與編輯區右鍵共用）
+    void addCopyPathActions(QMenu *menu, macpad::core::EditorWidget *ed, bool hasFile);
     // 分頁右鍵的檔案操作輔助（Close to Left/Right 需指定檢視與基準索引）
     void closeTabsToOneSide(QTabWidget *w, int pivot, bool toLeft);
 

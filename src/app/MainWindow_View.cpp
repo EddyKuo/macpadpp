@@ -224,66 +224,9 @@ void MainWindow::wireTabWidget(QTabWidget *w)
         if (idx < 0) return;
         setActiveTabWidget(w);      // 右鍵操作前先讓該檢視成為作用中
         w->setCurrentIndex(idx);
-        EditorWidget *e = editorIn(w, idx);
-        const bool hasFile = e && !e->isUntitled();
-        QMenu menu;
-
-        // --- 檔案操作（複刻 Notepad++ 分頁右鍵）---
-        menu.addAction(tr("Close"), this, [this, w, idx] { closeTabIn(w, idx); });
-        menu.addAction(tr("Close All but This"), this, [this] { closeAllButCurrent(); });
-        menu.addAction(tr("Close All to the Left"), this,
-                       [this, w, idx] { closeTabsToOneSide(w, idx, /*toLeft=*/true); });
-        menu.addAction(tr("Close All to the Right"), this,
-                       [this, w, idx] { closeTabsToOneSide(w, idx, /*toLeft=*/false); });
-        menu.addSeparator();
-        menu.addAction(tr("Save"), this, [this] { saveCurrent(); });
-        menu.addAction(tr("Save As…"), this, [this] { saveCurrentAs(); });
-        menu.addAction(tr("Rename…"), this, [this] { renameCurrentFile(); });
-        menu.addAction(tr("Reload from Disk"), this, [this] { reloadFromDisk(); })
-            ->setEnabled(hasFile);
-        menu.addAction(tr("Move to Recycle Bin"), this, [this] { moveCurrentToTrash(); })
-            ->setEnabled(hasFile);
-        menu.addSeparator();
-        menu.addAction(tr("Open Containing Folder"), this, [this] { revealInFinder(); })
-            ->setEnabled(hasFile);
-        menu.addAction(tr("Open in Default Application"), this, [this] { openInDefaultApp(); })
-            ->setEnabled(hasFile);
-        menu.addAction(tr("Copy Full File Path"), this, [e] {
-            if (e) QApplication::clipboard()->setText(e->filePath());
-        })->setEnabled(hasFile);
-        menu.addAction(tr("Copy File Name"), this, [e] {
-            if (e) QApplication::clipboard()->setText(QFileInfo(e->filePath()).fileName());
-        })->setEnabled(hasFile);
-        menu.addAction(tr("Copy Directory Path"), this, [e] {
-            if (e) QApplication::clipboard()->setText(QFileInfo(e->filePath()).absolutePath());
-        })->setEnabled(hasFile);
-        menu.addSeparator();
-
-        // --- 外觀/鎖定 ---
-        menu.addAction(tr("Set Tab Color…"), this, [this, w, idx] {
-            const QColor c = QColorDialog::getColor(Qt::white, this, tr("Tab Color"));
-            if (c.isValid())
-                w->tabBar()->setTabTextColor(idx, c);
-        });
-        menu.addAction(tr("Clear Tab Color"), this, [w, idx] {
-            w->tabBar()->setTabTextColor(idx, QColor());
-        });
-        if (e) {
-            QAction *lock = menu.addAction(tr("Read-Only"));
-            lock->setCheckable(true);
-            lock->setChecked(e->isReadOnly());
-            connect(lock, &QAction::toggled, this, [this, w, idx](bool ro) {
-                if (EditorWidget *ed = editorIn(w, idx)) {
-                    ed->setReadOnly(ro);
-                    w->setTabText(idx, (ro ? QStringLiteral("🔒 ") : QString())
-                                            + ed->displayName());
-                }
-            });
-        }
-        menu.addSeparator();
-        menu.addAction(tr("Move to Other View"), this, &MainWindow::moveToOtherView);
-        menu.addAction(tr("Clone to Other View"), this, &MainWindow::cloneToOtherView);
-        menu.exec(w->tabBar()->mapToGlobal(pos));
+        QMenu *menu = buildTabContextMenu(w, idx, this);
+        menu->setAttribute(Qt::WA_DeleteOnClose);
+        menu->exec(w->tabBar()->mapToGlobal(pos));
     });
 
     // 雙擊分頁關閉（偏好 tabBarDoubleClickCloses；於觸發時讀取即時設定）
@@ -404,6 +347,41 @@ void MainWindow::showEditorContextMenu(const QPoint &globalPos)
 }
 
 
+// On Selection：把選取內容當路徑（存在則開檔，否則以 URL 開啟）——Edit 選單與右鍵選單共用。
+void MainWindow::openSelectionAsPathOrUrl(EditorWidget *ed)
+{
+    if (!ed || !ed->hasSelectedText())
+        return;
+    const QString sel = ed->selectedText().trimmed();
+    if (sel.isEmpty())
+        return;
+    QString path = sel;
+    // 相對路徑 → 以目前檔案所在目錄為基準（若目前分頁已存檔）
+    if (QFileInfo(path).isRelative() && !ed->isUntitled())
+        path = QFileInfo(QDir(QFileInfo(ed->filePath()).absolutePath()), path).absoluteFilePath();
+    if (QFileInfo::exists(path))
+        openFile(path);
+    else
+        QDesktopServices::openUrl(QUrl::fromUserInput(sel));
+}
+
+// On Selection：以選取內容依偏好的搜尋引擎樣板開網頁搜尋——Edit 選單與右鍵選單共用。
+void MainWindow::searchSelectionOnInternet(EditorWidget *ed)
+{
+    if (!ed || !ed->hasSelectedText())
+        return;
+    const QString sel = ed->selectedText().trimmed();
+    if (sel.isEmpty())
+        return;
+    QString tmpl = macpad::persistence::SettingsStore::load().searchEngineUrl;
+    if (tmpl.isEmpty())
+        tmpl = QStringLiteral("https://www.google.com/search?q=%1");
+    const QString encoded = QString::fromUtf8(QUrl::toPercentEncoding(sel));
+    const QString url = tmpl.contains(QStringLiteral("%1")) ? tmpl.arg(encoded) : tmpl + encoded;
+    QDesktopServices::openUrl(QUrl(url));
+}
+
+
 // 建構編輯區右鍵選單本體（複刻 Notepad++ contextMenu.xml）。各項作用於 ed 本身，
 // enable 狀態依 ed 當下狀態決定，故可於單元測試中直接斷言項目與啟用狀態。
 QMenu *MainWindow::buildEditorContextMenu(EditorWidget *ed, QWidget *parent)
@@ -438,14 +416,7 @@ QMenu *MainWindow::buildEditorContextMenu(EditorWidget *ed, QWidget *parent)
     // --- 複製路徑到剪貼簿 ---
     QMenu *copyMenu = menu->addMenu(tr("Copy to Clipboard"));
     copyMenu->setEnabled(hasFile);
-    copyMenu->addAction(tr("Copy Full File Path"), this,
-                        [ed] { QApplication::clipboard()->setText(ed->filePath()); });
-    copyMenu->addAction(tr("Copy File Name"), this, [ed] {
-        QApplication::clipboard()->setText(QFileInfo(ed->filePath()).fileName());
-    });
-    copyMenu->addAction(tr("Copy Directory Path"), this, [ed] {
-        QApplication::clipboard()->setText(QFileInfo(ed->filePath()).absolutePath());
-    });
+    addCopyPathActions(copyMenu, ed, hasFile);
 
     // --- 貼上特殊（去格式）---
     QMenu *pasteMenu = menu->addMenu(tr("Paste Special"));
@@ -478,29 +449,10 @@ QMenu *MainWindow::buildEditorContextMenu(EditorWidget *ed, QWidget *parent)
     // --- 針對選取內容 ---
     QMenu *onSelMenu = menu->addMenu(tr("On Selection"));
     onSelMenu->setEnabled(hasSel);
-    onSelMenu->addAction(tr("Open Selected File"), this, [this, ed] {
-        const QString sel = ed->selectedText().trimmed();
-        if (sel.isEmpty())
-            return;
-        QString path = sel;
-        if (QFileInfo(path).isRelative() && !ed->isUntitled())
-            path = QFileInfo(QDir(QFileInfo(ed->filePath()).absolutePath()), path).absoluteFilePath();
-        if (QFileInfo::exists(path))
-            openFile(path);
-        else
-            QDesktopServices::openUrl(QUrl::fromUserInput(sel));
-    });
-    onSelMenu->addAction(tr("Search on Internet"), this, [ed] {
-        const QString sel = ed->selectedText().trimmed();
-        if (sel.isEmpty())
-            return;
-        QString tmpl = macpad::persistence::SettingsStore::load().searchEngineUrl;
-        if (tmpl.isEmpty())
-            tmpl = QStringLiteral("https://www.google.com/search?q=%1");
-        const QString encoded = QString::fromUtf8(QUrl::toPercentEncoding(sel));
-        const QString url = tmpl.contains(QStringLiteral("%1")) ? tmpl.arg(encoded) : tmpl + encoded;
-        QDesktopServices::openUrl(QUrl(url));
-    });
+    onSelMenu->addAction(tr("Open Selected File"), this,
+                         [this, ed] { openSelectionAsPathOrUrl(ed); });
+    onSelMenu->addAction(tr("Search on Internet"), this,
+                         [this, ed] { searchSelectionOnInternet(ed); });
     menu->addSeparator();
 
     // --- 檔案 / 分頁操作（作用於作用中分頁，即上面設定的被右鍵編輯器）---
@@ -531,6 +483,79 @@ QMenu *MainWindow::buildEditorContextMenu(EditorWidget *ed, QWidget *parent)
             closeTab(w->currentIndex());
     });
 
+    return menu;
+}
+
+
+// 加入「複製完整路徑 / 檔名 / 目錄」三動作（分頁右鍵與編輯區右鍵共用）；hasFile 決定 enable
+void MainWindow::addCopyPathActions(QMenu *menu, EditorWidget *ed, bool hasFile)
+{
+    menu->addAction(tr("Copy Full File Path"), this, [ed] {
+        if (ed) QApplication::clipboard()->setText(ed->filePath());
+    })->setEnabled(hasFile);
+    menu->addAction(tr("Copy File Name"), this, [ed] {
+        if (ed) QApplication::clipboard()->setText(QFileInfo(ed->filePath()).fileName());
+    })->setEnabled(hasFile);
+    menu->addAction(tr("Copy Directory Path"), this, [ed] {
+        if (ed) QApplication::clipboard()->setText(QFileInfo(ed->filePath()).absolutePath());
+    })->setEnabled(hasFile);
+}
+
+
+// 建構分頁右鍵選單（複刻 Notepad++ 分頁右鍵；僅建構+回傳，不 exec，便於單元測試斷言 enable 狀態）
+QMenu *MainWindow::buildTabContextMenu(QTabWidget *w, int index, QWidget *parent)
+{
+    EditorWidget *e = editorIn(w, index);
+    const bool hasFile = e && !e->isUntitled();
+    auto *menu = new QMenu(parent);
+
+    // --- 檔案操作 ---
+    menu->addAction(tr("Close"), this, [this, w, index] { closeTabIn(w, index); });
+    menu->addAction(tr("Close All but This"), this, [this] { closeAllButCurrent(); });
+    menu->addAction(tr("Close All to the Left"), this,
+                    [this, w, index] { closeTabsToOneSide(w, index, /*toLeft=*/true); });
+    menu->addAction(tr("Close All to the Right"), this,
+                    [this, w, index] { closeTabsToOneSide(w, index, /*toLeft=*/false); });
+    menu->addSeparator();
+    menu->addAction(tr("Save"), this, [this] { saveCurrent(); });
+    menu->addAction(tr("Save As…"), this, [this] { saveCurrentAs(); });
+    menu->addAction(tr("Rename…"), this, [this] { renameCurrentFile(); });
+    menu->addAction(tr("Reload from Disk"), this, [this] { reloadFromDisk(); })
+        ->setEnabled(hasFile);
+    menu->addAction(tr("Move to Recycle Bin"), this, [this] { moveCurrentToTrash(); })
+        ->setEnabled(hasFile);
+    menu->addSeparator();
+    menu->addAction(tr("Open Containing Folder"), this, [this] { revealInFinder(); })
+        ->setEnabled(hasFile);
+    menu->addAction(tr("Open in Default Application"), this, [this] { openInDefaultApp(); })
+        ->setEnabled(hasFile);
+    addCopyPathActions(menu, e, hasFile);
+    menu->addSeparator();
+
+    // --- 外觀/鎖定 ---
+    menu->addAction(tr("Set Tab Color…"), this, [this, w, index] {
+        const QColor c = QColorDialog::getColor(Qt::white, this, tr("Tab Color"));
+        if (c.isValid())
+            w->tabBar()->setTabTextColor(index, c);
+    });
+    menu->addAction(tr("Clear Tab Color"), this, [w, index] {
+        w->tabBar()->setTabTextColor(index, QColor());
+    });
+    if (e) {
+        QAction *lock = menu->addAction(tr("Read-Only"));
+        lock->setCheckable(true);
+        lock->setChecked(e->isReadOnly());
+        connect(lock, &QAction::toggled, this, [this, w, index](bool ro) {
+            if (EditorWidget *ed = editorIn(w, index)) {
+                ed->setReadOnly(ro);
+                w->setTabText(index, (ro ? QStringLiteral("🔒 ") : QString())
+                                         + ed->displayName());
+            }
+        });
+    }
+    menu->addSeparator();
+    menu->addAction(tr("Move to Other View"), this, &MainWindow::moveToOtherView);
+    menu->addAction(tr("Clone to Other View"), this, &MainWindow::cloneToOtherView);
     return menu;
 }
 

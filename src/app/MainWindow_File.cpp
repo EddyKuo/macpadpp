@@ -529,23 +529,25 @@ void MainWindow::closeTabIn(QTabWidget *w, int index)
 
 void MainWindow::closeEvent(QCloseEvent *event)
 {
-    // Notepad++ session 快照：啟用時關閉不再逐一提示存檔（未存內容——含 untitled——
-    // 由 saveSession/buildCurrentSession 持久化，下次啟動 restoreSession 靜默還原）。
-    // 停用時維持傳統行為：逐一確認未存分頁（FR-001 AC2），使用者可存/捨棄/取消。
+    // Notepad++ session 快照：啟用時「未命名（untitled）未存緩衝」關閉不提示——其內容由
+    // saveSession/buildCurrentSession 持久化、下次啟動靜默還原，且 untitled 無對應磁碟檔，跳過提示無資料遺失風險。
+    // 但「已命名 dirty 檔」即使啟用快照仍提示存檔：磁碟檔案不會被寫入，若下次未套用 session
+    //（-nosession / restoreOnLaunch 關閉 / session.json 遺失）將永久遺失未存編輯，故不可靜默跳過（資料安全）。
+    // 停用快照時維持傳統行為：所有未存分頁逐一確認（FR-001 AC2）。
     const bool sessionSnapshot = macpad::persistence::SettingsStore::load().enableSessionSnapshot;
-    if (!sessionSnapshot) {
-        // 涵蓋兩個檢視；clone 略過（共享文件由來源負責）
-        for (QTabWidget *w : {m_tabs, m_tabs2}) {
-            if (!w)
-                continue;
-            for (int i = 0; i < w->count(); ++i) {
-                EditorPane *p = paneIn(w, i);
-                if (p && p->isClone())
-                    continue;
-                if (!maybeSave(p ? p->primary() : nullptr)) {
-                    event->ignore();
-                    return;
-                }
+    for (QTabWidget *w : {m_tabs, m_tabs2}) {
+        if (!w)
+            continue;
+        for (int i = 0; i < w->count(); ++i) {
+            EditorPane *p = paneIn(w, i);
+            if (p && p->isClone())
+                continue;  // clone 共享文件由來源負責
+            EditorWidget *e = p ? p->primary() : nullptr;
+            if (sessionSnapshot && e && e->isUntitled())
+                continue;  // untitled 未存緩衝跨重啟保留，關閉不打擾
+            if (!maybeSave(e)) {
+                event->ignore();
+                return;
             }
         }
     }

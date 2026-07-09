@@ -180,6 +180,7 @@ void MainWindow::openSessionState(const macpad::persistence::SessionState &state
 {
     using namespace macpad::persistence;
     QVector<QPair<QTabWidget *, EditorPane *>> restored;  // 依序記錄（供 activeIndex 歸位）
+    QStringList recoveredFromDeleted;  // 已命名檔已從磁碟消失、僅靠未存快照還原者（提示使用者原始檔名）
     for (const TabState &t : state.tabs) {
         const bool hasUnsaved = t.dirty && !t.unsavedContent.isEmpty();
         // 一般已命名檔且無未存快照時，磁碟上不存在則略過（FR-016 AC2）。
@@ -194,8 +195,10 @@ void MainWindow::openSessionState(const macpad::persistence::SessionState &state
             // Notepad++ session 快照：未命名未存緩衝 → 直接填入內容，維持 untitled 標題與 dirty
             editor->setText(t.unsavedContent);
         } else if (!QFileInfo::exists(t.path)) {
-            // 已命名檔已從磁碟消失，但有未存快照 → 以快照內容還原（退化為 untitled 緩衝，仍保住使用者的工作）
+            // 已命名檔已從磁碟消失，但有未存快照 → 以快照內容還原（退化為 untitled 緩衝，仍保住使用者的工作）。
+            // 無公開 setFilePath 可還原檔名關聯，故記下原始檔名於還原後提示使用者，以免與其他 untitled 分頁混淆。
             editor->setText(t.unsavedContent);
+            recoveredFromDeleted << QFileInfo(t.path).fileName();
         } else {
             QString err;
             if (!editor->loadFile(t.path, &err)) {
@@ -242,6 +245,12 @@ void MainWindow::openSessionState(const macpad::persistence::SessionState &state
         if (restored[ai].second)
             w->setCurrentIndex(w->indexOf(restored[ai].second));
     }
+    // 提示：哪些內容是從「已刪除的檔案」以未存快照還原（顯示為 untitled，需另存新檔）
+    if (!recoveredFromDeleted.isEmpty())
+        statusBar()->showMessage(
+            tr("已從已刪除的檔案還原未存內容（請另存新檔）：%1")
+                .arg(recoveredFromDeleted.join(QStringLiteral("、"))),
+            8000);
 }
 
 

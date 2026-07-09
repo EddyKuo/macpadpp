@@ -297,10 +297,21 @@ MainWindow::MainWindow(QWidget *parent, bool restoreSessionOnLaunch)
                 if (dlg.discardAll()) {
                     macpad::features::BackupService::clearSnapshots();
                 } else {
+                    // 內容去重：session 快照（restoreSession 已還原的未存分頁）與當機快照可能是
+                    // 同一份草稿的兩份持久化。還原前先收集現有分頁內容，內容已存在者略過，避免重複分頁。
+                    QSet<QString> existing;
+                    forEachEditor([&existing](EditorWidget *e) {
+                        if (e && e->isDirty())
+                            existing.insert(e->text());
+                    });
                     for (const QString &id : dlg.selectedSnapshots()) {
+                        const QString content = QString::fromUtf8(
+                            macpad::features::BackupService::readSnapshot(id));
+                        if (existing.contains(content))
+                            continue;  // 已由 session 還原同內容分頁，不重複開啟
                         EditorWidget *e = addEditorTab();
-                        e->setText(QString::fromUtf8(
-                            macpad::features::BackupService::readSnapshot(id)));
+                        e->setText(content);
+                        existing.insert(content);
                     }
                     macpad::features::BackupService::clearSnapshots();  // 還原後清除，避免重覆提示
                 }

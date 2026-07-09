@@ -4,9 +4,11 @@
 // 需要真實 MainWindow：以 QStandardPaths 測試模式隔離設定檔，offscreen 平台執行。
 #include <QtTest>
 #include <QAction>
+#include <QFile>
 #include <QMenu>
 #include <QStandardPaths>
 #include <QTabWidget>
+#include <QTemporaryDir>
 
 #include "app/MainWindow.h"
 #include "core/EditorWidget.h"
@@ -153,6 +155,45 @@ private slots:
         // 邊界：對只剩 1 個分頁再關右側 → 無變化（無右側可關）
         w.closeTabsToOneSide(tabs, 0, /*toLeft=*/false);
         QCOMPARE(tabs->count(), 1);
+    }
+
+    // 分頁右鍵選單：檔案相關項目的 enable 狀態隨「未存檔 vs 已命名」正確變化
+    void tabContextMenuStates()
+    {
+        MainWindow w(nullptr, /*restoreSessionOnLaunch=*/false);
+        QTabWidget *tabs = w.m_tabs;
+
+        // 初始為 untitled 分頁：檔案類操作應停用
+        {
+            QScopedPointer<QMenu> m(w.buildTabContextMenu(tabs, 0, nullptr));
+            for (const QString &item : {QStringLiteral("Close"), QStringLiteral("Close All to the Left"),
+                                        QStringLiteral("Save"), QStringLiteral("Rename…"),
+                                        QStringLiteral("Move to Other View")})
+                QVERIFY2(hasAction(m.data(), item), qPrintable(item));
+            QVERIFY(!actionEnabled(m.data(), QStringLiteral("Reload from Disk")));
+            QVERIFY(!actionEnabled(m.data(), QStringLiteral("Move to Recycle Bin")));
+            QVERIFY(!actionEnabled(m.data(), QStringLiteral("Open Containing Folder")));
+            QVERIFY(!actionEnabled(m.data(), QStringLiteral("Copy Full File Path")));
+        }
+
+        // 開啟一個真實檔案 → 已命名分頁：檔案類操作應啟用
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath(QStringLiteral("t.txt"));
+        { QFile f(path); QVERIFY(f.open(QIODevice::WriteOnly)); f.write("x"); f.close(); }
+        w.openFile(path);
+        int named = -1;
+        for (int i = 0; i < tabs->count(); ++i)
+            if (EditorWidget *e = w.editorIn(tabs, i); e && !e->isUntitled()) named = i;
+        QVERIFY(named >= 0);
+        {
+            QScopedPointer<QMenu> m(w.buildTabContextMenu(tabs, named, nullptr));
+            QVERIFY(actionEnabled(m.data(), QStringLiteral("Reload from Disk")));
+            QVERIFY(actionEnabled(m.data(), QStringLiteral("Move to Recycle Bin")));
+            QVERIFY(actionEnabled(m.data(), QStringLiteral("Open Containing Folder")));
+            QVERIFY(actionEnabled(m.data(), QStringLiteral("Copy Full File Path")));
+            QVERIFY(actionEnabled(m.data(), QStringLiteral("Copy Directory Path")));
+        }
     }
 };
 
