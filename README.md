@@ -80,11 +80,12 @@
 
 ## 需求(自行建置)
 
-- macOS(Apple Silicon 或 Intel)
-- [Homebrew](https://brew.sh)
-- Xcode Command Line Tools(clang)
+- **macOS**(Apple Silicon 或 Intel)＋ [Homebrew](https://brew.sh) ＋ Xcode Command Line Tools(clang)
+- **Windows** 10/11 ＋ Visual Studio 2022（MSVC）＋ CMake ＋ Qt6 ＋ QScintilla（見 [BUILD.md §6](BUILD.md#6-windows-建置windows-1011--msvc)）
 
 ## 安裝相依與建置
+
+**macOS**：
 
 ```bash
 brew install cmake qt qscintilla2
@@ -92,6 +93,15 @@ brew install cmake qt qscintilla2
 cmake -S . -B build -DCMAKE_PREFIX_PATH="$(brew --prefix qt)"
 cmake --build build -j
 ```
+
+**Windows**（於 VS 2022「x64 Native Tools」命令列；Qt 建議以 aqtinstall 取得）：
+
+```cmd
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="C:\Qt\6.8.1\msvc2022_64"
+cmake --build build -j
+```
+
+> Windows 完整步驟（取得 Qt、建置 QScintilla、打包）見 **[BUILD.md §6](BUILD.md#6-windows-建置windows-1011--msvc)**。
 
 ## 執行
 
