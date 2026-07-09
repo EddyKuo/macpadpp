@@ -2,7 +2,7 @@
 
 // AppPaths — 本地持久化檔案位置（profile §1；CON-003 用 QStandardPaths）
 // macOS:   ~/Library/Application Support/macpad++/
-// Windows: %APPDATA%\macpad++\
+// Windows: %APPDATA%\macpad++ 目錄
 
 #include <QString>
 
