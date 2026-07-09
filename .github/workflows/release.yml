@@ -118,21 +118,21 @@ jobs:
         with:
           fetch-depth: 0   # 需完整歷史與 tag，才能取出 annotated tag 的說明文字
 
-      - name: 下載 DMG
+      - name: 下載所有平台 artifact（DMG + zip）
         uses: actions/download-artifact@v4
         with:
           path: artifacts
 
-      - name: 建立 Release 並附上 DMG
+      - name: 建立 Release 並附上 macOS DMG + Windows zip
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          DMGS=$(find artifacts -name '*.dmg')
-          echo "附加檔案："; echo "$DMGS"
+          ASSETS=$(find artifacts -type f \( -name '*.dmg' -o -name '*.zip' \))
+          echo "附加檔案："; echo "$ASSETS"
           # Release 說明 = annotated tag 的說明文字（人工撰寫的重點）＋ --generate-notes 自動附上的 commit/PR 清單
           git for-each-ref "refs/tags/${GITHUB_REF_NAME}" --format='%(contents)' > release_notes.md
           echo "--- Release notes 內容 ---"; cat release_notes.md
-          gh release create "$GITHUB_REF_NAME" $DMGS \
+          gh release create "$GITHUB_REF_NAME" $ASSETS \
             --repo "$GITHUB_REPOSITORY" \
             --title "macpad++ $GITHUB_REF_NAME" \
             --notes-file release_notes.md \
