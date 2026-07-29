@@ -3570,42 +3570,62 @@ Qt6 + QScintilla</translation>
 <context>
     <name>macpad::ui::ShortcutMapperDialog</name>
     <message>
-        <location filename="../../src/ui/ShortcutMapperDialog.cpp" line="62"/>
+        <location filename="../../src/ui/ShortcutMapperDialog.cpp" line="74"/>
+        <source>Main Menu</source>
+        <translation>Main Menu</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/ShortcutMapperDialog.cpp" line="76"/>
+        <source>Macros</source>
+        <translation>Macros</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/ShortcutMapperDialog.cpp" line="78"/>
+        <source>Run Commands</source>
+        <translation>Run Commands</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/ShortcutMapperDialog.cpp" line="80"/>
+        <source>Plugin Commands</source>
+        <translation>Plugin Commands</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/ShortcutMapperDialog.cpp" line="101"/>
         <source>Shortcut Mapper</source>
         <translation>Shortcut Mapper</translation>
     </message>
     <message>
-        <location filename="../../src/ui/ShortcutMapperDialog.cpp" line="65"/>
+        <location filename="../../src/ui/ShortcutMapperDialog.cpp" line="104"/>
         <source>Double-click a command to reassign its shortcut.</source>
         <translation>Double-click a command to reassign its shortcut.</translation>
     </message>
     <message>
-        <location filename="../../src/ui/ShortcutMapperDialog.cpp" line="68"/>
+        <location filename="../../src/ui/ShortcutMapperDialog.cpp" line="107"/>
         <source>Filter commands...</source>
         <translation>Filter commands...</translation>
     </message>
     <message>
-        <location filename="../../src/ui/ShortcutMapperDialog.cpp" line="72"/>
+        <location filename="../../src/ui/ShortcutMapperDialog.cpp" line="123"/>
         <source>Command</source>
         <translation>Command</translation>
     </message>
     <message>
-        <location filename="../../src/ui/ShortcutMapperDialog.cpp" line="72"/>
+        <location filename="../../src/ui/ShortcutMapperDialog.cpp" line="123"/>
         <source>Shortcut</source>
         <translation>Shortcut</translation>
     </message>
     <message>
-        <location filename="../../src/ui/ShortcutMapperDialog.cpp" line="109"/>
+        <location filename="../../src/ui/ShortcutMapperDialog.cpp" line="176"/>
         <source>Assign Shortcut</source>
         <translation>Assign Shortcut</translation>
     </message>
     <message>
-        <location filename="../../src/ui/ShortcutMapperDialog.cpp" line="129"/>
+        <location filename="../../src/ui/ShortcutMapperDialog.cpp" line="196"/>
         <source>Shortcut Conflict</source>
         <translation>Shortcut Conflict</translation>
     </message>
     <message>
-        <location filename="../../src/ui/ShortcutMapperDialog.cpp" line="130"/>
+        <location filename="../../src/ui/ShortcutMapperDialog.cpp" line="197"/>
         <source>&quot;%1&quot; is already assigned to &quot;%2&quot;. Assign it here anyway?</source>
         <translation>&quot;%1&quot; is already assigned to &quot;%2&quot;. Assign it here anyway?</translation>
     </message>

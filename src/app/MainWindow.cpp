@@ -425,7 +425,9 @@ void MainWindow::addMenuAction(const QString &menuTitle, const QString &text,
         target = menuBar()->addMenu(menuTitle);
         target->setObjectName(menuTitle);
     }
-    target->addAction(text, this, [cb = std::move(callback)] { cb(); });
+    QAction *added = target->addAction(text, this, [cb = std::move(callback)] { cb(); });
+    // 標記來源，使 Shortcut Mapper 能把它歸到「Plugin Commands」分頁（複刻 Notepad++ 分類）
+    macpad::ui::ShortcutMapperDialog::setCategory(added, QStringLiteral("Plugin Commands"));
 }
 
 

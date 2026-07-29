@@ -27,14 +27,25 @@ public:
     static QString conflictingAction(const QList<QAction *> &actions, const QKeySequence &seq,
                                       const QAction *except);
 
-private slots:
-    void editRow(int row, int column);
-    void applyFilter(const QString &text);
+    // 分類（複刻 Notepad++ Shortcut Mapper 的分頁）。來源以 QAction 的
+    // kCategoryProperty 屬性標記；未標記者一律歸「Main Menu」。純函式，可單元測試。
+    static QString categoryFor(const QAction *action);
+
+    // 標記某個 action 的分類（於建立該 action 處呼叫）
+    static void setCategory(QAction *action, const QString &category);
+
+    // 分頁順序（僅顯示實際有項目的分頁——與其擺一堆空分頁充數，不如誠實呈現）
+    static QStringList categoryOrder();
+
+    static constexpr const char *kCategoryProperty = "macpadShortcutCategory";
 
 private:
+    void applyFilter(const QString &text);
+    void editRowIn(QTableWidget *table, int row);
     void save();
+
     QList<QAction *> m_actions;
-    QTableWidget *m_table = nullptr;
+    QList<QTableWidget *> m_tables;   // 每個分頁一張表；列的 UserRole 存回 m_actions 的索引
     QLineEdit *m_filterEdit = nullptr;
 };
 

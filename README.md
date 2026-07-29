@@ -9,7 +9,7 @@
 [![Platform: Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D6?logo=windows&logoColor=white)](#下載安裝發佈版)
 [![C++17](https://img.shields.io/badge/C%2B%2B-17-00599C?logo=cplusplus&logoColor=white)](CMakeLists.txt)
 [![Qt6](https://img.shields.io/badge/Qt-6-41CD52?logo=qt&logoColor=white)](https://www.qt.io/)
-[![Tests](https://img.shields.io/badge/tests-38%20passing-brightgreen)](tests/)
+[![Tests](https://img.shields.io/badge/tests-39%20passing-brightgreen)](tests/)
 [![Coverage](https://img.shields.io/badge/coverage-90%25-brightgreen)](docs/design.md)
 
 **Notepad++ 對等的原生跨平台(macOS / Windows)文字/程式碼編輯器。** 以 C++17 + Qt6 + QScintilla
@@ -53,7 +53,7 @@
   解析規則的 Function List** / Document List 面板(含 hover 預覽)、Monitoring(tail -f)、全螢幕、
   Distraction Free、Post-It、瀏覽器預覽。
 - **自動化** — 巨集錄製/播放/具名儲存 + **管理對話框**(Modify Shortcut/Delete/Rename)、外部命令執行
-  (可存具名命令並**各自綁定快捷鍵**)、Style Configurator(含主題下拉套用)、Shortcut Mapper(衝突偵測)。
+  (可存具名命令並**各自綁定快捷鍵**)、Style Configurator(含主題下拉套用)、Shortcut Mapper(依來源分頁 + 衝突偵測)。
 - **內建主題** — 隨附 **17 套具名主題**:複刻大廠 IDE(Monokai、Dracula、One Dark、Nord、Solarized 深/淺、
   Gruvbox 深/淺、VS Code Dark+/Light、GitHub 深/淺、Night Owl、Tomorrow Night、Material Palenight、Cobalt)
   再加原創 **Cyberpunk 暗色霓虹**(深紫黑底 + 霓虹粉/青/綠/黃),各帶專屬編輯器底色·選取·邊欄色與
@@ -143,7 +143,7 @@ build\src\macpad++.exe path\to\file.cpp:12
 
 ## 測試與效能基準
 
-38 個 QtTest 套件（兩平台皆全綠）。
+39 個 QtTest 套件（兩平台皆全綠）。
 
 **macOS**：
 ```bash

@@ -3602,42 +3602,62 @@ Qt6 + QScintilla</translation>
 <context>
     <name>macpad::ui::ShortcutMapperDialog</name>
     <message>
-        <location filename="../../src/ui/ShortcutMapperDialog.cpp" line="62"/>
+        <location filename="../../src/ui/ShortcutMapperDialog.cpp" line="74"/>
+        <source>Main Menu</source>
+        <translation>主選單</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/ShortcutMapperDialog.cpp" line="76"/>
+        <source>Macros</source>
+        <translation>巨集</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/ShortcutMapperDialog.cpp" line="78"/>
+        <source>Run Commands</source>
+        <translation>執行命令</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/ShortcutMapperDialog.cpp" line="80"/>
+        <source>Plugin Commands</source>
+        <translation>擴充命令</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/ShortcutMapperDialog.cpp" line="101"/>
         <source>Shortcut Mapper</source>
         <translation>快捷鍵對應</translation>
     </message>
     <message>
-        <location filename="../../src/ui/ShortcutMapperDialog.cpp" line="65"/>
+        <location filename="../../src/ui/ShortcutMapperDialog.cpp" line="104"/>
         <source>Double-click a command to reassign its shortcut.</source>
         <translation>雙擊命令以重新指定快捷鍵。</translation>
     </message>
     <message>
-        <location filename="../../src/ui/ShortcutMapperDialog.cpp" line="68"/>
+        <location filename="../../src/ui/ShortcutMapperDialog.cpp" line="107"/>
         <source>Filter commands...</source>
         <translation>篩選命令...</translation>
     </message>
     <message>
-        <location filename="../../src/ui/ShortcutMapperDialog.cpp" line="72"/>
+        <location filename="../../src/ui/ShortcutMapperDialog.cpp" line="123"/>
         <source>Command</source>
         <translation>命令</translation>
     </message>
     <message>
-        <location filename="../../src/ui/ShortcutMapperDialog.cpp" line="72"/>
+        <location filename="../../src/ui/ShortcutMapperDialog.cpp" line="123"/>
         <source>Shortcut</source>
         <translation>快捷鍵</translation>
     </message>
     <message>
-        <location filename="../../src/ui/ShortcutMapperDialog.cpp" line="109"/>
+        <location filename="../../src/ui/ShortcutMapperDialog.cpp" line="176"/>
         <source>Assign Shortcut</source>
         <translation>指定快捷鍵</translation>
     </message>
     <message>
-        <location filename="../../src/ui/ShortcutMapperDialog.cpp" line="129"/>
+        <location filename="../../src/ui/ShortcutMapperDialog.cpp" line="196"/>
         <source>Shortcut Conflict</source>
         <translation>快捷鍵衝突</translation>
     </message>
     <message>
-        <location filename="../../src/ui/ShortcutMapperDialog.cpp" line="130"/>
+        <location filename="../../src/ui/ShortcutMapperDialog.cpp" line="197"/>
         <source>&quot;%1&quot; is already assigned to &quot;%2&quot;. Assign it here anyway?</source>
         <translation>「%1」已指派給「%2」。仍要指派到這裡嗎？</translation>
     </message>
