@@ -339,6 +339,11 @@ public:
     // 供測試/診斷：目前尚可回退的選取歷史筆數
     int selectionHistoryDepth() const { return m_selHistoryPos; }
 
+    // 進階自動縮排（複刻 Notepad++ v8.7 可停用 C-like 自動縮排、v8.7.5 擴充語言）：
+    // 除了沿用上一行縮排，還會依語言在 `{`／`:` 之後追加一級縮排。
+    void setAdvancedAutoIndent(bool on) { m_advancedAutoIndent = on; }
+    bool advancedAutoIndent() const { return m_advancedAutoIndent; }
+
     // 縮放並發出 zoomChanged（供跨檢視同步縮放；直接呼叫 QsciScintilla::zoomIn 不會通知）
     void applyZoomIn();
     void applyZoomOut();
@@ -441,6 +446,9 @@ private:
     bool restorePreviousSelection();     // 有可回退的選取則還原並回傳 true
 
     bool m_selectionDragDrop = true;     // 允許拖放選取文字（Notepad++ v8.9.3 可停用）
+    bool m_advancedAutoIndent = true;    // 進階自動縮排（Notepad++ v8.7 起可停用）
+    // 按下 Enter 後依語言追加一級縮排；prevLine 為 Enter 之前游標左側的那段文字
+    void applyAdvancedAutoIndent(const QString &prevLine);
 
     // API 自動完成資料（FR-055）——由 EditorWidget 持有（parent 改為 this，與 lexer 生命週期解耦），
     // 銷毀前主動收斂背景 prepare() 的 worker thread，避免 async 競態造成的懸空回呼（SIGBUS）。

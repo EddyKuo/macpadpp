@@ -332,6 +332,14 @@ Settings SettingsStore::load()
         o.value(QStringLiteral("print_formfeed_as_page_break")).toBool(s.printFormFeedAsPageBreak);
     s.incrementalSearchCount =
         o.value(QStringLiteral("incremental_search_count")).toBool(s.incrementalSearchCount);
+    s.advancedAutoIndent =
+        o.value(QStringLiteral("advanced_auto_indent")).toBool(s.advancedAutoIndent);
+    s.hiddenToolbarButtons.clear();
+    for (const QJsonValue &v : o.value(QStringLiteral("hidden_toolbar_buttons")).toArray()) {
+        const QString id = v.toString();
+        if (!id.isEmpty())
+            s.hiddenToolbarButtons << id;
+    }
     s.customColors.clear();
     for (const QJsonValue &v : o.value(QStringLiteral("custom_colors")).toArray()) {
         const QString c = v.toString();
@@ -475,6 +483,13 @@ bool SettingsStore::save(const Settings &s)
     o.insert(QStringLiteral("open_copy_after_save_a_copy"), s.openCopyAfterSaveACopy);
     o.insert(QStringLiteral("print_formfeed_as_page_break"), s.printFormFeedAsPageBreak);
     o.insert(QStringLiteral("incremental_search_count"), s.incrementalSearchCount);
+    o.insert(QStringLiteral("advanced_auto_indent"), s.advancedAutoIndent);
+    if (!s.hiddenToolbarButtons.isEmpty()) {
+        QJsonArray ids;
+        for (const QString &id : s.hiddenToolbarButtons)
+            ids.append(id);
+        o.insert(QStringLiteral("hidden_toolbar_buttons"), ids);
+    }
     if (!s.customColors.isEmpty()) {
         QJsonArray colors;
         for (const QString &c : s.customColors)

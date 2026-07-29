@@ -12,6 +12,7 @@
 
 class QComboBox;
 class QCheckBox;
+class QListWidget;
 class QSpinBox;
 class QLineEdit;
 class QTabWidget;
@@ -76,6 +77,8 @@ private:
     QCheckBox *m_selectionDragDrop = nullptr;
     QCheckBox *m_syncZoomBetweenViews = nullptr;
     QCheckBox *m_openCopyAfterSaveACopy = nullptr;
+    QCheckBox *m_advancedAutoIndent = nullptr;
+    QListWidget *m_hiddenToolbarButtons = nullptr;
 
     // New Document
     QComboBox *m_defaultEol = nullptr;

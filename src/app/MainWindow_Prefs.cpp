@@ -172,6 +172,7 @@ void MainWindow::applyEditorPrefs(EditorWidget *editor, const macpad::persistenc
     editor->setCaretLineVisible(s.currentLineHighlight);  // 高亮目前所在行
     editor->setVirtualSpace(s.enableVirtualSpace);        // 允許插入點移至行尾之後
     editor->setColumnSelectionToMultiEdit(s.columnSelectionToMultiEdit);  // 欄選轉多游標
+    editor->setAdvancedAutoIndent(s.advancedAutoIndent);       // 依語言追加一級縮排
     editor->setUndoSelectionHistory(s.undoSelectionHistory);   // Undo/Redo 納入選取歷史
     editor->setSelectionDragDropEnabled(s.selectionDragDrop);  // 是否允許拖放選取文字
     applyDelimiters(editor, s);          // delimiterChars → 雙擊選字邊界

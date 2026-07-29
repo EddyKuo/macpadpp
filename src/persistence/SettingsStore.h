@@ -138,6 +138,10 @@ struct Settings {
     bool incrementalSearchCount = false;    // 增量搜尋顯示符合筆數與第幾筆（v8.9.7）
     // 取色器的 16 格自訂色（"#RRGGBB"），跨 session 保留（v8.9.7）
     QStringList customColors;
+    // 進階自動縮排（v8.7 起可停用；v8.7.5 擴充至 Swift/TypeScript/Go）
+    bool advancedAutoIndent = true;
+    // 隱藏的工具列按鈕 id 清單（v8.7.8「以設定隱藏指定工具列按鈕」）
+    QStringList hiddenToolbarButtons;
 
     // === Margins / Border / Edge（新增；edgeColumn 沿用既有 Highlighting 欄位）===
     EdgeMode edgeMode = EdgeMode::None;

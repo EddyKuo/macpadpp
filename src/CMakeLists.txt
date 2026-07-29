@@ -54,8 +54,12 @@ set(MACPAD_LIB_SOURCES
     features/langs/BuiltinLanguages.h
     ui/ColorPicker.cpp
     ui/ColorPicker.h
+    ui/WindowsListDialog.cpp
+    ui/WindowsListDialog.h
     features/export/HtmlExporter.cpp
     features/export/HtmlExporter.h
+    features/export/RtfExporter.cpp
+    features/export/RtfExporter.h
     features/textops/TextOps.cpp
     features/textops/TextOps.h
     features/columneditor/ColumnEditor.cpp

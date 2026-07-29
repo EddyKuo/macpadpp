@@ -1,6 +1,7 @@
 #include "app/MainWindow.h"
 
 #include "core/EditorWidget.h"
+#include "features/langs/BuiltinLanguages.h"
 #include "platform/DesktopIntegration.h"
 #include "core/LexerFactory.h"
 #include "features/search/FindReplaceDialog.h"
@@ -249,7 +250,8 @@ bool MainWindow::saveCurrentAs()
         return false;
 
     const QString startPath = editor->isUntitled() ? startDirForDialog() : editor->filePath();
-    const QString path = QFileDialog::getSaveFileName(this, tr("Save As"), startPath);
+    const QString path = QFileDialog::getSaveFileName(this, tr("Save As"), startPath,
+                                                      saveDialogFilters());
     if (path.isEmpty())
         return false;
 
@@ -296,13 +298,45 @@ void MainWindow::saveAll()
 }
 
 
+// 存檔對話框的檔案類型篩選（複刻 Notepad++ v8.7「Add file type filters for UDL in Save dialogs」）。
+// 內容 = All files + 使用者自訂 UDL（依其副檔名）+ 內建語言表的常見副檔名。
+QString MainWindow::saveDialogFilters() const
+{
+    QStringList filters;
+    filters << tr("All files (*)");
+
+    // 使用者 UDL 優先列出——這正是 Notepad++ v8.7 補上的部分
+    for (const auto &def : m_udl.definitions()) {
+        if (def.name.isEmpty() || def.extensions.isEmpty())
+            continue;
+        QStringList globs;
+        for (const QString &ext : def.extensions)
+            globs << QStringLiteral("*.%1").arg(ext);
+        filters << QStringLiteral("%1 (%2)").arg(def.name, globs.join(QLatin1Char(' ')));
+    }
+
+    // 內建語言（含新增的 Go/Rust/Swift…）；每種語言一列，維持選單一致的顯示名
+    for (const auto &e : macpad::features::BuiltinLanguages::entries()) {
+        if (e.extensions.isEmpty())
+            continue;
+        QStringList globs;
+        for (const QString &ext : e.extensions)
+            globs << QStringLiteral("*.%1").arg(ext);
+        filters << QStringLiteral("%1 (%2)").arg(e.display, globs.join(QLatin1Char(' ')));
+    }
+
+    return filters.join(QStringLiteral(";;"));
+}
+
+
 void MainWindow::saveCopyAs()
 {
     EditorWidget *e = currentEditor();
     if (!e)
         return;
     const QString path = QFileDialog::getSaveFileName(this, tr("Save a Copy As"),
-                                                      e->isUntitled() ? QString() : e->filePath());
+                                                      e->isUntitled() ? QString() : e->filePath(),
+                                                      saveDialogFilters());
     if (path.isEmpty())
         return;
     QFile f(path);

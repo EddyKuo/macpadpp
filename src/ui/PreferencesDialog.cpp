@@ -4,6 +4,7 @@
 #include <QComboBox>
 #include <QDialogButtonBox>
 #include <QFormLayout>
+#include <QListWidget>
 #include <QLabel>
 #include <QLineEdit>
 #include <QSpinBox>
@@ -154,6 +155,9 @@ QWidget *PreferencesDialog::buildEditingPage()
     m_openCopyAfterSaveACopy = new QCheckBox(tr("「另存副本」後自動開啟副本"), page);
     m_openCopyAfterSaveACopy->setChecked(current.openCopyAfterSaveACopy);
 
+    m_advancedAutoIndent = new QCheckBox(tr("進階自動縮排（依語言在 { 或 : 之後多縮一級）"), page);
+    m_advancedAutoIndent->setChecked(current.advancedAutoIndent);
+
     auto *form = new QFormLayout(page);
     form->addRow(m_showLineNumbers);
     form->addRow(m_showIndentGuides);
@@ -168,6 +172,7 @@ QWidget *PreferencesDialog::buildEditingPage()
     form->addRow(m_selectionDragDrop);
     form->addRow(m_syncZoomBetweenViews);
     form->addRow(m_openCopyAfterSaveACopy);
+    form->addRow(m_advancedAutoIndent);
     return page;
 }
 
@@ -436,8 +441,41 @@ QWidget *PreferencesDialog::buildToolbarPage()
     m_toolbarIconSize->addItems({tr("小"), tr("標準"), tr("大")});
     m_toolbarIconSize->setCurrentIndex(int(current.toolbarIconSize));
 
+    // 隱藏指定工具列按鈕（複刻 Notepad++ v8.7.8）。
+    // 清單項目的 id 與 populateToolbar() 的圖示名（QAction::objectName）一致。
+    m_hiddenToolbarButtons = new QListWidget(page);
+    m_hiddenToolbarButtons->setSelectionMode(QAbstractItemView::NoSelection);
+    static const struct { const char *id; const char *label; } kButtons[] = {
+        {"new", "New"}, {"open", "Open"}, {"save", "Save"}, {"saveall", "Save All"},
+        {"close", "Close"}, {"closeall", "Close All"}, {"print", "Print"},
+        {"cut", "Cut"}, {"copy", "Copy"}, {"paste", "Paste"},
+        {"undo", "Undo"}, {"redo", "Redo"},
+        {"find", "Find"}, {"replace", "Replace"},
+        {"zoomin", "Zoom In"}, {"zoomout", "Zoom Out"},
+        {"syncscrollv", "Sync Vertical Scrolling"}, {"syncscrollh", "Sync Horizontal Scrolling"},
+        {"wordwrap", "Word Wrap"}, {"allchars", "Show All Characters"},
+        {"indentguide", "Indent Guide"}, {"udl", "User-Defined Language"},
+        {"docmap", "Document Map"}, {"doclist", "Document List"},
+        {"funclist", "Function List"}, {"filebrowser", "Project Panel"},
+        {"monitoring", "Monitoring"},
+        {"macrorecord", "Record Macro"}, {"macrostop", "Stop Recording"},
+        {"macroplay", "Play Macro"}, {"macrorunmulti", "Run Macro Multiple Times"},
+        {"macrosave", "Save Macro"},
+    };
+    for (const auto &b : kButtons) {
+        auto *item = new QListWidgetItem(tr(b.label), m_hiddenToolbarButtons);
+        item->setData(Qt::UserRole, QString::fromLatin1(b.id));
+        item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
+        // 勾選 = 顯示；未勾選 = 隱藏（比「勾選代表隱藏」直覺）
+        item->setCheckState(current.hiddenToolbarButtons.contains(QString::fromLatin1(b.id),
+                                                                  Qt::CaseInsensitive)
+                                ? Qt::Unchecked
+                                : Qt::Checked);
+    }
+
     auto *form = new QFormLayout(page);
     form->addRow(tr("圖示大小"), m_toolbarIconSize);
+    form->addRow(tr("顯示的按鈕"), m_hiddenToolbarButtons);
     return page;
 }
 
@@ -663,6 +701,14 @@ Settings PreferencesDialog::result() const
     s.selectionDragDrop = m_selectionDragDrop->isChecked();
     s.syncZoomBetweenViews = m_syncZoomBetweenViews->isChecked();
     s.openCopyAfterSaveACopy = m_openCopyAfterSaveACopy->isChecked();
+    s.advancedAutoIndent = m_advancedAutoIndent->isChecked();
+
+    s.hiddenToolbarButtons.clear();
+    for (int i = 0; i < m_hiddenToolbarButtons->count(); ++i) {
+        QListWidgetItem *item = m_hiddenToolbarButtons->item(i);
+        if (item->checkState() == Qt::Unchecked)   // 未勾選 = 隱藏
+            s.hiddenToolbarButtons << item->data(Qt::UserRole).toString();
+    }
 
     s.printHeader = m_printHeader->text();
     s.printFooter = m_printFooter->text();

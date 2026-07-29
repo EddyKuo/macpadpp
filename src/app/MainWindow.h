@@ -115,6 +115,8 @@ private slots:
     void reloadFromDisk();
     void saveAll();
     void saveCopyAs();
+    // 存檔對話框的檔案類型篩選字串（含使用者 UDL 與內建語言；複刻 Notepad++ v8.7）
+    QString saveDialogFilters() const;
     // 對所有已開啟文件套用/解除唯讀（複刻 Notepad++ v8.8.6）
     void setAllDocumentsReadOnly(bool readOnly);
     // 將縮放層級同步到另一個檢視的所有編輯器（複刻 Notepad++ v8.9.5）
@@ -141,6 +143,8 @@ private slots:
     void moveCurrentTab(int delta);
     void toggleMonitoring();
     void buildWindowMenu();
+    // Window ▸ Windows…：可排序的文件管理對話框（複刻 Notepad++；v8.8.6 起可依修改時間排序）
+    void showWindowsListDialog();
     void setDistractionFree(bool on);
     void setPostIt(bool on);
     void showIncrementalSearch();
@@ -216,6 +220,7 @@ private:
     void populateToolbar();                    // 填入按鈕；須在 createMenus 之後
     void retintToolbar();                      // 依主題重新上色圖示
     void updateToolbarState();                 // 依目前狀態啟用/停用按鈕（如同步捲動需雙檢視）
+    void applyHiddenToolbarButtons();          // 依偏好隱藏指定按鈕（Notepad++ v8.7.8）
     void createSearchMenu(QMenu *searchMenu);  // Notepad++ Search 選單（填入預建的選單）
     void createEditMenuOps(QMenu *editMenu);   // Notepad++ 對等文字操作
     void applyTextOp(const std::function<QString(const QString &)> &op);

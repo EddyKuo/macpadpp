@@ -1214,6 +1214,46 @@ void EditorWidget::mousePressEvent(QMouseEvent *event)
 }
 
 
+// 進階自動縮排（複刻 Notepad++ v8.7「可停用 C-like 自動縮排」、v8.7.5「Swift/TypeScript/Go」）。
+// QsciScintilla::setAutoIndent 只會沿用上一行的縮排；此處再依語言語法追加一級縮排：
+//   - 大括號語言（C/C++/Java/JS/Go/Rust/Swift/Kotlin…）：上一行以 { 結尾 → 多縮一級
+//   - 冒號語言（Python/YAML…）：上一行以 : 結尾 → 多縮一級
+// prevLine 為按下 Enter 之前、游標之前的那段文字（不含後續被帶到新行的內容）。
+void EditorWidget::applyAdvancedAutoIndent(const QString &prevLine)
+{
+    const QString trimmed = prevLine.trimmed();
+    if (trimmed.isEmpty())
+        return;
+
+    // 語言判定以 lexer 名稱為準；無 lexer（純文字）不做進階縮排。
+    QsciLexer *lex = lexer();
+    if (!lex)
+        return;
+    const QString lang = QString::fromLatin1(lex->language()).toLower();
+
+    // 以冒號結尾代表區塊起始的語言
+    static const QStringList kColonLangs = {QStringLiteral("python"), QStringLiteral("yaml"),
+                                            QStringLiteral("coffeescript")};
+    bool indentMore = false;
+    if (kColonLangs.contains(lang)) {
+        indentMore = trimmed.endsWith(QLatin1Char(':'));
+    } else {
+        // 其餘一律視為大括號語系（含新增的 Go / Rust / Swift / Kotlin / Dart…）。
+        // 只認「行尾的 {」，避免把 `foo({a: 1})` 這種行也多縮一級。
+        indentMore = trimmed.endsWith(QLatin1Char('{'));
+    }
+    if (!indentMore)
+        return;
+
+    int line = 0, idx = 0;
+    getCursorPosition(&line, &idx);
+    // setIndentation 以「欄」為單位，會依 indentationsUseTabs 自行決定用 tab 或空白
+    setIndentation(line, indentation(line) + qMax(1, tabWidth()));
+    // 新行此時只有縮排，行尾即縮排之後——把游標帶過去
+    SendScintilla(SCI_LINEEND);
+}
+
+
 void EditorWidget::keyPressEvent(QKeyEvent *event)
 {
     // 路徑自動完成手動觸發（Ctrl+Alt+Space）：攔截於 base 處理之前，
@@ -1227,7 +1267,20 @@ void EditorWidget::keyPressEvent(QKeyEvent *event)
     }
 
     const QString typed = event->text();
+    // 進階自動縮排（複刻 Notepad++ v8.7 / v8.7.5）：需要在按下 Enter「之前」取得原行內容
+    const bool isEnter = (event->key() == Qt::Key_Return || event->key() == Qt::Key_Enter)
+                         && !(event->modifiers() & Qt::ControlModifier);
+    QString lineBeforeEnter;
+    if (isEnter && m_advancedAutoIndent) {
+        int line = 0, idx = 0;
+        getCursorPosition(&line, &idx);
+        lineBeforeEnter = text(line).left(idx);
+    }
+
     QsciScintilla::keyPressEvent(event);
+
+    if (isEnter && m_advancedAutoIndent)
+        applyAdvancedAutoIndent(lineBeforeEnter);
 
     // 自動配對符號（FR-050）：鍵入開符號後，緊接插入對應閉符號並讓游標留在中間
     if (m_autoClose && typed.size() == 1) {

@@ -17,6 +17,7 @@
 #include "features/run/RunCommand.h"
 #include "features/udl/UdlLexer.h"
 #include "features/export/HtmlExporter.h"
+#include "features/export/RtfExporter.h"
 #include "features/textops/TextOps.h"
 #include "features/mime/MimeTools.h"
 #include "features/print/DocumentPrinter.h"
@@ -250,7 +251,23 @@ void MainWindow::populateToolbar()
     reuse("macrosave",     m_macroSaveAct);
 
     retintToolbar();     // 依目前主題上色
+    applyHiddenToolbarButtons();
     updateToolbarState();
+}
+
+
+// 依偏好隱藏指定工具列按鈕（複刻 Notepad++ v8.7.8「以設定隱藏指定工具列按鈕」）。
+// 只隱藏工具列上的 widget，不動 QAction 本身——多數按鈕與選單共用同一個 QAction，
+// 若用 QAction::setVisible 會連選單項一起消失。
+void MainWindow::applyHiddenToolbarButtons()
+{
+    if (!m_toolbar)
+        return;
+    const QStringList hidden = macpad::persistence::SettingsStore::load().hiddenToolbarButtons;
+    for (const auto &pair : m_tbIcons) {
+        if (QWidget *w = m_toolbar->widgetForAction(pair.first))
+            w->setVisible(!hidden.contains(pair.second, Qt::CaseInsensitive));
+    }
 }
 
 
@@ -452,6 +469,22 @@ void MainWindow::createFileMenu(QMenu *fileMenu)
     fileMenu->addSeparator();
     fileMenu->addAction(tr("Print…"), QKeySequence::Print, this,
                         [this] { printCurrentDocument(); });
+    // Export as RTF…（複刻 Notepad++）：與 HTML 匯出對等，保留語法高亮色彩
+    fileMenu->addAction(tr("Export as RTF…"), this, [this] {
+        EditorWidget *e = currentEditor();
+        if (!e) return;
+        const QString path = QFileDialog::getSaveFileName(this, tr("Export as RTF"),
+                                                          QString(), tr("RTF (*.rtf)"));
+        if (path.isEmpty()) return;
+        QFile f(path);
+        if (f.open(QIODevice::WriteOnly)) {
+            // RTF 為 7-bit ANSI 容器，非 ASCII 已由 rtfEscape 轉成 \uN 逃逸序列
+            f.write(macpad::features::RtfExporter::toRtf(e).toLatin1());
+            statusBar()->showMessage(tr("已匯出 RTF"), 3000);
+        } else {
+            QMessageBox::warning(this, tr("Export as RTF"), tr("無法寫入：%1").arg(path));
+        }
+    });
     fileMenu->addAction(tr("Export as HTML…"), this, [this] {
         EditorWidget *e = currentEditor();
         if (!e) return;
@@ -1770,6 +1803,9 @@ void MainWindow::buildWindowMenu()
     m_windowMenu->addAction(tr("Previous Document"),
                             QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_Tab),
                             this, [this] { activateTabRelative(-1); });
+    m_windowMenu->addSeparator();
+    // Windows…：可排序的文件管理對話框（複刻 Notepad++ Window ▸ Windows…）
+    m_windowMenu->addAction(tr("Windows…"), this, [this] { showWindowsListDialog(); });
     m_windowMenu->addSeparator();
     // 開啟中的文件清單（打勾標示目前分頁）——涵蓋兩個檢視（Dual-View）
     for (QTabWidget *w : {m_tabs, m_tabs2}) {

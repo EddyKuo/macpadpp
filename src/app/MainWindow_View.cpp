@@ -34,6 +34,7 @@
 #include <QColorDialog>
 
 #include "ui/ColorPicker.h"
+#include "ui/WindowsListDialog.h"
 #include <QTabBar>
 #include "ui/DocumentListDock.h"
 #include "ui/Panels.h"
@@ -908,6 +909,88 @@ void MainWindow::toggleMonitoring()
         statusBar()->showMessage(tr("監控中（tail -f）：%1").arg(QFileInfo(path).fileName()), 3000);
     }
     updateToolbarState();
+}
+
+
+// Window ▸ Windows…（複刻 Notepad++ 的文件管理對話框）。
+// 以「攤平的 (檢視, 分頁索引)」清單為索引依據，與對話框回報的列號一一對應。
+void MainWindow::showWindowsListDialog()
+{
+    QVector<QPair<QTabWidget *, int>> map;
+    QVector<macpad::ui::WindowsListEntry> entries;
+    for (QTabWidget *w : {m_tabs, m_tabs2}) {
+        if (!w)
+            continue;
+        for (int i = 0; i < w->count(); ++i) {
+            EditorWidget *e = editorIn(w, i);
+            if (!e)
+                continue;
+            macpad::ui::WindowsListEntry entry;
+            entry.name = w->tabText(i);
+            entry.path = e->isUntitled() ? QString() : e->filePath();
+            entry.type = docTypeName(e);
+            entry.size = e->text().toUtf8().size();
+            if (!entry.path.isEmpty())
+                entry.modified = QFileInfo(entry.path).lastModified();
+            entries.push_back(entry);
+            map.push_back({w, i});
+        }
+    }
+    if (entries.isEmpty())
+        return;
+
+    macpad::ui::WindowsListDialog dlg(entries, this);
+
+    connect(&dlg, &macpad::ui::WindowsListDialog::activateRequested, this, [this, map](int row) {
+        if (row < 0 || row >= map.size())
+            return;
+        setActiveTabWidget(map[row].first);
+        map[row].first->setCurrentIndex(map[row].second);
+    });
+    connect(&dlg, &macpad::ui::WindowsListDialog::saveRequested, this,
+            [this, map](const QVector<int> &rows) {
+        QTabWidget *prevW = currentTabWidget();
+        const int prevIdx = prevW ? prevW->currentIndex() : -1;
+        for (int row : rows) {
+            if (row < 0 || row >= map.size())
+                continue;
+            setActiveTabWidget(map[row].first);
+            map[row].first->setCurrentIndex(map[row].second);
+            saveCurrent();
+        }
+        if (prevW && prevIdx >= 0 && prevIdx < prevW->count()) {
+            setActiveTabWidget(prevW);
+            prevW->setCurrentIndex(prevIdx);
+        }
+    });
+    connect(&dlg, &macpad::ui::WindowsListDialog::closeRequested, this,
+            [this, map](const QVector<int> &rows) {
+        // 由後往前關，避免關閉前面的分頁使後面的索引位移
+        QVector<int> ordered = rows;
+        std::sort(ordered.begin(), ordered.end(), std::greater<int>());
+        for (int row : ordered) {
+            if (row < 0 || row >= map.size())
+                continue;
+            closeTabIn(map[row].first, map[row].second);
+        }
+    });
+    connect(&dlg, &macpad::ui::WindowsListDialog::sortTabsRequested, this, [this] {
+        // 依分頁標題排序目前檢視的分頁（Notepad++ 的 Sort Tabs）；釘選分頁維持在前段不動。
+        QTabWidget *w = currentTabWidget();
+        if (!w)
+            return;
+        const int firstMovable = pinnedCount(w);
+        for (int i = firstMovable; i < w->count(); ++i) {
+            int best = i;
+            for (int j = i + 1; j < w->count(); ++j)
+                if (w->tabText(j).compare(w->tabText(best), Qt::CaseInsensitive) < 0)
+                    best = j;
+            if (best != i)
+                w->tabBar()->moveTab(best, i);
+        }
+    });
+
+    dlg.exec();
 }
 
 
