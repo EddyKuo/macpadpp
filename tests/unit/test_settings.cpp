@@ -55,7 +55,12 @@ private slots:
         QVERIFY(!s.wordWrap);
         QVERIFY(!s.showWhitespace);
         QCOMPARE(s.caretWidth, 1);
+        // 新文件預設換行字元依平台而異（Windows 版 Notepad++ 為 CRLF，其餘為 LF）
+#ifdef Q_OS_WIN
+        QCOMPARE(s.defaultEol, macpad::core::Eol::CrLf);
+#else
         QCOMPARE(s.defaultEol, macpad::core::Eol::Lf);
+#endif
         QCOMPARE(s.defaultEncoding, macpad::core::Encoding::Utf8);
         QCOMPARE(s.backupMode, BackupMode::None);
         QVERIFY(s.backupDir.isEmpty());

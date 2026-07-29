@@ -30,6 +30,11 @@
 - **多分頁編輯** — 拖曳排序、關閉確認、分頁標色、唯讀鎖定;**分頁右鍵選單**(Close / Close All but This /
   Close to Left·Right、Save/Rename、Reload、Open Containing Folder、Copy 路徑…);**雙 View 分割視窗**
   (水平/垂直、可旋轉方向、Move/Clone to Other View)含同步捲動。
+- **拖放開檔** — 自 Finder / 檔案總管把檔案拖進視窗任一處(編輯區、分頁列、面板)即開成分頁;
+  純文字拖曳仍維持 Scintilla 原生的文字拖放編輯行為。
+- **檔案唯讀屬性** — 開啟磁碟上唯讀的檔案會自動進入唯讀模式(避免編輯半天才在存檔時失敗),
+  可用 **Edit ▸ Clear Read-Only Flag** 清除檔案系統屬性並同步解鎖(複刻 Notepad++)。
+- **系統匣常駐** — `-systemtray` 啟動後常駐(Windows 通知區 / macOS 選單列狀態區),可切換顯示/隱藏視窗。
 - **完整右鍵選單** — 複刻 Notepad++ 編輯區 `contextMenu.xml`:Undo/Redo、剪貼、Selection(Begin/End、
   欄位)、Copy 路徑/檔名/目錄、Paste Special、Style Token 5 色、書籤、On Selection(開檔 / 網路搜尋)、
   開啟位置、Reload/Rename/垃圾桶、唯讀切換;Function List 面板亦有右鍵(跳至定義 / 複製 / 展開收合 / 排序)。

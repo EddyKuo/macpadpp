@@ -154,6 +154,189 @@ private slots:
         const QPoint emitted = spy.takeFirst().at(0).toPoint();
         QCOMPARE(emitted, global);
     }
+
+    // OS 層唯讀屬性偵測與切換（複刻 Notepad++ Clear Read-Only Flag）。
+    // Qt 權限 API 跨平台：Windows 對應 FILE_ATTRIBUTE_READONLY、POSIX 對應寫入位元。
+    void fileReadOnlyAttributeRoundTrip()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath(QStringLiteral("ro.txt"));
+        {
+            QFile f(path);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write("hello");
+        }
+
+        // 一般可寫檔案 → 非唯讀
+        QVERIFY(!EditorWidget::isFileReadOnly(path));
+
+        // 設為唯讀 → 偵測得到
+        QVERIFY(EditorWidget::setFileReadOnly(path, true));
+        QVERIFY(EditorWidget::isFileReadOnly(path));
+
+        // 清除唯讀 → 回復可寫，且內容仍在（只動權限位元，不碰內容）
+        QVERIFY(EditorWidget::setFileReadOnly(path, false));
+        QVERIFY(!EditorWidget::isFileReadOnly(path));
+        QFile check(path);
+        QVERIFY(check.open(QIODevice::ReadOnly));
+        QCOMPARE(check.readAll(), QByteArray("hello"));
+    }
+
+    // 鎖定→解鎖必須完整還原原始權限：只動 owner 寫入位元，group/other 不得被吃掉。
+    // （若鎖定時連 group 寫入一起清掉，解鎖時無從得知原本該不該補回，必然失真。）
+    void fileReadOnlyPreservesGroupOtherBits()
+    {
+#ifndef Q_OS_WIN   // Windows 無 POSIX group/other 位元概念
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath(QStringLiteral("shared.txt"));
+        {
+            QFile f(path);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write("team file");
+        }
+        // 模擬團隊共用檔 664：owner rw / group rw / other r
+        const QFileDevice::Permissions original =
+            QFileDevice::ReadOwner  | QFileDevice::WriteOwner |
+            QFileDevice::ReadUser   | QFileDevice::WriteUser  |
+            QFileDevice::ReadGroup  | QFileDevice::WriteGroup |
+            QFileDevice::ReadOther;
+        QVERIFY(QFile::setPermissions(path, original));
+        QCOMPARE(QFileInfo(path).permissions(), original);
+
+        QVERIFY(EditorWidget::setFileReadOnly(path, true));
+        QVERIFY(EditorWidget::isFileReadOnly(path));
+        // group 的寫入位元必須原封不動（未被鎖定動作吃掉）
+        QVERIFY(QFileInfo(path).permissions() & QFileDevice::WriteGroup);
+
+        QVERIFY(EditorWidget::setFileReadOnly(path, false));
+        QVERIFY(!EditorWidget::isFileReadOnly(path));
+        // 解鎖後權限應與原始完全一致
+        QCOMPARE(QFileInfo(path).permissions(), original);
+#endif
+    }
+
+    // untitled / 不存在的路徑不得被誤判為唯讀，且設定時要明確失敗（非靜默吞噬，IL-4）
+    void fileReadOnlyIgnoresMissingPaths()
+    {
+        QVERIFY(!EditorWidget::isFileReadOnly(QString()));
+        QVERIFY(!EditorWidget::isFileReadOnly(QStringLiteral("/no/such/file/anywhere.txt")));
+
+        QString err;
+        QVERIFY(!EditorWidget::setFileReadOnly(QStringLiteral("/no/such/file/anywhere.txt"), true, &err));
+        QVERIFY(!err.isEmpty());
+    }
+
+    // 拖放開檔：只有「本機既有檔案」才被攔截，其餘一律讓事件回到 Scintilla 文字拖放
+    void dropMimeExtractsOnlyLocalFiles()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString f1 = dir.filePath(QStringLiteral("a.txt"));
+        const QString f2 = dir.filePath(QStringLiteral("b.txt"));
+        for (const QString &p : {f1, f2}) {
+            QFile f(p);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write("x");
+        }
+
+        QMimeData mime;
+        mime.setUrls({QUrl::fromLocalFile(f1),
+                      QUrl::fromLocalFile(f2),
+                      QUrl(QStringLiteral("https://example.com/remote.txt")),   // 遠端 → 略過
+                      QUrl::fromLocalFile(dir.path()),                          // 目錄 → 略過
+                      QUrl::fromLocalFile(dir.filePath(QStringLiteral("ghost.txt")))});  // 不存在 → 略過
+
+        const QStringList got = EditorWidget::localFilePathsFromMime(&mime);
+        QCOMPARE(got.size(), 2);
+        QVERIFY(got.contains(QFileInfo(f1).absoluteFilePath()));
+        QVERIFY(got.contains(QFileInfo(f2).absoluteFilePath()));
+
+        // 純文字拖放不得被誤判為檔案拖放（否則會吃掉 Scintilla 的文字拖放行為）
+        QMimeData textMime;
+        textMime.setText(QStringLiteral("just some text"));
+        QVERIFY(EditorWidget::localFilePathsFromMime(&textMime).isEmpty());
+        QVERIFY(EditorWidget::localFilePathsFromMime(nullptr).isEmpty());
+    }
+
+    // 拖入檔案 → 發出 filesDropped 讓上層開分頁；拖入純文字 → 不發訊號（交回 Scintilla）。
+    // 關鍵：事件必須送到 viewport()——QsciScintilla 繼承 QAbstractScrollArea，拖放落點在
+    // viewport 上，送到 widget 本身不會觸發（與 contextMenuRequestedSignal 同一個坑）。
+    void dropEventEmitsFilesDropped()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath(QStringLiteral("dropped.txt"));
+        {
+            QFile f(path);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write("content");
+        }
+
+        EditorWidget e;
+        e.resize(200, 100);
+        QSignalSpy spy(&e, &EditorWidget::filesDropped);
+        QVERIFY(spy.isValid());
+
+        // 檔案拖放 → 吃掉事件並發訊號
+        QMimeData fileMime;
+        fileMime.setUrls({QUrl::fromLocalFile(path)});
+        QVERIFY(e.handleFileDropMime(&fileMime));
+        QCOMPARE(spy.count(), 1);
+        const QStringList emitted = spy.takeFirst().at(0).toStringList();
+        QCOMPARE(emitted.size(), 1);
+        QCOMPARE(emitted.first(), QFileInfo(path).absoluteFilePath());
+
+        // 純文字拖放 → 不吃事件、不發訊號（交還 Scintilla 原生文字拖曳）
+        QMimeData textMime;
+        textMime.setText(QStringLiteral("plain"));
+        QVERIFY(!e.handleFileDropMime(&textMime));
+        QCOMPARE(spy.count(), 0);
+
+        // 空 mime 亦不得誤判
+        QVERIFY(!e.handleFileDropMime(nullptr));
+        QCOMPARE(spy.count(), 0);
+
+        // 拖放後編輯器本身必須開放接收拖放（否則實際使用時系統不會送事件過來）
+        QVERIFY(e.acceptDrops());
+        QVERIFY(e.viewport()->acceptDrops());
+    }
+
+    // 開啟磁碟唯讀檔 → 自動進入唯讀模式（避免編輯半天才在存檔時失敗）
+    void loadingReadOnlyFileLocksEditor()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath(QStringLiteral("locked.txt"));
+        {
+            QFile f(path);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write("locked content");
+        }
+        QVERIFY(EditorWidget::setFileReadOnly(path, true));
+
+        EditorWidget e;
+        QVERIFY(e.loadFile(path));
+        QCOMPARE(e.text(), QStringLiteral("locked content"));
+        QVERIFY(e.isReadOnly());        // app 內編輯鎖已自動開啟
+        QVERIFY(e.isFileReadOnly());    // 磁碟屬性確實唯讀
+
+        // 清除屬性後，可解除編輯鎖
+        QVERIFY(EditorWidget::setFileReadOnly(path, false));
+        QVERIFY(!e.isFileReadOnly());
+
+        // 一般可寫檔案則不應被鎖
+        const QString rw = dir.filePath(QStringLiteral("normal.txt"));
+        {
+            QFile f(rw);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write("free");
+        }
+        EditorWidget e2;
+        QVERIFY(e2.loadFile(rw));
+        QVERIFY(!e2.isReadOnly());
+    }
 };
 
 QTEST_MAIN(TestEditor)

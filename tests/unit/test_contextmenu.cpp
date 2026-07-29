@@ -195,6 +195,71 @@ private slots:
             QVERIFY(actionEnabled(m.data(), QStringLiteral("Copy Directory Path")));
         }
     }
+
+    // 主視窗層級的 Notepad++ 對等行為：拖放開檔、Clear Read-Only Flag、
+    // 全螢幕快捷鍵（F11，對齊 Notepad++；先前誤綁在 Distraction Free 上）。
+    void windowLevelNotepadParity()
+    {
+        MainWindow w(nullptr, /*restoreSessionOnLaunch=*/false);
+
+        // 拖放開檔：主視窗必須接受拖放，否則系統根本不會送事件過來
+        QVERIFY(w.acceptDrops());
+
+        // 選單動作齊備
+        QAction *clearRo = nullptr;
+        QAction *fullScreen = nullptr;
+        QAction *distractionFree = nullptr;
+        const auto actions = w.findChildren<QAction *>();
+        for (QAction *a : actions) {
+            if (a->text() == QStringLiteral("Clear Read-Only Flag"))   clearRo = a;
+            if (a->text() == QStringLiteral("Toggle Full Screen"))     fullScreen = a;
+            if (a->text() == QStringLiteral("Distraction Free Mode"))  distractionFree = a;
+        }
+        QVERIFY(clearRo);
+        QVERIFY(fullScreen);
+        QVERIFY(distractionFree);
+
+        // F11 = 全螢幕（Notepad++ 慣例）
+        QVERIFY(fullScreen->shortcuts().contains(QKeySequence(Qt::Key_F11)));
+        // Distraction Free 不得再佔用 F11，否則兩者衝突（Qt 會兩個都不觸發）
+        QVERIFY(!distractionFree->shortcuts().contains(QKeySequence(Qt::Key_F11)));
+#ifndef Q_OS_MACOS
+        // 非 macOS 不得使用 Qt::META（＝Win 鍵），會與系統層組合鍵衝突
+        for (const QKeySequence &ks : fullScreen->shortcuts())
+            QVERIFY(!(ks[0].keyboardModifiers() & Qt::MetaModifier));
+#endif
+    }
+
+    // 拖放開檔會逐一開成分頁（走與 EditorWidget::filesDropped 相同的入口）
+    void droppedFilesOpenAsTabs()
+    {
+        MainWindow w(nullptr, /*restoreSessionOnLaunch=*/false);
+        QTabWidget *tabs = w.m_tabs;
+        const int before = tabs->count();
+
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QStringList paths;
+        for (const QString &name : {QStringLiteral("d1.txt"), QStringLiteral("d2.txt")}) {
+            const QString p = dir.filePath(name);
+            QFile f(p);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write("dropped");
+            paths << p;
+        }
+
+        w.openDroppedFiles(paths);
+
+        // 注意：不可直接斷言 count == before + 2——開檔時空白的 untitled 分頁會被取代
+        // （Notepad++ 同樣行為），故以「兩個檔案都確實開起來」為準。
+        QVERIFY(tabs->count() >= before);
+        QStringList opened;
+        for (int i = 0; i < tabs->count(); ++i)
+            if (EditorWidget *e = w.editorIn(tabs, i); e && !e->isUntitled())
+                opened << e->filePath();
+        for (const QString &p : paths)
+            QVERIFY2(opened.contains(QFileInfo(p).absoluteFilePath()), qPrintable(p));
+    }
 };
 
 QTEST_MAIN(TestContextMenu)

@@ -108,6 +108,17 @@ using macpad::core::EditorWidget;
 MainWindow::MainWindow(QWidget *parent, bool restoreSessionOnLaunch)
     : QMainWindow(parent)
 {
+    // 拖放開檔（複刻 Notepad++）：自檔案總管/Finder 拖檔案到視窗任一處即開成分頁。
+    // 編輯區內的拖放另由 EditorWidget 攔截（Scintilla 會先吃掉該區事件）。
+    setAcceptDrops(true);
+
+    // Function List 隨打字更新的節流器：單發、300ms，重複輸入會不斷重新計時，
+    // 停手後才真正重新解析（大檔逐鍵解析會明顯卡頓）。
+    m_panelRefreshTimer = new QTimer(this);
+    m_panelRefreshTimer->setSingleShot(true);
+    m_panelRefreshTimer->setInterval(300);
+    connect(m_panelRefreshTimer, &QTimer::timeout, this, &MainWindow::refreshPanels);
+
     // Dual-View（雙檢視，複刻 Notepad++ 兩欄檢視）：兩個 QTabWidget 並排於水平 QSplitter。
     // 第二檢視預設隱藏，使用者把文件移動/複製過去時才出現，空了又自動隱藏。
     m_tabs = new QTabWidget;

@@ -1197,12 +1197,20 @@ void MainWindow::createViewMenu(QMenu *viewMenu)
             if (vis) refreshPanels();
         });
     }
-    viewMenu->addAction(tr("Toggle Full Screen"),
-                        QKeySequence(Qt::CTRL | Qt::META | Qt::Key_F), this, [this] {
+    // 快捷鍵對齊 Notepad++ 實際慣例：F11 = Toggle Full Screen、F12 = Post-It，
+    // Distraction Free Mode 無預設鍵。原本 F11 綁在 Distraction Free 是與 Notepad++
+    // 不符的（兩平台皆然）。macOS 另保留 ⌃⌘F 作為原生全螢幕慣例的第二組鍵；
+    // Windows/Linux 不可用 Qt::META（＝Win 鍵），會與系統層 Win 組合鍵衝突。
+    QAction *fullScreenAct = viewMenu->addAction(tr("Toggle Full Screen"), this, [this] {
         if (isFullScreen()) showNormal(); else showFullScreen();
     });
-    QAction *dfAct = viewMenu->addAction(tr("Distraction Free Mode"),
-                                         QKeySequence(Qt::Key_F11));
+#ifdef Q_OS_MACOS
+    fullScreenAct->setShortcuts({QKeySequence(Qt::Key_F11),
+                                 QKeySequence(Qt::CTRL | Qt::META | Qt::Key_F)});
+#else
+    fullScreenAct->setShortcut(QKeySequence(Qt::Key_F11));
+#endif
+    QAction *dfAct = viewMenu->addAction(tr("Distraction Free Mode"));
     dfAct->setCheckable(true);
     connect(dfAct, &QAction::toggled, this, &MainWindow::setDistractionFree);
     QAction *postItAct = viewMenu->addAction(tr("Post-It Mode"), QKeySequence(Qt::Key_F12));
@@ -1440,14 +1448,23 @@ void MainWindow::createEditMenuOps(QMenu *editMenu)
     connect(roAct, &QAction::toggled, this, [this](bool on) {
         if (auto *e = currentEditor()) e->setReadOnly(on);
     });
+    // 清除「檔案系統」唯讀屬性（複刻 Notepad++ Edit ▸ Clear Read-Only Flag）。
+    // 與上面的 Read-Only 不同：那個只鎖 app 內編輯，這個真的改磁碟上的檔案屬性，
+    // 清除後同步解除編輯鎖，使用者才能真正往下編輯並存檔。
+    QAction *clearRoAct = editMenu->addAction(tr("Clear Read-Only Flag"), this,
+                                             [this] { clearFileReadOnlyFlag(); });
+    // 選單建構時尚無任何分頁，預設停用；currentChanged 會依實際檔案屬性校正。
+    clearRoAct->setEnabled(false);
     // 切換分頁時同步唯讀勾選狀態（兩個檢視都要監聽）
     for (QTabWidget *w : {m_tabs, m_tabs2}) {
         if (!w)
             continue;
-        connect(w, &QTabWidget::currentChanged, this, [this, roAct] {
+        connect(w, &QTabWidget::currentChanged, this, [this, roAct, clearRoAct] {
             if (auto *e = currentEditor()) {
                 QSignalBlocker b(roAct);
                 roAct->setChecked(e->isReadOnly());
+                // 只有「磁碟檔案真的唯讀」時這個動作才有意義
+                clearRoAct->setEnabled(e->isFileReadOnly());
             }
         });
     }

@@ -6,7 +6,7 @@
 // -openFoldersAsWorkspace -x -y -monitor -notabbar -fullReadOnly -settingsDir -L<langCode>
 // -udl=<name> -z -notepadStyleCmdline）；純邏輯、可單元測試。
 // 不可辨識的 "-" 開頭旗標一律忽略，不視為檔案路徑。
-// 部分 Windows-only / 非適用旗標（-systemtray -noPlugin -pluginMessage -loadingTime
+// 部分 Windows-only / 非適用旗標（-noPlugin -pluginMessage -loadingTime
 // -qn -qt -qf -qSpeed 等 ghost-typing 除錯旗標）僅辨識並吞噬，不在 macOS 上有實際作用。
 
 #include <QString>
@@ -49,8 +49,11 @@ struct ParsedArgs {
     QString udlName;                      // -udl=<name>：套用自訂使用者定義語言（UDL）
     bool notepadStyleCmdline = false;     // -notepadStyleCmdline：Notepad 風格命令列相容模式
 
+    // -systemtray：啟動後常駐系統匣（Windows 通知區 / macOS 選單列狀態區）。
+    // QSystemTrayIcon 為跨平台 API，兩平台皆實際生效。
+    bool systemTray = false;
+
     // ---- Windows-only / 非適用旗標：僅辨識並吞噬，避免誤判為檔案路徑 ----
-    bool systemTrayIgnored = false;       // -systemtray（macOS 無系統匣，無作用）
     bool noPluginIgnored = false;         // -noPlugin（macOS 外掛機制不同，無作用）
     bool pluginMessageIgnored = false;    // -pluginMessage <msg>（外掛間通訊，無對應機制）
     bool loadingTimeIgnored = false;      // -loadingTime <ms>（啟動計時除錯旗標，無作用）

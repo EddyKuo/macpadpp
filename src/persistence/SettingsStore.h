@@ -3,6 +3,7 @@
 // SettingsStore — settings.json：應用設定（FR-015/021, DR-001）
 // 缺欄位以預設值回填（dba-engine-file-config）。
 
+#include <QtGlobal>   // Q_OS_WIN（平台相依預設值）；明確引入，勿依賴傳遞引入
 #include <QMap>
 #include <QString>
 #include <QStringList>
@@ -56,7 +57,14 @@ struct Settings {
     bool columnSelectionToMultiEdit = false;  // 欄選（矩形選取）結束時轉為每行一個多游標
 
     // === New Document（FR-053）===
+    // 新文件預設換行字元依平台而異，與各平台的 Notepad++／原生慣例一致：
+    // Windows 版 Notepad++ 新檔為 CRLF，macOS/Unix 慣例為 LF。使用者仍可於
+    // Preferences ▸ New Document 覆寫（存入 settings.json 後即以該值為準）。
+#ifdef Q_OS_WIN
+    macpad::core::Eol defaultEol = macpad::core::Eol::CrLf;
+#else
     macpad::core::Eol defaultEol = macpad::core::Eol::Lf;
+#endif
     macpad::core::Encoding defaultEncoding = macpad::core::Encoding::Utf8;
     bool autoDetectFileStatus = true;  // 偵測檔案於外部被異動/刪除並提示
     QString sessionFileExt;            // 自動以 session 開啟的副檔名（空=停用）

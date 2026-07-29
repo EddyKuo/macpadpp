@@ -64,6 +64,7 @@
 #include <QHash>
 #include <QLineEdit>
 #include <QRegularExpression>
+#include <QSystemTrayIcon>
 #include <QToolBar>
 #include <QIcon>
 #include <QPainter>
@@ -286,8 +287,56 @@ void MainWindow::setFullReadOnly(bool on)
 {
     forEachEditor([on](EditorWidget *e) {
         if (e)
-            e->setReadOnly(on);
+            e->setPolicyReadOnly(on);   // 政策鎖定：Clear Read-Only Flag 不得解除
     });
+}
+
+
+// -systemtray：常駐系統匣。QSystemTrayIcon 為跨平台 API——Windows 顯示於通知區、
+// macOS 顯示於選單列狀態區——故兩平台共用這一份實作，無需 #ifdef。
+// 系統不支援（如無頭環境/CI）時回傳 false 並保持主視窗正常運作，不視為錯誤。
+bool MainWindow::enableSystemTray()
+{
+    if (m_tray)
+        return true;   // 已啟用，冪等
+    if (!QSystemTrayIcon::isSystemTrayAvailable())
+        return false;
+
+    // 圖示來源：優先用視窗圖示（main.cpp 已 setWindowIcon），空的話直接取資源，
+    // 否則系統匣會是一塊看不見的空白，等同功能失效。
+    QIcon trayIcon = windowIcon();
+    if (trayIcon.isNull())
+        trayIcon = QIcon(QStringLiteral(":/icons/app-icon.svg"));
+    m_tray = new QSystemTrayIcon(trayIcon, this);
+    m_tray->setToolTip(QStringLiteral("macpad++"));
+
+    auto *menu = new QMenu(this);
+    menu->addAction(tr("Show Window"), this, [this] {
+        showNormal();
+        raise();
+        activateWindow();
+    });
+    menu->addAction(tr("Hide Window"), this, [this] { hide(); });
+    menu->addSeparator();
+    menu->addAction(tr("Quit"), qApp, &QApplication::quit);
+    m_tray->setContextMenu(menu);
+
+    // 點擊圖示切換顯示/隱藏（macOS 選單列點擊只會叫出選單，故僅在 Windows 觸發此路徑）
+    connect(m_tray, &QSystemTrayIcon::activated, this,
+            [this](QSystemTrayIcon::ActivationReason reason) {
+                if (reason != QSystemTrayIcon::Trigger && reason != QSystemTrayIcon::DoubleClick)
+                    return;
+                if (isVisible() && !isMinimized()) {
+                    hide();
+                } else {
+                    showNormal();
+                    raise();
+                    activateWindow();
+                }
+            });
+
+    m_tray->show();
+    return true;
 }
 
 
@@ -317,7 +366,7 @@ void MainWindow::enableMonitoringForOpenFiles()
             if (!m_monitored.contains(path)) {
                 m_monitored.insert(path);
                 watchPath(path);
-                e->setReadOnly(true);
+                e->setPolicyReadOnly(true);   // 監控中唯讀（tail -f）；屬政策鎖定
             }
         }
     });

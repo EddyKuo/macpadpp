@@ -21,6 +21,7 @@ class QSplitter;
 class QLabel;
 class QMenu;
 class QToolBar;
+class QSystemTrayIcon;
 class QFileSystemWatcher;
 class QTimer;
 class QsciMacro;
@@ -66,6 +67,9 @@ public:
     void setFullReadOnly(bool on);                      // -fullReadOnly（全域唯讀）
     void enableMonitoringForOpenFiles();                // -monitor（監控所有已開啟檔案）
     void applyUdlByName(const QString &name);           // -udl=<name>（對作用中編輯器套用 UDL）
+    // -systemtray：常駐系統匣（Windows 通知區 / macOS 選單列狀態區）。
+    // 系統不支援時安全略過（回傳 false），不影響主視窗運作。
+    bool enableSystemTray();
 
 public slots:
     // 開啟指定檔案（已開啟則聚焦既有分頁——FR-001 邊界）
@@ -75,6 +79,9 @@ public slots:
 
 protected:
     void closeEvent(QCloseEvent *event) override;
+    // 視窗層級拖放（分頁列/停靠面板/空白區）：編輯區內的拖放由 EditorWidget 另行攔截。
+    void dragEnterEvent(QDragEnterEvent *event) override;
+    void dropEvent(QDropEvent *event) override;
 
 private slots:
     void newFile();
@@ -112,6 +119,10 @@ private slots:
     void restoreClosedTab();
     void revealInFinder();
     void openInDefaultApp();
+    // 清除目前檔案的「檔案系統」唯讀屬性並同步解除編輯鎖（Notepad++ Clear Read-Only Flag）
+    void clearFileReadOnlyFlag();
+    // 拖放開檔（複刻 Notepad++）：逐一開成分頁，最後一個成為作用中分頁
+    void openDroppedFiles(const QStringList &paths);
     // === Notepad++ 對等：搜尋 ===
     void findNextDir(bool forward);
     void selectAndFind(bool forward);
@@ -226,6 +237,8 @@ private:
     QLabel *m_stEnc = nullptr;
     QLabel *m_stMode = nullptr;
     QToolBar *m_toolbar = nullptr;
+    QSystemTrayIcon *m_tray = nullptr;   // -systemtray 啟用時才建立（否則恆為 nullptr）
+    QTimer *m_panelRefreshTimer = nullptr;  // Function List 隨打字更新的 debounce（單發）
     QVector<QPair<QAction *, QString>> m_tbIcons;  // 工具列動作→圖示名(供主題變色重上色)
     macpad::features::FindReplaceDialog *m_findDialog = nullptr;
     QMenu *m_recentMenu = nullptr;

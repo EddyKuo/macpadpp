@@ -350,10 +350,10 @@ private slots:
         QCOMPARE(p.files.size(), 1);
     }
 
-    void parseSystemTrayIgnoredFlag()
+    void parseSystemTrayFlag()
     {
         const auto p = CliArgs::parse({"-systemtray", "file.txt"});
-        QVERIFY(p.systemTrayIgnored);
+        QVERIFY(p.systemTray);
         QCOMPARE(p.files.size(), 1);
         QCOMPARE(p.files.at(0).path, QStringLiteral("file.txt"));
     }
@@ -432,7 +432,7 @@ private slots:
         QCOMPARE(p.uiLangCode, QStringLiteral("de"));
         QCOMPARE(p.udlName, QStringLiteral("Custom"));
         QVERIFY(p.notepadStyleCmdline);
-        QVERIFY(p.systemTrayIgnored);
+        QVERIFY(p.systemTray);
         QVERIFY(p.noPluginIgnored);
         QVERIFY(p.pluginMessageIgnored);
         QVERIFY(p.loadingTimeIgnored);

@@ -17,6 +17,11 @@
 #include <QKeyEvent>
 #include <QLocale>
 #include <QMimeData>
+// 拖放事件型別：明確引入，勿依賴傳遞引入（MSVC 與 clang 的標頭傳遞行為不同）
+#include <QDragEnterEvent>
+#include <QDragMoveEvent>
+#include <QDropEvent>
+#include <QUrl>
 #include <QMouseEvent>
 #include <QPair>
 #include <QVector>
@@ -152,8 +157,11 @@ EditorWidget::EditorWidget(QWidget *parent)
     connect(this, &QsciScintilla::cursorPositionChanged,
             this, &EditorWidget::onCursorPositionChanged);
 
-    // 攔截 viewport 雙擊事件：支援 Ctrl/⌘+雙擊選整個字（ctrlDoubleClickWholeWord）
+    // 攔截 viewport 事件：Ctrl/⌘+雙擊選整個字（ctrlDoubleClickWholeWord）與拖放開檔。
+    // 兩者都必須掛在 viewport 上——QAbstractScrollArea 的事件落點在此，非 widget 本身。
     viewport()->installEventFilter(this);
+    setAcceptDrops(true);
+    viewport()->setAcceptDrops(true);   // 明確開啟，勿仰賴 Scintilla 的預設值
 
     // 停用 Scintilla 內建右鍵 popup（SCI_USEPOPUP, SC_POPUP_NEVER=0），
     // 改由 contextMenuEvent 轉發給 MainWindow 建構完整的 Notepad++ 風格右鍵選單。
@@ -319,7 +327,77 @@ bool EditorWidget::loadFile(const QString &path, QString *errorMessage)
     m_filePath = QFileInfo(path).absoluteFilePath();
     applyLexerForPath(m_filePath);
     clearDirty();
+    // 複刻 Notepad++：開啟磁碟唯讀檔時自動進入唯讀模式，避免使用者編輯半天才在存檔時失敗。
+    // 可由 Edit ▸ Clear Read-Only Flag 清除檔案屬性後解鎖。
+    if (isFileReadOnly(m_filePath))
+        setReadOnly(true);
     emit metaChanged();
+    return true;
+}
+
+QStringList EditorWidget::localFilePathsFromMime(const QMimeData *mime)
+{
+    QStringList paths;
+    if (!mime || !mime->hasUrls())
+        return paths;
+    for (const QUrl &url : mime->urls()) {
+        if (!url.isLocalFile())
+            continue;   // http(s):// 等遠端 URL 交回原本的文字拖放處理
+        const QString local = url.toLocalFile();
+        const QFileInfo info(local);
+        if (info.exists() && info.isFile())
+            paths << info.absoluteFilePath();
+    }
+    return paths;
+}
+
+bool EditorWidget::handleFileDropMime(const QMimeData *mime)
+{
+    const QStringList paths = localFilePathsFromMime(mime);
+    if (paths.isEmpty())
+        return false;
+    emit filesDropped(paths);   // 交由 MainWindow 開成分頁（core 不依賴上層）
+    return true;
+}
+
+bool EditorWidget::isFileReadOnly(const QString &path)
+{
+    if (path.isEmpty())
+        return false;
+    const QFileInfo info(path);
+    return info.exists() && info.isFile() && !info.isWritable();
+}
+
+bool EditorWidget::setFileReadOnly(const QString &path, bool readOnly, QString *errorMessage)
+{
+    const QFileInfo info(path);
+    if (path.isEmpty() || !info.exists() || !info.isFile()) {
+        if (errorMessage)
+            *errorMessage = QObject::tr("File does not exist");
+        return false;
+    }
+
+    // 只增減「擁有者」的寫入位元，group/other 一律不動。
+    //
+    // 為何不連 group/other 的寫入位元一起清除：POSIX 的權限無法從「已鎖定」狀態還原原貌
+    // ——若鎖定時清掉 664 的 group 寫入，解鎖時無從得知原本該不該補回去（補回去可能過度
+    // 授權、不補則是靜默降權），round-trip 必然失真。只動 owner 位元則 664→464→664
+    // 完全無損。語意上也正確：POSIX 對「檔案擁有者」的權限判定只看 owner 位元，故清掉
+    // owner 寫入後 QFileInfo::isWritable() 即為 false，達成唯讀效果；而非擁有者本來就
+    // 無權變更權限。Windows 上 Qt 將此對應到 FILE_ATTRIBUTE_READONLY，行為一致。
+    QFileDevice::Permissions perms = info.permissions();
+    const QFileDevice::Permissions ownerWriteBits =
+        QFileDevice::WriteOwner | QFileDevice::WriteUser;
+    if (readOnly)
+        perms &= ~ownerWriteBits;
+    else
+        perms |= ownerWriteBits;
+
+    if (!QFile::setPermissions(path, perms)) {
+        if (errorMessage)
+            *errorMessage = QObject::tr("Failed to change the read-only attribute of the file");
+        return false;
+    }
     return true;
 }
 
@@ -1646,6 +1724,34 @@ bool EditorWidget::matchingTagRanges(const QString &text, int caretChar,
 // === Ctrl/⌘+雙擊選整個字 / 摺疊邊界樣式 ===
 bool EditorWidget::eventFilter(QObject *watched, QEvent *event)
 {
+    // 拖放開檔（複刻 Notepad++）：QsciScintilla 是 QAbstractScrollArea，拖放事件落在
+    // viewport 上，故在此攔截而非 override dropEvent()。僅「本機既有檔案」被吃掉並轉發，
+    // 純文字拖放回傳 false 交還 Scintilla，維持原生文字拖曳編輯行為。
+    if (watched == viewport()) {
+        switch (event->type()) {
+        case QEvent::DragEnter:
+        case QEvent::DragMove: {
+            // DragEnter 接受後仍須在 DragMove 持續接受，否則游標會顯示為「禁止放置」。
+            auto *de = static_cast<QDragMoveEvent *>(event);
+            if (!localFilePathsFromMime(de->mimeData()).isEmpty()) {
+                de->acceptProposedAction();
+                return true;
+            }
+            break;
+        }
+        case QEvent::Drop: {
+            auto *de = static_cast<QDropEvent *>(event);
+            if (handleFileDropMime(de->mimeData())) {
+                de->acceptProposedAction();
+                return true;
+            }
+            break;
+        }
+        default:
+            break;
+        }
+    }
+
     if (watched == viewport() && event->type() == QEvent::MouseButtonDblClick) {
         auto *me = static_cast<QMouseEvent *>(event);
         const bool wantWholeWord =

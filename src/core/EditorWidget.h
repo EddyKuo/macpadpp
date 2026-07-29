@@ -30,6 +30,40 @@ public:
     QString filePath() const { return m_filePath; }
     bool isUntitled() const { return m_filePath.isEmpty(); }
 
+    // ── OS 層檔案唯讀屬性（複刻 Notepad++ Edit ▸ Clear Read-Only Flag）──────────────
+    // 與 QsciScintilla::isReadOnly()（app 內編輯鎖）不同：這裡問的是「磁碟上的檔案本身
+    // 是否唯讀」。Qt 的權限 API 本就跨平台——Windows 對應 FILE_ATTRIBUTE_READONLY、
+    // macOS/Linux 對應 POSIX 寫入權限位元——故兩平台共用同一份實作，無需 #ifdef。
+    // 純靜態、不碰 widget 狀態，便於無頭單元測試。
+    static bool isFileReadOnly(const QString &path);
+    // 設定/清除唯讀屬性；成功回傳 true，失敗時 errorMessage 帶原因。
+    static bool setFileReadOnly(const QString &path, bool readOnly, QString *errorMessage = nullptr);
+
+    // 目前分頁對應的磁碟檔案是否唯讀（untitled 或檔案不存在 → false）。
+    bool isFileReadOnly() const { return isFileReadOnly(m_filePath); }
+
+    // 「政策性唯讀」：因 -fullReadOnly 或監控（tail -f）模式而鎖定，而非因檔案屬性。
+    // isReadOnly() 單一布林無法分辨鎖定原因，Clear Read-Only Flag 若無條件解鎖，會誤破
+    // 這兩種鎖定的不變式。故政策鎖定另記一個旗標，清除檔案屬性時據此拒絕解鎖。
+    void setPolicyReadOnly(bool on)
+    {
+        m_policyReadOnly = on;
+        setReadOnly(on);
+    }
+    bool isPolicyReadOnly() const { return m_policyReadOnly; }
+
+    // 從拖放/剪貼簿的 mime 資料取出「本機既有檔案」路徑清單（非本機 URL、目錄、
+    // 不存在的路徑一律略過）。純函式、不碰 widget 狀態，供無頭單元測試。
+    // 回傳空清單即代表「這不是檔案拖放」，呼叫端應讓事件回到原本的文字拖放行為。
+    static QStringList localFilePathsFromMime(const QMimeData *mime);
+
+    // 檔案拖放的實際處置：是檔案拖放就發出 filesDropped 並回傳 true（呼叫端應吃掉事件），
+    // 否則回傳 false（呼叫端應把事件交還 Scintilla 的文字拖放）。
+    // 之所以獨立成 public 方法而非只寫在 eventFilter 裡：Qt6 的 QApplication::notify()
+    // 對拖放事件有特殊派送路徑，合成 QDropEvent 送不進 event filter，故無法用合成事件
+    // 做端對端測試；把決策邏輯抽出來才能真正被單元測試涵蓋。
+    bool handleFileDropMime(const QMimeData *mime);
+
     // 未命名分頁序號（複刻 Notepad++「new N」）：>0 時 displayName 顯示 untitled(N) 以區分多個未存分頁。
     // 由 MainWindow::addEditorTab 於建立時指派最小可用號；命名後（有 filePath）即不再顯示。
     int untitledNumber() const { return m_untitledNumber; }
@@ -300,6 +334,9 @@ signals:
     // 右鍵選單請求（複刻 Notepad++ 編輯區右鍵選單）：停用 Scintilla 內建 popup 後，
     // 由 EditorWidget 攔截 contextMenuEvent 並轉發全域座標，交由 MainWindow 建構完整選單。
     void contextMenuRequested(const QPoint &globalPos);
+    // 自檔案總管/Finder 拖入檔案（複刻 Notepad++ 拖放開檔）：Scintilla 自身的文字拖放
+    // 仍照常運作，只有「本機檔案 URL」會被攔下來轉發，交由 MainWindow 開成分頁。
+    void filesDropped(const QStringList &paths);
 
 protected:
     void keyPressEvent(QKeyEvent *event) override;
@@ -307,6 +344,9 @@ protected:
     bool eventFilter(QObject *watched, QEvent *event) override;
     // 右鍵：停用 Scintilla 內建 popup（見建構子 SCI_USEPOPUP），改發 contextMenuRequested。
     void contextMenuEvent(QContextMenuEvent *event) override;
+    // 註：拖放不在此以 dropEvent() override 處理——QsciScintilla 繼承自 QAbstractScrollArea，
+    // 拖放事件實際落在 viewport() 上，widget 層的 override 不會被呼叫（與 Sprint 8 右鍵選單
+    // 同一個坑）。改於 eventFilter() 中攔截 viewport 的 DragEnter/DragMove/Drop。
 
 private slots:
     void onMarginClicked(int margin, int line, Qt::KeyboardModifiers state);
@@ -341,6 +381,7 @@ private:
     QString m_codecName;   // 非空 = 用具名 codec 存檔（Character sets 選的傳統編碼）
     Eol m_eol = Eol::Lf;
     bool m_metaDirty = false;  // 編碼/EOL/codec 變更造成的 dirty（文字內容未變）
+    bool m_policyReadOnly = false;  // 因 -fullReadOnly / 監控模式而鎖定（非檔案屬性所致）
     bool m_autoClose = true;  // 自動配對符號 ( [ { " '（FR-050）
 
     // 兩段式選取錨點（Begin/End Select）

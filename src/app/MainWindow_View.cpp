@@ -267,6 +267,8 @@ void MainWindow::wireEditorSignals(EditorWidget *editor)
     // 編輯區右鍵選單（複刻 Notepad++）：EditorWidget 已停用 Scintilla 內建 popup 並轉發此訊號
     connect(editor, &EditorWidget::contextMenuRequested,
             this, &MainWindow::showEditorContextMenu);
+    // 拖放開檔（複刻 Notepad++）：拖到編輯區的檔案由 EditorWidget 攔截後轉發至此開成分頁
+    connect(editor, &EditorWidget::filesDropped, this, &MainWindow::openDroppedFiles);
     connect(editor, &QsciScintilla::cursorPositionChanged, this,
             [this](int, int) { updateStatusBar(); updateDocMapRange(); });
     // 捲動時更新 Document Map 的可視範圍色帶（FR-029）
@@ -275,11 +277,32 @@ void MainWindow::wireEditorSignals(EditorWidget *editor)
     // 長度/行數需隨編輯即時更新；選取需即時反映 Sel 欄與 INS/OVR
     connect(editor, &QsciScintilla::textChanged, this, &MainWindow::updateStatusBar);
     connect(editor, &QsciScintilla::selectionChanged, this, &MainWindow::updateStatusBar);
-    // Call tip（函式參數提示）：鍵入 '(' 時查文件內同名函式定義行當簽名
+    // Function List 隨打字更新（複刻 Notepad++）：原本只在切換分頁/開檔時刷新，
+    // 編輯中新增的函式不會出現，清單會一直是舊的。以單一 debounce timer 節流，
+    // 避免每次按鍵都重新解析整份文件（大檔會卡）。
+    connect(editor, &QsciScintilla::textChanged, this, [this] {
+        if (!m_funcList || !m_funcList->isVisible())
+            return;   // 面板沒開就不必付出解析成本
+        m_panelRefreshTimer->start();   // 單發計時器；重複 start() 會重新計時
+    });
+    // Call tip（函式參數提示）。查找順序：
+    //   1) ApiDatabase：標準庫/內建函式的「真實簽名」（printf、malloc…）——精確度最高。
+    //   2) 文件內掃描：使用者自訂函式，以其定義行當簽名——ApiDatabase 不可能收錄。
+    // 先前只有 (2)，導致 ApiDatabase::callTipFor 成為死碼、且標準函式提示只能靠
+    // 碰巧在同檔內有定義才出得來。
     connect(editor, &EditorWidget::callTipRequested, this,
-            [editor](const QString &fn) {
+            [editor](const QString &fn) {   // languageKeyForLexer 是靜態成員，無需捕獲 this
         const QString suffix = editor->isUntitled()
                                    ? QString() : QFileInfo(editor->filePath()).suffix();
+        // ApiDatabase 用的是 LexerFactory 語言鍵，與 FunctionListParser 的語言鍵不同源，
+        // 故兩者各自取用自己的鍵，不可混用。
+        if (const QString langKey = languageKeyForLexer(editor->lexer()); !langKey.isEmpty()) {
+            const QString tip = macpad::features::ApiDatabase::callTipFor(fn, langKey);
+            if (!tip.isEmpty()) {
+                editor->showCallTip(tip);
+                return;
+            }
+        }
         const QString lang = macpad::features::FunctionListParser::languageForSuffix(suffix);
         for (const auto &s : macpad::features::FunctionListParser::parse(editor->text(), lang)) {
             if (s.name == fn && s.line >= 1) {
@@ -777,12 +800,12 @@ void MainWindow::toggleMonitoring()
     const QString path = e->filePath();
     if (m_monitored.contains(path)) {
         m_monitored.remove(path);
-        e->setReadOnly(false);
+        e->setPolicyReadOnly(false);   // 解除政策鎖定
         statusBar()->showMessage(tr("已停止監控：%1").arg(QFileInfo(path).fileName()), 3000);
     } else {
         m_monitored.insert(path);
         watchPath(path);
-        e->setReadOnly(true);         // 監控時唯讀（如 tail -f）
+        e->setPolicyReadOnly(true);   // 監控時唯讀（如 tail -f）；屬政策鎖定
         e->setCursorPosition(e->lines() - 1, 0);
         e->ensureLineVisible(e->lines() - 1);
         statusBar()->showMessage(tr("監控中（tail -f）：%1").arg(QFileInfo(path).fileName()), 3000);

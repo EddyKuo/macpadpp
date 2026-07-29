@@ -5,6 +5,41 @@
 
 ---
 
+## 📌 雙平台重新認定（2026-07-29 追記，v0.5.2 之後）
+
+**背景**：本文件（含下方所有 `na_macos` 判定）是在專案**僅支援 macOS** 時寫的。v0.5.0–v0.5.2 起
+macpad++ 已同時發行 **macOS 與 Windows 10/11**，因此「macOS 做不到」不再是充分的排除理由——
+排除的門檻改為「**兩個平台都難以實現**」。以 Sonnet 研究 agent 逐項重新認定的結果如下。
+
+### ⚠️ 原判定有誤：這些從來就不是平台限制（已於本輪實作）
+
+| 項目 | 原判定 | 更正後事實 | 狀態 |
+|------|--------|-----------|------|
+| **檔案唯讀屬性** | `na_macos` | `QFileInfo::isWritable()` / `QFile::setPermissions()` **本來就跨平台**（Windows 對應 `FILE_ATTRIBUTE_READONLY`、POSIX 對應寫入位元）。原本只是漏呼叫 Qt API，程式中所有 read-only 都只是 app 內旗標 | ✅ 已實作雙平台 + Edit ▸ Clear Read-Only Flag |
+| **系統匣** | `na_macos` | `QSystemTrayIcon` **在 macOS 亦支援**（顯示於選單列狀態區），單一實作即涵蓋兩平台、無需 `#ifdef` | ✅ 已實作，`-systemtray` 由「僅吞噬」改為真旗標 |
+
+### 排除理由需更正（結論仍是排除，但原因寫錯）
+
+| 項目 | 原寫法 | 正確理由 |
+|------|--------|---------|
+| **DirectWrite** | 「macOS 不可能」 | Qt6 Windows QPA **本來就已使用 DirectWrite**；Notepad++ 暴露的是 GDI/DirectWrite 切換開關，Qt6 未提供對應旋鈕，**Windows 上同樣做不到**。非 macOS 專屬限制 |
+| **tabBarMultiLine** | 「平台限制」 | 這是 **Qt widget 工具組限制**，`QTabBar` 在 **Windows 上一樣沒有**原生多列換行。與作業系統無關；要做就得自寫多列 tab widget（兩平台成本相同） |
+| **autoUpdater** | 「平台限制」 | **產品決策**（刻意不做連網自我更新），非技術限制。兩平台技術上皆可行。支援 Windows 不改變此結論 |
+
+### 仍為真排除
+
+- **Notepad++ `.dll` 外掛 ABI**：Windows 技術上可 `LoadLibrary` 載入，但那等同重寫 Notepad++ 內部
+  Win32 訊息介面、且與本專案「自建 in-process 擴充協定」的架構決策相衝突；macOS 則絕無可能。
+  風險極高、部分相容比不相容更糟 → 維持排除。
+
+### 📌 本文件的已知瑕疵
+
+下方「平台豁免（na_macos，6 項）」宣稱 6 項，但正文只具名 5 項（DLL 外掛 ABI、登錄檔關聯、
+檔案唯讀屬性、系統匣、DirectWrite），**第 6 項從未在任何段落被指名**。依 IL-1（禁臆測）
+不擅自補全，僅在此標記為文件缺陷待釐清。
+
+---
+
 ## 📌 後續收斂（Sprint 6→7.1，2026-07-08 追記）
 
 本稽核當時列出的 **27 項 missing + 41 項 partial**，其中**可實作者已於 Sprint 6、7、7.1 全數收斂**。

@@ -1,5 +1,6 @@
 <RCC>
   <qresource prefix="/icons">
+    <file>app-icon.svg</file>
     <file>new.svg</file>
     <file>open.svg</file>
     <file>save.svg</file>

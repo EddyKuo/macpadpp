@@ -74,8 +74,8 @@ ParsedArgs CliArgs::parse(const QStringList &args)
             continue;
         }
         if (arg == QLatin1String("-systemtray")) {
-            // Windows-only：macOS 無系統匣，僅辨識並吞噬
-            out.systemTrayIgnored = true;
+            // 雙平台皆有作用：QSystemTrayIcon 在 Windows 為通知區、macOS 為選單列狀態區。
+            out.systemTray = true;
             continue;
         }
         if (arg == QLatin1String("-noPlugin")) {

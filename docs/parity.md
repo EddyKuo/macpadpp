@@ -196,11 +196,15 @@ C++17 · Qt6(Widgets / PrintSupport / Core5Compat)· QScintilla · CMake ·
 
 ## 未實作 / 不對等項目(誠實清單)
 
-macpad++ 對「所有 macOS 可實作的 Notepad++ 功能」已全數補完;以下三項是唯一例外,且均為**本質限制**
-而非疏漏:
+> **2026-07-29 更新**：自 v0.5.0 起 macpad++ 同時支援 **macOS 與 Windows 10/11**,故排除門檻由
+> 「macOS 做不到」改為「**兩個平台都難以實現**」。據此重新認定後,原先被列為平台豁免的
+> **檔案唯讀屬性**與**系統匣**其實從來就不是平台限制(Qt 的對應 API 本就跨平台),已補實作;
+> 下表其餘三項的排除結論不變,但**原因描述已更正**——它們並非 macOS 專屬限制。
+> 逐項認定詳見 `docs/parity-audit.md`「雙平台重新認定」章節。
 
 | 項目 | 分類 | 原因 |
 |------|------|------|
-| Auto Updater(自動檢查更新) | 平台限制 | 依設計不做連網自我更新;偏好僅記錄使用者選擇,不執行實際檢查/下載 |
-| Tab Bar 多列(Multi-Line Tab Bar) | 平台限制 | Qt QTabBar 無原生多列換行支援,已 best-effort 以捲動按鈕近似 |
-| 載入 Notepad++ `.dll` 外掛 | na_macos | Windows 專屬原生二進位 ABI,任何 macOS 程式都無法載入執行;macpad++ 以自製 in-process extension protocol(可自寫擴充)取代這塊,另有登錄檔類的檔案關聯機制亦屬同類平台不可能項目 |
+| Auto Updater(自動檢查更新) | **產品決策** | 依設計不做連網自我更新;偏好僅記錄使用者選擇,不執行實際檢查/下載。**兩平台技術上皆可行**,是刻意不做,非平台限制 |
+| Tab Bar 多列(Multi-Line Tab Bar) | **Qt 工具組限制** | Qt QTabBar 無原生多列換行支援——**Windows 上亦然**,與作業系統無關;已 best-effort 以捲動按鈕近似 |
+| 載入 Notepad++ `.dll` 外掛 | 架構決策 + 平台限制 | Windows 上技術可行但等同重寫 Notepad++ 內部 Win32 訊息介面,且與本專案自建 in-process extension protocol 的架構決策衝突(部分相容比不相容更糟);macOS 則無法載入 PE 二進位 |
+| GDI/DirectWrite 算繪切換 | **Qt 限制(雙平台)** | Qt6 Windows QPA 本就使用 DirectWrite,但未提供 Notepad++ 那種使用者可切換的旋鈕;macOS 用 Core Text。**兩平台都無對應開關可做** |

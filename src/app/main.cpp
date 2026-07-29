@@ -80,6 +80,10 @@ static void openParsedArgs(MainWindow &window, const macpad::features::ParsedArg
     // -monitor：對所有已開啟且已存檔的分頁啟用外部異動監控
     if (parsed.monitorMode)
         window.enableMonitoringForOpenFiles();
+    // -systemtray：常駐系統匣（Windows 通知區 / macOS 選單列狀態區）。
+    // 系統不支援時 enableSystemTray() 回傳 false，安全略過不影響主視窗。
+    if (parsed.systemTray)
+        window.enableSystemTray();
     // -x <n> / -y <n>：視窗初始座標（兩者皆給定才移動）
     if (parsed.windowX.has_value() && parsed.windowY.has_value())
         window.move(parsed.windowX.value(), parsed.windowY.value());
@@ -114,6 +118,13 @@ int main(int argc, char *argv[])
         macpad::persistence::AppPaths::setConfigDirOverride(parsed.settingsDir);
 
     const auto settings = macpad::persistence::SettingsStore::load();
+
+    // 應用程式圖示：先前只透過 macOS bundle 的 MACOSX_BUNDLE_ICON_FILE 與 Windows .rc
+    // 設定，那是「檔案總管/Finder 看到的圖示」，runtime 的 QWidget::windowIcon() 仍是空的
+    // ——導致系統匣圖示、Windows 工作列圖示都是空白。在此顯式設定，兩處才有圖示。
+    // icons.qrc 編在靜態庫，須顯式初始化資源。
+    Q_INIT_RESOURCE(icons);
+    app.setWindowIcon(QIcon(QStringLiteral(":/icons/app-icon.svg")));
 
     // 內建主題（複刻各大廠 IDE 配色）：把打包資源 :/themes/*.json 植入使用者主題目錄。
     // themes.qrc 編在靜態庫，須顯式初始化資源；僅補齊缺少者，不覆蓋使用者的修改/刪除。

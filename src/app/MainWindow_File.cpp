@@ -50,6 +50,10 @@
 #include <QProcess>
 #include <QTabBar>
 #include <QUrl>
+// 拖放事件型別：明確引入，勿依賴傳遞引入（MSVC 與 clang 的標頭傳遞行為不同）
+#include <QDragEnterEvent>
+#include <QDropEvent>
+#include <QMimeData>
 #include "ui/WorkspaceDock.h"
 #include "ui/PreferencesDialog.h"
 #include "ui/ColumnEditorDialog.h"
@@ -454,6 +458,61 @@ void MainWindow::openInDefaultApp()
     if (!e || e->isUntitled())
         return;
     QDesktopServices::openUrl(QUrl::fromLocalFile(e->filePath()));
+}
+
+
+// 拖放開檔（複刻 Notepad++）。EditorWidget（編輯區）與 MainWindow（分頁列/面板/空白區）
+// 兩條路徑都導向這裡，確保拖到視窗任何位置行為一致。
+void MainWindow::openDroppedFiles(const QStringList &paths)
+{
+    for (const QString &p : paths)
+        openFile(p);
+}
+
+
+void MainWindow::dragEnterEvent(QDragEnterEvent *event)
+{
+    if (!EditorWidget::localFilePathsFromMime(event->mimeData()).isEmpty())
+        event->acceptProposedAction();
+}
+
+
+void MainWindow::dropEvent(QDropEvent *event)
+{
+    const QStringList paths = EditorWidget::localFilePathsFromMime(event->mimeData());
+    if (paths.isEmpty())
+        return;
+    event->acceptProposedAction();
+    openDroppedFiles(paths);
+}
+
+
+void MainWindow::clearFileReadOnlyFlag()
+{
+    EditorWidget *e = currentEditor();
+    if (!e || e->isUntitled())
+        return;
+    if (!e->isFileReadOnly()) {
+        statusBar()->showMessage(tr("The file is not read-only"), 3000);
+        return;
+    }
+
+    QString err;
+    if (!EditorWidget::setFileReadOnly(e->filePath(), false, &err)) {
+        QMessageBox::warning(this, tr("Clear Read-Only Flag"), err);
+        return;
+    }
+    // 檔案屬性已可寫 → 一併解除 app 內編輯鎖，否則使用者仍動不了（Notepad++ 行為）。
+    // 但若此分頁是因 -fullReadOnly 或監控（tail -f）而鎖定，就不能解——那是另一套
+    // 不變式，解開會靜默破壞使用者明確要求的全域唯讀/監控狀態。
+    if (e->isPolicyReadOnly()) {
+        statusBar()->showMessage(
+            tr("Read-only attribute cleared; the tab stays locked by monitoring or read-only mode"),
+            4000);
+        return;
+    }
+    e->setReadOnly(false);
+    statusBar()->showMessage(tr("Read-only attribute cleared"), 3000);
 }
 
 
