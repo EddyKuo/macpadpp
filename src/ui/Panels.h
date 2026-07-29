@@ -66,9 +66,13 @@ public:
     void setVisibleRange(int firstLine, int lineCount);
 signals:
     void lineClicked(int line);
+protected:
+    // Ctrl/⌘+滾輪縮放縮圖（掛在 m_map 的 viewport 上——QAbstractScrollArea 的事件落點）
+    bool eventFilter(QObject *watched, QEvent *event) override;
 private:
     QsciScintilla *m_map = nullptr;
     QWidget *m_highlight = nullptr;  // 可視範圍色帶覆蓋層
+    int m_zoom = -8;                 // 縮圖縮放級距（Scintilla zoom；下限 -10、上限 0）
 };
 
 }  // namespace macpad::ui

@@ -105,6 +105,48 @@ private slots:
                     hasBig5 = true;
         QVERIFY(hasBig5);
     }
+
+    // XML/HTML 檔頭字元集宣告嗅探（複刻 Notepad++）——純函式層
+    void declaredCharsetSniffing()
+    {
+        using FE = macpad::core::FileEncoding;
+
+        // XML 宣告
+        QCOMPARE(FE::declaredCharsetIn("<?xml version=\"1.0\" encoding=\"Big5\"?><root/>"),
+                 QStringLiteral("Big5"));
+        // 單引號、大小寫混雜亦須辨識
+        QCOMPARE(FE::declaredCharsetIn("<?XML version='1.0' ENCODING='shift_jis' ?>"),
+                 QStringLiteral("shift_jis"));
+
+        // HTML5 <meta charset>
+        QCOMPARE(FE::declaredCharsetIn("<html><head><meta charset=\"gbk\"></head>"),
+                 QStringLiteral("gbk"));
+        // 無引號形式
+        QCOMPARE(FE::declaredCharsetIn("<meta charset=euc-kr>"), QStringLiteral("euc-kr"));
+
+        // http-equiv 形式
+        QCOMPARE(FE::declaredCharsetIn(
+                     "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=Big5\">"),
+                 QStringLiteral("Big5"));
+
+        // 未宣告 → 空字串
+        QVERIFY(FE::declaredCharsetIn("plain text, no declaration").isEmpty());
+        QVERIFY(FE::declaredCharsetIn("").isEmpty());
+
+        // 宣告出現在極後段（超過掃描視窗）→ 不予理會，避免掃全檔拖慢大檔
+        QByteArray late(6000, ' ');
+        late.append("<meta charset=\"big5\">");
+        QVERIFY(FE::declaredCharsetIn(late).isEmpty());
+    }
+
+    // BOM 必須勝過文件內的文字宣告（BOM 是位元組層級的硬證據）
+    void bomBeatsDeclaredCharset()
+    {
+        QByteArray withBom("\xEF\xBB\xBF<?xml version=\"1.0\" encoding=\"Big5\"?>");
+        const auto r = macpad::core::FileEncoding::detect(withBom);
+        QCOMPARE(r.encoding, macpad::core::Encoding::Utf8Bom);
+        QVERIFY(r.declaredCharset.isEmpty());   // 有 BOM 就不填，呼叫端不會被誤導
+    }
 };
 
 QTEST_APPLESS_MAIN(TestFileEncoding)

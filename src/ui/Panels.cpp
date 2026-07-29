@@ -7,6 +7,7 @@
 #include <QCheckBox>
 #include <QClipboard>
 #include <QFileInfo>
+#include <QWheelEvent>   // Document Map Ctrl+滾輪縮放；明確引入
 #include <QHBoxLayout>
 #include <QLineEdit>
 #include <QListWidget>
@@ -213,7 +214,7 @@ DocumentMapDock::DocumentMapDock(QWidget *parent)
 {
     m_map = new QsciScintilla(this);
     m_map->setReadOnly(true);
-    m_map->zoomTo(-8);
+    m_map->zoomTo(m_zoom);   // 縮圖預設縮到最小可讀（Notepad++ Document Map 風格）
     m_map->setMarginWidth(0, 0);
     m_map->setMarginWidth(1, 0);
     m_map->SendScintilla(QsciScintilla::SCI_SETVSCROLLBAR, 0L);
@@ -230,6 +231,29 @@ DocumentMapDock::DocumentMapDock(QWidget *parent)
     connect(m_map, &QsciScintilla::cursorPositionChanged, this, [this](int line, int) {
         emit lineClicked(line);
     });
+
+    // 縮放控制（複刻 Notepad++ Document Map）：先前 zoomTo(-8) 是寫死的，使用者無法調整。
+    // Ctrl/⌘+滾輪改變縮圖級距；掛在 viewport 上（QAbstractScrollArea 的事件落點）。
+    m_map->viewport()->installEventFilter(this);
+}
+
+// Ctrl/⌘+滾輪縮放縮圖。回傳 true 吃掉事件，避免同時觸發捲動。
+bool DocumentMapDock::eventFilter(QObject *watched, QEvent *event)
+{
+    if (watched == m_map->viewport() && event->type() == QEvent::Wheel) {
+        auto *we = static_cast<QWheelEvent *>(event);
+        if (we->modifiers() & (Qt::ControlModifier | Qt::MetaModifier)) {
+            const int step = we->angleDelta().y() > 0 ? 1 : -1;
+            // 下限 -10：再小就完全無法辨識；上限 0：縮圖不該比本文還大，那就失去縮圖意義
+            const int next = qBound(-10, m_zoom + step, 0);
+            if (next != m_zoom) {
+                m_zoom = next;
+                m_map->zoomTo(m_zoom);
+            }
+            return true;
+        }
+    }
+    return QDockWidget::eventFilter(watched, event);
 }
 
 void DocumentMapDock::attach(macpad::core::EditorWidget *editor)

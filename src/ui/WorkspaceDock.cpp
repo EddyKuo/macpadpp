@@ -7,6 +7,8 @@
 #include <QFileDialog>
 #include <QFileIconProvider>
 #include <QFileInfo>
+#include <QDesktopServices>   // 以系統預設程式開啟；明確引入，勿依賴傳遞引入
+#include <QUrl>
 #include <QInputDialog>
 #include <QLineEdit>
 #include <QMenu>
@@ -280,6 +282,17 @@ void WorkspaceDock::showContextMenu(const QPoint &pos)
             if (!containingDir.isEmpty())
                 macpad::platform::openInTerminal(containingDir);
         });
+
+        // 以系統預設程式開啟（複刻 Notepad++ 工作區右鍵）。僅對「檔案」有意義——
+        // 對資料夾按這個等同 Reveal in Finder，重複且易混淆。
+        if (QFileInfo(pathOf(item)).isFile()) {
+            QAction *defaultAppAction = menu.addAction(tr("Open in Default Application"));
+            connect(defaultAppAction, &QAction::triggered, this, [item, this]() {
+                const QString path = pathOf(item);
+                if (!path.isEmpty())
+                    QDesktopServices::openUrl(QUrl::fromLocalFile(path));
+            });
+        }
     }
 
     menu.exec(m_tree->viewport()->mapToGlobal(pos));

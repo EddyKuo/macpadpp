@@ -228,6 +228,34 @@ private slots:
         QVERIFY(!err.isEmpty());
     }
 
+    // 宣告了 Big5 的 HTML 檔應依宣告解碼（先前只看 BOM/UTF-8，會落入 Latin1 顯示亂碼）。
+    // 這是 XML/HTML charset 宣告嗅探的端對端驗證：實際寫檔 → loadFile → 比對文字。
+    void htmlDeclaredCharsetDecodesCorrectly()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath(QStringLiteral("big5.html"));
+        const QString chinese = QStringLiteral("繁體中文測試");
+        const QString html =
+            QStringLiteral("<html><head><meta charset=\"Big5\"></head><body>%1</body></html>")
+                .arg(chinese);
+
+        // 以 Big5 位元組寫入（刻意不是 UTF-8，否則測不到宣告嗅探）
+        const QByteArray big5 = FileEncoding::encodeWithCodec(html, QStringLiteral("Big5"));
+        QVERIFY(!big5.isEmpty());
+        QVERIFY(big5 != html.toUtf8());   // 確認真的不是 UTF-8 位元組
+        {
+            QFile f(path);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write(big5);
+        }
+
+        EditorWidget e;
+        QVERIFY(e.loadFile(path));
+        // 中文字必須正確還原（若走 Latin1 路徑會是亂碼）
+        QVERIFY2(e.text().contains(chinese), qPrintable(e.text().left(80)));
+    }
+
     // 拖放開檔：只有「本機既有檔案」才被攔截，其餘一律讓事件回到 Scintilla 文字拖放
     void dropMimeExtractsOnlyLocalFiles()
     {

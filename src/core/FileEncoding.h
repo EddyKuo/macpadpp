@@ -27,12 +27,22 @@ struct DetectResult {
     Encoding encoding = Encoding::Utf8;
     Eol eol = Eol::Lf;
     bool hasBom = false;
+    // XML/HTML 檔頭自行宣告的字元集（複刻 Notepad++ 的宣告嗅探）：
+    // `<?xml ... encoding="Big5"?>`、`<meta charset="...">`、
+    // `<meta http-equiv="Content-Type" content="...; charset=...">`。
+    // 僅在無 BOM 且該編碼非 UTF-8 時才有意義；空字串代表未宣告或不需理會。
+    // 呼叫端據此改用 decodeWithCodec()，否則 Big5/Shift_JIS 網頁會開成亂碼。
+    QString declaredCharset;
 };
 
 class FileEncoding {
 public:
     // 偵測編碼（依 BOM 與 UTF-8 有效性）與 EOL（掃描開頭）。sampleBytes 為安全上限。
     static DetectResult detect(const QByteArray &head);
+
+    // 取出 XML/HTML 檔頭自行宣告的字元集名稱；未宣告或無法辨識時回傳空字串。
+    // 只掃描開頭一小段（宣告依規範必須出現在檔案極前段），純函式、可單元測試。
+    static QString declaredCharsetIn(const QByteArray &head);
 
     // 依偵測結果將原始位元組解碼為 QString（內部 UTF-8 表示）
     static QString decode(const QByteArray &raw, Encoding enc);

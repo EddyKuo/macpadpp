@@ -320,7 +320,24 @@ bool EditorWidget::loadFile(const QString &path, QString *errorMessage)
     m_eol = det.eol;
 
     m_codecName.clear();   // 重新載入 → 回到自動偵測，清掉先前手選的 codec
-    const QString content = FileEncoding::decode(raw, m_encoding);
+
+    // XML/HTML 自行宣告的字元集（複刻 Notepad++）：位元組層級偵測只能分辨 BOM 與
+    // 「是否為合法 UTF-8」，遇到 Big5/Shift_JIS 等傳統編碼的網頁會落入 Latin1 而顯示亂碼。
+    // 檔案自己宣告了編碼時就採信它——但 BOM 優先（detect() 已保證有 BOM 時不填此欄），
+    // 且宣告若解析為 UTF-8 就不必特別處理（既有路徑已正確）。
+    if (!det.declaredCharset.isEmpty() && m_encoding != Encoding::Utf8) {
+        const QString declared = det.declaredCharset;
+        if (QTextCodec *codec = QTextCodec::codecForName(declared.toLatin1())) {
+            const QString byName = QString::fromLatin1(codec->name()).toLower();
+            if (byName != QLatin1String("utf-8")) {
+                m_codecName = declared;   // 後續存檔沿用同一編碼，避免存回去變成另一種編碼
+            }
+        }
+    }
+
+    const QString content = m_codecName.isEmpty()
+                                ? FileEncoding::decode(raw, m_encoding)
+                                : FileEncoding::decodeWithCodec(raw, m_codecName);
     setText(content);
     applyEolMode(m_eol);
 

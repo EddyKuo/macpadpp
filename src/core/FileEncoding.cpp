@@ -2,8 +2,36 @@
 
 #include <QStringConverter>
 #include <QTextCodec>   // Qt6Core5Compat：傳統/區域編碼支援
+#include <QRegularExpression>   // XML/HTML 字元集宣告嗅探
 
 namespace macpad::core {
+
+QString FileEncoding::declaredCharsetIn(const QByteArray &head)
+{
+    // 只看開頭 4KB：XML 宣告必須是文件第一個節點，HTML 的 <meta charset> 依規範亦須落在
+    // 前 1024 bytes 內。掃全檔既無必要又會拖慢大檔開啟。
+    const QByteArray probe = head.left(4096);
+    // 宣告本身一定是 ASCII，以 Latin1 轉字串即可安全比對（不會因未知編碼而失敗）。
+    const QString text = QString::fromLatin1(probe);
+
+    // <?xml version="1.0" encoding="Big5"?>
+    static const QRegularExpression xmlDecl(
+        QStringLiteral(R"(<\?xml[^>]*?encoding\s*=\s*["']([\w:.+-]+)["'])"),
+        QRegularExpression::CaseInsensitiveOption);
+    if (const auto m = xmlDecl.match(text); m.hasMatch())
+        return m.captured(1).trimmed();
+
+    // <meta charset="utf-8">（HTML5）
+    static const QRegularExpression metaCharset(
+        QStringLiteral(R"(<meta[^>]*?\bcharset\s*=\s*["']?([\w:.+-]+))"),
+        QRegularExpression::CaseInsensitiveOption);
+    if (const auto m = metaCharset.match(text); m.hasMatch())
+        return m.captured(1).trimmed();
+
+    // <meta http-equiv="Content-Type" content="text/html; charset=Big5">
+    // 註：上面的 metaCharset 已能涵蓋此形式（同樣含 charset=），此處僅為明確性保留註解。
+    return {};
+}
 
 DetectResult FileEncoding::detect(const QByteArray &head)
 {
@@ -29,6 +57,11 @@ DetectResult FileEncoding::detect(const QByteArray &head)
         r.encoding = dec.hasError() ? Encoding::Latin1 : Encoding::Utf8;
         Q_UNUSED(probe);
     }
+
+    // 2.5) XML/HTML 宣告嗅探（複刻 Notepad++）。有 BOM 時 BOM 優先——BOM 是位元組層級
+    // 的硬證據，勝過文件內文字宣告。宣告值交由呼叫端以 QTextCodec 解析；此處只負責取出。
+    if (!r.hasBom)
+        r.declaredCharset = declaredCharsetIn(head);
 
     // 3) EOL 偵測（掃描開頭，先出現者為準）
     for (int i = 0; i < n; ++i) {
