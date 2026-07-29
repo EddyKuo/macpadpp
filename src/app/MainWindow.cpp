@@ -20,6 +20,7 @@
 #include "features/mime/MimeTools.h"
 #include "features/autocomplete/ApiDatabase.h"
 #include "persistence/ThemeStore.h"
+#include "persistence/PluginStore.h"
 #include "ui/ThemePickerDialog.h"
 #include "ui/SnapshotRecoveryDialog.h"
 #include "features/findall/FindAllEngine.h"
@@ -330,10 +331,19 @@ MainWindow::MainWindow(QWidget *parent, bool restoreSessionOnLaunch)
         }
     }
 
-    // 擴充協定 dogfood（FR-035）：內建 WordCount 擴充透過協定掛載，驗證可擴充性
+    // 擴充協定 dogfood（FR-035）：內建 WordCount 擴充透過協定掛載，驗證可擴充性。
+    // 停用中的擴充（Plugins Admin 設定）直接不載入——與 Notepad++ 相同，需重新啟動才生效，
+    // 因為擴充會在 onLoad 時掛選單/停靠面板，執行中卸載無法乾淨還原這些副作用。
     m_extensions = std::make_unique<macpad::extension::ExtensionRegistry>(this);
-    m_extensions->load(std::make_unique<macpad::extension::WordCountExtension>());
-    m_extensions->load(std::make_unique<macpad::extension::MarkdownPreviewExtension>());
+    {
+        const QSet<QString> disabled = macpad::persistence::PluginStore::disabledIds();
+        auto loadIfEnabled = [this, &disabled](std::unique_ptr<macpad::extension::IExtension> ext) {
+            if (ext && !disabled.contains(ext->capabilities().id))
+                m_extensions->load(std::move(ext));
+        };
+        loadIfEnabled(std::make_unique<macpad::extension::WordCountExtension>());
+        loadIfEnabled(std::make_unique<macpad::extension::MarkdownPreviewExtension>());
+    }
 
     // 自動儲存（FR-015）：預設關閉；啟用時定期存已命名之未存分頁
     if (settings.autosaveEnabled) {

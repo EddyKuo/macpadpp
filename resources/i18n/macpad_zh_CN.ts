@@ -80,7 +80,7 @@
         <translation>只读已关闭</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1429"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1417"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="495"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="568"/>
         <source>Read-Only</source>
@@ -385,14 +385,14 @@
     <message>
         <location filename="../../src/app/MainWindow_Menus.cpp" line="184"/>
         <location filename="../../src/app/MainWindow_Menus.cpp" line="461"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1498"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1486"/>
         <source>Find…</source>
         <translation>查找…</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow_Menus.cpp" line="185"/>
         <location filename="../../src/app/MainWindow_Menus.cpp" line="462"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1523"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1511"/>
         <source>Replace…</source>
         <translation>替换…</translation>
     </message>
@@ -411,7 +411,7 @@
     </message>
     <message>
         <location filename="../../src/app/MainWindow_Menus.cpp" line="466"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1529"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1517"/>
         <source>Go to Matching Brace</source>
         <translation>跳转到匹配括号</translation>
     </message>
@@ -438,20 +438,20 @@
     </message>
     <message>
         <location filename="../../src/app/MainWindow_Menus.cpp" line="491"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1543"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1531"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="469"/>
         <source>Toggle Bookmark</source>
         <translation>切换书签</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow_Menus.cpp" line="494"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1545"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1533"/>
         <source>Next Bookmark</source>
         <translation>下一个书签</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow_Menus.cpp" line="497"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1547"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1535"/>
         <source>Previous Bookmark</source>
         <translation>上一个书签</translation>
     </message>
@@ -461,38 +461,38 @@
         <translation>插件管理…</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="695"/>
+        <location filename="../../src/app/MainWindow_Actions.cpp" line="254"/>
         <source>Plugins Admin</source>
         <translation>插件管理</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="712"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="700"/>
         <source>%1 of selection/document</source>
         <translation>选区/文档的 %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="727"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="715"/>
         <source>Style Configurator…</source>
         <translation>样式配置…</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="759"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="747"/>
         <source>Shortcut Mapper…</source>
         <translation>快捷键映射…</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="773"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="789"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="761"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="777"/>
         <source>Interface Language</source>
         <translation>界面语言</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="784"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="772"/>
         <source>System Default</source>
         <translation>系统默认</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="790"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="778"/>
         <source>Language changed. Restart macpad++ to apply.</source>
         <translation>语言已更改,重启 macpad++ 后生效。</translation>
     </message>
@@ -513,80 +513,80 @@
         <translation>退出 macpad++</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="804"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="792"/>
         <source>Set Language</source>
         <translation>设置语言</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="819"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="807"/>
         <source>User-Defined Language</source>
         <translation>用户自定义语言</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="820"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="808"/>
         <source>Define Your Language…</source>
         <translation>定义你的语言…</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="830"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="818"/>
         <source>Import UDL…</source>
         <translation>导入 UDL…</translation>
     </message>
     <message>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="819"/>
         <location filename="../../src/app/MainWindow_Menus.cpp" line="831"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="843"/>
         <source>Import UDL</source>
         <translation>导入 UDL</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="869"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="857"/>
         <source>Run…</source>
         <translation>运行…</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="896"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="884"/>
         <source>Save Current Command…</source>
         <translation>保存当前命令…</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="898"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="903"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="886"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="891"/>
         <source>Save Command</source>
         <translation>保存命令</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="904"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="978"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="892"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="966"/>
         <source>Name:</source>
         <translation>名称:</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="935"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="923"/>
         <source>Saved Commands</source>
         <translation>已保存命令</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="958"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="946"/>
         <source>Start Recording</source>
         <translation>开始录制</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="960"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="948"/>
         <source>Stop Recording</source>
         <translation>停止录制</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="962"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="950"/>
         <source>Playback</source>
         <translation>回放</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="970"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="958"/>
         <source>Run a Macro Multiple Times…</source>
         <translation>多次运行宏…</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Actions.cpp" line="163"/>
+        <location filename="../../src/app/MainWindow_Actions.cpp" line="165"/>
         <source>Run a Macro Multiple Times</source>
         <translation>多次运行宏</translation>
     </message>
@@ -595,71 +595,71 @@
         <translation>次数:</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="972"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="960"/>
         <source>Save Current Recorded Macro…</source>
         <translation>保存当前录制的宏…</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="978"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="966"/>
         <source>Save Macro</source>
         <translation>保存宏</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="989"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="977"/>
         <source>Saved Macros</source>
         <translation>已保存宏</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow_Menus.cpp" line="187"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1016"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1004"/>
         <source>Zoom In</source>
         <translation>放大</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow_Menus.cpp" line="188"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1019"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1007"/>
         <source>Zoom Out</source>
         <translation>缩小</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1022"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1010"/>
         <source>Reset Zoom</source>
         <translation>重置缩放</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1027"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1015"/>
         <source>Show Toolbar</source>
         <translation>显示工具栏</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow_Menus.cpp" line="191"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1031"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1019"/>
         <source>Word Wrap</source>
         <translation>自动换行</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1038"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1026"/>
         <source>Show Whitespace</source>
         <translation>显示空白字符</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1045"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1033"/>
         <source>Show End of Line</source>
         <translation>显示行尾符号</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1052"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1040"/>
         <source>Show Indent Guide</source>
         <translation>显示缩进参考线</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1059"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1047"/>
         <source>Show Wrap Symbol</source>
         <translation>显示换行符号</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow_Menus.cpp" line="194"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1065"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1053"/>
         <source>Show All Characters</source>
         <translation>显示所有字符</translation>
     </message>
@@ -862,13 +862,13 @@
         <translation>粘贴 RTF 内容</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="738"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="757"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="726"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="745"/>
         <source>主題已套用：%1</source>
         <translation>主题已应用：%1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="746"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="734"/>
         <source>Select Theme…</source>
         <translation>选择主题…</translation>
     </message>
@@ -878,752 +878,776 @@
         <translation>首选项已保存</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="832"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="820"/>
         <source>JSON (*.json)</source>
         <translation>JSON (*.json)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="847"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="835"/>
         <source>Import Notepad++ UDL (XML)…</source>
         <translation>导入 Notepad++ UDL（XML）…</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="848"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="859"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="836"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="847"/>
         <source>Import Notepad++ UDL</source>
         <translation>导入 Notepad++ UDL</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="849"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="837"/>
         <source>XML (*.xml)</source>
         <translation>XML (*.xml)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="853"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="841"/>
         <source>已匯入 Notepad++ UDL（開啟對應副檔名檔案即套用）</source>
         <translation>已导入 Notepad++ UDL（打开对应扩展名文件即应用）</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="860"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="848"/>
         <source>XML 檔案無效或無法解析</source>
         <translation>XML 文件无效或无法解析</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="909"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="897"/>
         <source>Shortcut (選填)</source>
         <translation>快捷键（可选）</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="911"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="899"/>
         <source>為此指令指定快捷鍵（可留空）:</source>
         <translation>为此命令指定快捷键（可留空）:</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="969"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="957"/>
         <source>Macro Manager…</source>
         <translation>宏管理器…</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1073"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1061"/>
         <source>Smart Highlighting</source>
         <translation>智能高亮</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1081"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1069"/>
         <source>Fold</source>
         <translation>折叠</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1082"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1070"/>
         <source>Fold All</source>
         <translation>全部折叠</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1084"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1072"/>
         <source>Unfold All</source>
         <translation>全部展开</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1086"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1074"/>
         <source>Collapse Current</source>
         <translation>折叠当前块</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1088"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1076"/>
         <source>Expand Current</source>
         <translation>展开当前块</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1092"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1080"/>
         <source>Fold Level %1</source>
         <translation>折叠到第 %1 层</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1096"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1084"/>
         <source>Tab</source>
         <translation>标签</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1097"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1085"/>
         <source>Next Tab</source>
         <translation>下一个标签</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1099"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1087"/>
         <source>Previous Tab</source>
         <translation>上一个标签</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1101"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1089"/>
         <source>First Tab</source>
         <translation>第一个标签</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1105"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1093"/>
         <source>Last Tab</source>
         <translation>最后一个标签</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1110"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1098"/>
         <source>Move Tab Forward</source>
         <translation>标签前移</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1111"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1099"/>
         <source>Move Tab Backward</source>
         <translation>标签后移</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1114"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1102"/>
         <source>Always on Top</source>
         <translation>总在最前</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1117"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1105"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="797"/>
         <source>Monitoring (tail -f)</source>
         <translation>监控 (tail -f)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1120"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1456"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1108"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1444"/>
         <source>Character Panel</source>
         <translation>字符面板</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1124"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1112"/>
         <source>Document Summary…</source>
         <translation>文档摘要…</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1133"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1121"/>
         <source>Document Summary</source>
         <translation>文档摘要</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1139"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1127"/>
         <source>Move/Clone Current Document</source>
         <translation>移动/克隆当前文档</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1140"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1128"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="580"/>
         <source>Move to Other View</source>
         <translation>移动到其他视图</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1141"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1129"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="581"/>
         <source>Clone to Other View</source>
         <translation>克隆到另一视图</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1143"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1131"/>
         <source>Toggle Split</source>
         <translation>切换分屏</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1146"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1134"/>
         <source>Rotate Split Orientation</source>
         <translation>旋转拆分方向</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1152"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1140"/>
         <source>Synchronize Vertical Scrolling</source>
         <translation>同步垂直滚动</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1157"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1145"/>
         <source>Synchronize Horizontal Scrolling</source>
         <translation>同步水平滚动</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1164"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1152"/>
         <source>Document List</source>
         <translation>文档列表</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1169"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1157"/>
         <source>Project Panel</source>
         <translation>项目面板</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1187"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1175"/>
         <source>Toggle Full Screen</source>
         <translation>切换全屏</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1196"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1184"/>
         <source>Distraction Free Mode</source>
         <translation>无干扰模式</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1199"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1187"/>
         <source>Post-It Mode</source>
         <translation>便签模式</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1204"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1192"/>
         <source>View Current File In</source>
         <translation>在以下打开当前文件</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1205"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1193"/>
         <source>Default Browser</source>
         <translation>默认浏览器</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1207"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1195"/>
         <source>Safari</source>
         <translation>Safari</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1209"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1197"/>
         <source>Google Chrome</source>
         <translation>Google Chrome</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1211"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1199"/>
         <source>Firefox</source>
         <translation>Firefox</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Actions.cpp" line="563"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1524"/>
+        <location filename="../../src/app/MainWindow_Actions.cpp" line="625"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1512"/>
         <source>Incremental Search</source>
         <translation>增量搜索</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Actions.cpp" line="566"/>
+        <location filename="../../src/app/MainWindow_Actions.cpp" line="628"/>
         <source>Incremental search…</source>
         <translation>增量搜索…</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Actions.cpp" line="570"/>
+        <location filename="../../src/app/MainWindow_Actions.cpp" line="632"/>
         <source>✕</source>
         <translation>✕</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1662"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1650"/>
         <source>Next Document</source>
         <translation>下一个文档</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1664"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1652"/>
         <source>Previous Document</source>
         <translation>上一个文档</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Actions.cpp" line="166"/>
+        <location filename="../../src/app/MainWindow_Actions.cpp" line="168"/>
         <source>Run macro</source>
         <translation>执行宏</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Actions.cpp" line="171"/>
+        <location filename="../../src/app/MainWindow_Actions.cpp" line="173"/>
         <source> times</source>
         <translation> 次</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Actions.cpp" line="178"/>
+        <location filename="../../src/app/MainWindow_Actions.cpp" line="180"/>
         <source>Run until the end of file</source>
         <translation>执行到文件结尾</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Actions.cpp" line="229"/>
+        <location filename="../../src/app/MainWindow_Actions.cpp" line="231"/>
         <source>Macro ran %1 time(s)</source>
         <translation>宏已执行 %1 次</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Actions.cpp" line="314"/>
+        <location filename="../../src/app/MainWindow_Actions.cpp" line="247"/>
+        <source>Word Count</source>
+        <translation>字数统计</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow_Actions.cpp" line="248"/>
+        <source>Markdown Preview</source>
+        <translation>Markdown 预览</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow_Actions.cpp" line="270"/>
+        <source>macpad++ 以內建 extension protocol 取代外掛機制。
+註：Notepad++ 的 .dll 外掛為 Windows 專屬原生二進位，本程式不載入。
+變更需重新啟動後生效。</source>
+        <translation>macpad++ 以内置 extension protocol 取代插件机制。
+注：Notepad++ 的 .dll 插件为 Windows 专属原生二进制，本程序不加载。
+更改需重新启动后生效。</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow_Actions.cpp" line="293"/>
+        <source>Plugin changes take effect after restart</source>
+        <translation>扩展更改需重新启动后生效</translation>
+    </message>
+    <message>
+        <location filename="../../src/app/MainWindow_Actions.cpp" line="376"/>
         <source>Macro Manager</source>
         <translation>宏管理器</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Actions.cpp" line="314"/>
+        <location filename="../../src/app/MainWindow_Actions.cpp" line="376"/>
         <source>尚無已儲存的巨集</source>
         <translation>尚无已保存的宏</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Actions.cpp" line="394"/>
-        <location filename="../../src/app/MainWindow_Actions.cpp" line="401"/>
+        <location filename="../../src/app/MainWindow_Actions.cpp" line="456"/>
+        <location filename="../../src/app/MainWindow_Actions.cpp" line="463"/>
         <source>Find in Projects</source>
         <translation>在项目中查找</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Actions.cpp" line="395"/>
+        <location filename="../../src/app/MainWindow_Actions.cpp" line="457"/>
         <source>Project Panel 中沒有任何檔案。請先於 Project Panel 建立 project 並加入檔案。</source>
         <translation>Project Panel 中没有任何文件。请先在 Project Panel 中创建 project 并加入文件。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Actions.cpp" line="402"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1571"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1605"/>
+        <location filename="../../src/app/MainWindow_Actions.cpp" line="464"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1559"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1593"/>
         <source>Find what:</source>
         <translation>查找内容：</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Actions.cpp" line="427"/>
+        <location filename="../../src/app/MainWindow_Actions.cpp" line="489"/>
         <source>Line</source>
         <translation>行</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Actions.cpp" line="428"/>
+        <location filename="../../src/app/MainWindow_Actions.cpp" line="490"/>
         <source>Character offset</source>
         <translation>字符偏移</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1221"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1209"/>
         <source>Convert Case</source>
         <translation>转换大小写</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1222"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1210"/>
         <source>UPPERCASE</source>
         <translation>大写</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1224"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1212"/>
         <source>lowercase</source>
         <translation>小写</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1226"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1214"/>
         <source>Title Case</source>
         <translation>首字母大写</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1227"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1215"/>
         <source>Sentence case</source>
         <translation>句首大写</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1229"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1217"/>
         <source>Proper Case (blend)</source>
         <translation>适当大小写（混合）</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1231"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1219"/>
         <source>Sentence case (blend)</source>
         <translation>句首大写（混合）</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1233"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1221"/>
         <source>iNVERT cASE</source>
         <translation>反转大小写</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1234"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1222"/>
         <source>rAnDoM CaSe</source>
         <translation>随机大小写</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1238"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1226"/>
         <source>Line Operations</source>
         <translation>行操作</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1239"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1227"/>
         <source>Sort Ascending</source>
         <translation>升序排序</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1241"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1229"/>
         <source>Sort Descending</source>
         <translation>降序排序</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1243"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1231"/>
         <source>Sort Numeric</source>
         <translation>数值排序</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1245"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1233"/>
         <source>Sort Lines by Length (Ascending)</source>
         <translation>按长度排序行（升序）</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1247"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1235"/>
         <source>Sort Lines by Length (Descending)</source>
         <translation>按长度排序行（降序）</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1249"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1237"/>
         <source>Sort Lines as Decimals</source>
         <translation>按十进制排序行</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1251"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1239"/>
         <source>Sort Lines (Locale)</source>
         <translation>按区域设置排序行</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1253"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1241"/>
         <source>Shuffle Lines</source>
         <translation>随机排序行</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1255"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1243"/>
         <source>Remove Duplicate Lines</source>
         <translation>删除重复行</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1257"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1245"/>
         <source>Remove Consecutive Duplicate Lines</source>
         <translation>移除连续重复行</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1259"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1247"/>
         <source>Remove Empty Lines</source>
         <translation>删除空行</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1261"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1249"/>
         <source>Remove Empty Lines (Containing Blank Chars)</source>
         <translation>移除空白行（含空白字符）</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1263"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1251"/>
         <source>Reverse Line Order</source>
         <translation>反转行顺序</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1265"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1253"/>
         <source>Duplicate Lines</source>
         <translation>复制行</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1267"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1255"/>
         <source>Join Lines</source>
         <translation>合并行</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1269"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1257"/>
         <source>Split Lines</source>
         <translation>拆分行</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1272"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1260"/>
         <source>Duplicate Current Line</source>
         <translation>复制当前行</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1276"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1264"/>
         <source>Delete Current Line</source>
         <translation>删除当前行</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1282"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1270"/>
         <source>Move Lines Up</source>
         <translation>行上移</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1284"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1272"/>
         <source>Move Lines Down</source>
         <translation>行下移</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1288"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1276"/>
         <source>Blank Operations</source>
         <translation>空白操作</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1289"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1277"/>
         <source>Trim Trailing Whitespace</source>
         <translation>删除行尾空白</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1291"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1279"/>
         <source>Trim Leading Whitespace</source>
         <translation>删除行首空白</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1293"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1281"/>
         <source>TAB to Space</source>
         <translation>Tab 转空格</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1295"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1283"/>
         <source>Space to TAB</source>
         <translation>空格转 Tab</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1297"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1285"/>
         <source>Trim Leading and Trailing Space</source>
         <translation>修剪前导和尾随空白</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1299"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1287"/>
         <source>EOL to Space</source>
         <translation>EOL 转空格</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1301"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1289"/>
         <source>Trim Both and EOL to Space</source>
         <translation>修剪首尾空白并将 EOL 转为空格</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1303"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1291"/>
         <source>Leading Spaces to TAB</source>
         <translation>开头空格转 TAB</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1309"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1297"/>
         <source>Toggle Line Comment</source>
         <translation>切换行注释</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1319"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1307"/>
         <source>Column Editor…</source>
         <translation>列编辑器…</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1358"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1380"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1346"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1368"/>
         <source>Insert Date/Time</source>
         <translation>插入日期/时间</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1359"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1347"/>
         <source>Date Time (Short Format)</source>
         <translation>日期时间（短格式）</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1362"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1350"/>
         <source>Date Time (Long Format)</source>
         <translation>日期时间（长格式）</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1365"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1353"/>
         <source>Date Time (Preference Format)</source>
         <translation>日期时间（首选项格式）</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1375"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1363"/>
         <source>Date Time (Custom…)</source>
         <translation>日期时间（自定义…）</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1381"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1369"/>
         <source>格式字串（如 yyyy-MM-dd HH:mm:ss）:</source>
         <translation>格式字符串（如 yyyy-MM-dd HH:mm:ss）:</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1390"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1378"/>
         <source>Indent</source>
         <translation>缩进</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1391"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1379"/>
         <source>Increase Line Indent</source>
         <translation>增加缩进</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1393"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1381"/>
         <source>Decrease Line Indent</source>
         <translation>减少缩进</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1397"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1385"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="440"/>
         <source>Copy to Clipboard</source>
         <translation>复制到剪贴板</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1398"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1386"/>
         <source>Current Full File Path</source>
         <translation>当前完整文件路径</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1402"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1390"/>
         <source>Current Filename</source>
         <translation>当前文件名</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1406"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1394"/>
         <source>Current Directory Path</source>
         <translation>当前目录路径</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1412"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1400"/>
         <source>Block Comment / Uncomment</source>
         <translation>块注释/取消</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1417"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1405"/>
         <source>Word Completion</source>
         <translation>单词自动完成</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1423"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1411"/>
         <source>Show Call Tip</source>
         <translation>显示调用提示</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1463"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1451"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="433"/>
         <source>Selection</source>
         <translation>所选内容</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1464"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1452"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="434"/>
         <source>Begin Select</source>
         <translation>开始选择</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1466"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1454"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="435"/>
         <source>End Select</source>
         <translation>结束选择</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1468"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1456"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="436"/>
         <source>Begin Column Select</source>
         <translation>开始列选择</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1470"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1458"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="437"/>
         <source>End Column Select</source>
         <translation>结束列选择</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1473"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1461"/>
         <source>Redact Selection</source>
         <translation>遮蔽所选内容</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1477"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1465"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="461"/>
         <source>Style Token</source>
         <translation>样式标记</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1479"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1467"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="463"/>
         <source>Style Token Color %1</source>
         <translation>样式标记颜色 %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1482"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1470"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="466"/>
         <source>Clear Styled Tokens</source>
         <translation>清除样式标记</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1487"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1475"/>
         <source>MIME Tools</source>
         <translation>MIME 工具</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1488"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1476"/>
         <source>Base64 Encode</source>
         <translation>Base64 编码</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1489"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1477"/>
         <source>Base64 Decode</source>
         <translation>Base64 解码</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1490"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1478"/>
         <source>URL Encode</source>
         <translation>URL 编码</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1491"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1479"/>
         <source>URL Decode</source>
         <translation>URL 解码</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1499"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1487"/>
         <source>Find Next</source>
         <translation>查找下一个</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1501"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1489"/>
         <source>Find Previous</source>
         <translation>查找上一个</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1503"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1491"/>
         <source>Select and Find Next</source>
         <translation>选中并查找下一个</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1505"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1493"/>
         <source>Select and Find Previous</source>
         <translation>选中并查找上一个</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Actions.cpp" line="425"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1527"/>
+        <location filename="../../src/app/MainWindow_Actions.cpp" line="487"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1515"/>
         <source>Go to…</source>
         <translation>跳转…</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1531"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1519"/>
         <source>Select All Between Matching Braces</source>
         <translation>选中匹配括号之间</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1535"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1523"/>
         <source>Mark All Occurrences of Selection</source>
         <translation>标记所有相同选区</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1538"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1526"/>
         <source>Clear All Marks</source>
         <translation>清除所有标记</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1542"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1530"/>
         <source>Bookmark</source>
         <translation>书签</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1550"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1538"/>
         <source>Clear All Bookmarks</source>
         <translation>清除所有书签</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1552"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1540"/>
         <source>Copy Bookmarked Lines</source>
         <translation>复制书签行</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1556"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1544"/>
         <source>Remove Bookmarked Lines</source>
         <translation>删除书签行</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1558"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1546"/>
         <source>Remove Non-Bookmarked Lines</source>
         <translation>删除非书签行</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1560"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1548"/>
         <source>Inverse Bookmark</source>
         <translation>反转书签</translation>
     </message>
@@ -1676,7 +1700,7 @@
         <translation>未命名</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Actions.cpp" line="568"/>
+        <location filename="../../src/app/MainWindow_Actions.cpp" line="630"/>
         <source>  Find: </source>
         <translation>  查找: </translation>
     </message>
@@ -1716,12 +1740,11 @@
         <translation>已以 %1 重新解读</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="691"/>
         <source>（無已載入擴充）</source>
         <translation>（无已加载扩展）</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="742"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="730"/>
         <source>樣式已更新</source>
         <translation>样式已更新</translation>
     </message>
@@ -1730,58 +1753,58 @@
         <translation>偏好设置已保存（部分设置重启后生效）</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="823"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="811"/>
         <source>UDL 已建立（開啟對應副檔名檔案即套用）</source>
         <translation>UDL 已创建（打开对应扩展名文件即应用）</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="836"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="824"/>
         <source>UDL 已匯入（開啟對應副檔名檔案即套用）</source>
         <translation>UDL 已导入（打开对应扩展名文件即应用）</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="843"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="831"/>
         <source>UDL 檔案無效</source>
         <translation>UDL 文件无效</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="933"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="921"/>
         <source>命令已儲存：%1</source>
         <translation>命令已保存：%1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="941"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="929"/>
         <source>(無已儲存命令)</source>
         <translation>(无已保存命令)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Actions.cpp" line="158"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="974"/>
+        <location filename="../../src/app/MainWindow_Actions.cpp" line="160"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="962"/>
         <source>尚無已錄製的巨集</source>
         <translation>尚无已录制的宏</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="987"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="975"/>
         <source>巨集已儲存：%1</source>
         <translation>宏已保存：%1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="996"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="984"/>
         <source>(無已儲存巨集)</source>
         <translation>(无已保存宏)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Actions.cpp" line="601"/>
+        <location filename="../../src/app/MainWindow_Actions.cpp" line="663"/>
         <source>請先存檔再於瀏覽器開啟</source>
         <translation>请先保存再在浏览器打开</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Actions.cpp" line="122"/>
+        <location filename="../../src/app/MainWindow_Actions.cpp" line="124"/>
         <source>巨集錄製中…</source>
         <translation>宏录制中…</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Actions.cpp" line="137"/>
+        <location filename="../../src/app/MainWindow_Actions.cpp" line="139"/>
         <source>巨集已錄製</source>
         <translation>宏已录制</translation>
     </message>
@@ -1796,58 +1819,58 @@
         <translation>文件已更改</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1509"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1497"/>
         <source>Find (Volatile) Next</source>
         <translation>查找（临时）下一个</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1516"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1504"/>
         <source>Find (Volatile) Previous</source>
         <translation>查找（临时）上一个</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1562"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1550"/>
         <source>Cut Bookmarked Lines</source>
         <translation>剪切已添加书签的行</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1564"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1552"/>
         <source>Paste to (Replace) Bookmarked Lines</source>
         <translation>粘贴以（替换）已加书签的行</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1568"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1556"/>
         <source>Replace All in All Opened Documents…</source>
         <translation>在所有已打开的文档中全部替换…</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1570"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1575"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1558"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1563"/>
         <source>Replace All in All Opened Documents</source>
         <translation>在所有已打开的文档中全部替换</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1576"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1564"/>
         <source>Replace with:</source>
         <translation>替换为：</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1596"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1584"/>
         <source>已在所有開啟文件中取代 %1 處</source>
         <translation>已在所有打开的文件中替换 %1 处</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1602"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1590"/>
         <source>Find All in Opened Documents…</source>
         <translation>在打开的文档中查找全部…</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1604"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1592"/>
         <source>Find All in Opened Documents</source>
         <translation>在打开的文档中查找全部</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1650"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1638"/>
         <source>找到 %1 處符合</source>
         <translation>找到 %1 处匹配</translation>
     </message>
@@ -1898,7 +1921,7 @@
         <translation>没有最近关闭的文件</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Actions.cpp" line="500"/>
+        <location filename="../../src/app/MainWindow_Actions.cpp" line="562"/>
         <source>已標記 %1 處</source>
         <translation>已标记 %1 处</translation>
     </message>
@@ -1944,7 +1967,7 @@
     </message>
     <message>
         <location filename="../../src/app/MainWindow_File.cpp" line="502"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1437"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1425"/>
         <source>Clear Read-Only Flag</source>
         <translation>清除只读属性</translation>
     </message>
@@ -1996,7 +2019,7 @@
         <translation>「%1」有未保存的更改，重新加载将丢弃它们，确定？</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1134"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1122"/>
         <source>字元數：%1
 單字數：%2
 行數：%3
@@ -2007,7 +2030,6 @@
 选中字符：%4</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="693"/>
         <source>
 
 macpad++ 以內建 extension protocol 取代外掛。
@@ -2025,7 +2047,7 @@ Qt6 + QScintilla</source>
 Qt6 + QScintilla</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="899"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="887"/>
         <source>Command (可用 $(FULL_CURRENT_PATH) 等變數):</source>
         <translation>命令 (可用 $(FULL_CURRENT_PATH) 等变量):</translation>
     </message>
@@ -2068,7 +2090,7 @@ Qt6 + QScintilla</translation>
         <translation>文件不存在</translation>
     </message>
     <message>
-        <location filename="../../src/core/EditorWidget.cpp" line="418"/>
+        <location filename="../../src/core/EditorWidget.cpp" line="425"/>
         <source>Failed to change the read-only attribute of the file</source>
         <translation>无法更改文件的只读属性</translation>
     </message>

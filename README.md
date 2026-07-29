@@ -9,7 +9,7 @@
 [![Platform: Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D6?logo=windows&logoColor=white)](#下載安裝發佈版)
 [![C++17](https://img.shields.io/badge/C%2B%2B-17-00599C?logo=cplusplus&logoColor=white)](CMakeLists.txt)
 [![Qt6](https://img.shields.io/badge/Qt-6-41CD52?logo=qt&logoColor=white)](https://www.qt.io/)
-[![Tests](https://img.shields.io/badge/tests-37%20passing-brightgreen)](tests/)
+[![Tests](https://img.shields.io/badge/tests-38%20passing-brightgreen)](tests/)
 [![Coverage](https://img.shields.io/badge/coverage-90%25-brightgreen)](docs/design.md)
 
 **Notepad++ 對等的原生跨平台(macOS / Windows)文字/程式碼編輯器。** 以 C++17 + Qt6 + QScintilla
@@ -70,7 +70,8 @@
 - **多國語系** — 繁體中文 / 简体中文 / 日本語 / English **4 語系全數翻譯完成、0 未完成字串**,選單與
   對話框全數在地化(`Settings ▸ Interface Language` 切換)。
 - **可擴充** — 內建 in-process extension protocol(取代 Windows 專屬 `.dll` 外掛 ABI);附
-  **Markdown 即時預覽** 外掛作為示範(離線渲染,支援 Mermaid 流程圖)。
+  **Markdown 即時預覽** 外掛作為示範(離線渲染,支援 Mermaid 流程圖);**Plugins Admin**
+  可逐項啟用/停用擴充(複刻 Notepad++,重啟後生效)。
 
 ---
 
@@ -142,7 +143,7 @@ build\src\macpad++.exe path\to\file.cpp:12
 
 ## 測試與效能基準
 
-37 個 QtTest 套件（兩平台皆全綠）。
+38 個 QtTest 套件（兩平台皆全綠）。
 
 **macOS**：
 ```bash

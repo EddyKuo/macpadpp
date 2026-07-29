@@ -680,20 +680,8 @@ void MainWindow::createEncodingMenu(QMenu *formatMenu)
 
 void MainWindow::createPluginsMenu(QMenu *pluginMenu)
 {
-    // Plugins 選單（複刻 Notepad++ Plugins；Plugins Admin 列出內建擴充）
-    pluginMenu->addAction(tr("Plugins Admin…"), this, [this] {
-        QString msg;
-        if (m_extensions) {
-            for (const auto &c : m_extensions->capabilitiesList())
-                msg += QStringLiteral("• %1  (%2)  v%3\n").arg(c.name, c.id, c.version);
-        }
-        if (msg.isEmpty())
-            msg = tr("（無已載入擴充）");
-        // 誠實揭露：Notepad++ 的 .dll 外掛是 Windows 專屬二進位，macOS 無法載入。
-        msg += tr("\n\nmacpad++ 以內建 extension protocol 取代外掛。\n"
-                  "註：Notepad++ 的 .dll 外掛為 Windows 專屬，macOS 無法載入。");
-        QMessageBox::information(this, tr("Plugins Admin"), msg);
-    });
+    // Plugins 選單（複刻 Notepad++ Plugins Admin：可逐項啟用/停用，重啟後生效）
+    pluginMenu->addAction(tr("Plugins Admin…"), this, [this] { openPluginsAdmin(); });
 }
 
 

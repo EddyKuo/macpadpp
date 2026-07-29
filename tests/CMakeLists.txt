@@ -34,6 +34,7 @@ set(MACPAD_TESTS
     test_recoverydialog
     test_mime
     test_projectstore
+    test_pluginstore
     test_udlxmlio
     test_functionlistconfig
     test_contextmenu

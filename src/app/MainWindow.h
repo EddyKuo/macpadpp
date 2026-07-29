@@ -182,6 +182,7 @@ private:
     // 依 run_commands.json 中各已儲存指令的 shortcut 欄位重建全域快捷鍵
     void rebuildRunShortcuts();
     void openMacroManager();                   // Macro ▸ Macro Manager…
+    void openPluginsAdmin();                   // Plugins ▸ Plugins Admin…（啟用/停用擴充）
     void runSavedCommand(const QString &command);  // 以目前文件變數上下文執行一條已儲存 Run 指令
     void showFindInProjects();                 // Search ▸ Find in Projects…
     void gotoLineOrOffset();                   // Go to…（行 / 字元位移雙模式）

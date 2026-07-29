@@ -110,6 +110,7 @@ set(MACPAD_LIB_SOURCES
     extension/builtin/MarkdownPreviewExtension.cpp
     extension/builtin/MarkdownPreviewExtension.h
     persistence/ProjectStore.cpp
+    persistence/PluginStore.cpp
     persistence/ProjectStore.h
     ui/ProjectPanelDock.cpp
     ui/ProjectPanelDock.h

@@ -21,6 +21,7 @@
 #include "features/mime/MimeTools.h"
 #include "features/autocomplete/ApiDatabase.h"
 #include "persistence/ThemeStore.h"
+#include "persistence/PluginStore.h"
 #include "ui/ThemePickerDialog.h"
 #include "ui/SnapshotRecoveryDialog.h"
 #include "features/findall/FindAllEngine.h"
@@ -64,6 +65,7 @@
 #include <QCryptographicHash>
 #include <QHash>
 #include <QLineEdit>
+#include <QListWidget>
 #include <QRegularExpression>
 #include <QToolBar>
 #include <QIcon>
@@ -229,6 +231,66 @@ void MainWindow::runMacroMultipleTimes()
         statusBar()->showMessage(tr("Macro ran %1 time(s)").arg(iterations), 3000);
     }
     e->endUndoAction();
+}
+
+
+// Plugins ▸ Plugins Admin…（複刻 Notepad++）
+// 先前只是個靜態 QMessageBox 資訊框；現在可逐項啟用/停用並持久化。
+// 採 Notepad++ 語意「重啟後生效」：擴充在 onLoad 時會掛選單項與停靠面板，
+// 執行中卸載無法乾淨還原這些副作用，硬做只會留下殘骸。
+void MainWindow::openPluginsAdmin()
+{
+    // 內建擴充的完整清單（含目前被停用、因而未載入者）——不能只列 m_extensions，
+    // 否則停用過的項目會從清單中消失，使用者再也無法重新啟用它。
+    struct Known { QString id; QString name; QString version; };
+    const QVector<Known> known = {
+        {QStringLiteral("builtin.wordcount"), tr("Word Count"), QStringLiteral("1.0.0")},
+        {QStringLiteral("builtin.markdownpreview"), tr("Markdown Preview"), QStringLiteral("1.0.0")},
+    };
+
+    const QSet<QString> disabled = macpad::persistence::PluginStore::disabledIds();
+
+    QDialog dlg(this);
+    dlg.setWindowTitle(tr("Plugins Admin"));
+    dlg.resize(420, 300);
+    auto *root = new QVBoxLayout(&dlg);
+
+    auto *list = new QListWidget(&dlg);
+    for (const Known &k : known) {
+        auto *item = new QListWidgetItem(
+            QStringLiteral("%1  (%2)  v%3").arg(k.name, k.id, k.version), list);
+        item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
+        item->setCheckState(disabled.contains(k.id) ? Qt::Unchecked : Qt::Checked);
+        item->setData(Qt::UserRole, k.id);
+    }
+    root->addWidget(list);
+
+    // 誠實揭露定位：這裡管理的是自建的 in-process 擴充，不是 Notepad++ 的 .dll 外掛。
+    auto *note = new QLabel(
+        tr("macpad++ 以內建 extension protocol 取代外掛機制。\n"
+           "註：Notepad++ 的 .dll 外掛為 Windows 專屬原生二進位，本程式不載入。\n"
+           "變更需重新啟動後生效。"), &dlg);
+    note->setWordWrap(true);
+    root->addWidget(note);
+
+    auto *box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    QObject::connect(box, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
+    QObject::connect(box, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
+    root->addWidget(box);
+
+    if (dlg.exec() != QDialog::Accepted)
+        return;
+
+    QSet<QString> newDisabled;
+    for (int i = 0; i < list->count(); ++i) {
+        QListWidgetItem *item = list->item(i);
+        if (item->checkState() == Qt::Unchecked)
+            newDisabled.insert(item->data(Qt::UserRole).toString());
+    }
+    macpad::persistence::PluginStore::setDisabledIds(newDisabled);
+
+    if (newDisabled != disabled)
+        statusBar()->showMessage(tr("Plugin changes take effect after restart"), 4000);
 }
 
 
