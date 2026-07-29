@@ -48,15 +48,35 @@ jobs:
       - name: 啟用 MSVC 開發者環境
         uses: ilammy/msvc-dev-cmd@v1
 
+      # 快取必須涵蓋 nmake install 的「全部」產出：標頭 + 匯入函式庫 + DLL。
+      # 先前只快取了 include/Qsci，於是快取一命中就跳過建置、但函式庫從未被還原，
+      # CMake 隨即以 QSCINTILLA_LIBRARY-NOTFOUND 失敗（首次執行因未命中而看不出來，
+      # 直到快取存檔後的下一次執行才爆炸）。
       - name: 還原 QScintilla 快取
         id: qsci-cache
         uses: actions/cache@v4
         with:
-          path: ${{ env.QT_ROOT_DIR }}/include/Qsci
-          key: qscintilla-${{ env.QSCI_VERSION }}-qt${{ env.QT_VERSION }}-msvc2022
+          path: |
+            ${{ env.QT_ROOT_DIR }}/include/Qsci
+            ${{ env.QT_ROOT_DIR }}/lib/qscintilla2_qt6*
+            ${{ env.QT_ROOT_DIR }}/bin/qscintilla2_qt6*
+            ${{ env.QT_ROOT_DIR }}/mkspecs/features/qscintilla2.prf
+          key: qscintilla-${{ env.QSCI_VERSION }}-qt${{ env.QT_VERSION }}-msvc2022-v2
 
-      - name: 建置並安裝 QScintilla（未命中快取時）
-        if: steps.qsci-cache.outputs.cache-hit != 'true'
+      # 以「函式庫是否真的存在」判斷要不要建置，而不是相信 cache-hit 旗標——
+      # 快取內容不完整時（如上述舊 key）仍能自我修復，不會整條 pipeline 卡死。
+      - name: 檢查 QScintilla 是否完整
+        id: qsci-check
+        shell: pwsh
+        run: |
+          $lib = Get-ChildItem "$env:QT_ROOT_DIR\lib" -Filter 'qscintilla2_qt6*.lib' -ErrorAction SilentlyContinue
+          $hdr = Test-Path "$env:QT_ROOT_DIR\include\Qsci\qsciscintilla.h"
+          $complete = ($null -ne $lib) -and $hdr
+          Write-Host "QScintilla 完整=$complete (lib=$($null -ne $lib), header=$hdr)"
+          "complete=$complete" >> $env:GITHUB_OUTPUT
+
+      - name: 建置並安裝 QScintilla（快取不完整時）
+        if: steps.qsci-check.outputs.complete != 'True'
         shell: cmd
         run: |
           curl -L -o qsci.tar.gz https://www.riverbankcomputing.com/static/Downloads/QScintilla/%QSCI_VERSION%/QScintilla_src-%QSCI_VERSION%.tar.gz
