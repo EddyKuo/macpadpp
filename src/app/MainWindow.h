@@ -250,6 +250,8 @@ private:
     macpad::core::EditorWidget *editorIn(QTabWidget *w, int index) const;
     void setActiveTabWidget(QTabWidget *w);             // 切換作用中檢視並刷新面板/狀態列
     void wireTabWidget(QTabWidget *w);                  // 為某檢視接上關閉/右鍵/切換等訊號
+    // 分頁列座標 → 分頁索引（多列模式下不可用 QTabBar::tabAt，見實作說明）
+    int tabIndexAtPos(QTabWidget *w, const QPoint &pos) const;
     void wireEditorSignals(macpad::core::EditorWidget *editor);  // 編輯器→狀態列/標題連線（供分頁與 clone 共用）
     void closeTabIn(QTabWidget *w, int index);          // 關閉指定檢視的分頁（closeTab 的底層）
     void updateSecondViewVisibility();                  // 第二檢視空了就隱藏、有內容就顯示

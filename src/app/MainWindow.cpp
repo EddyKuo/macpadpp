@@ -8,6 +8,7 @@
 #include "persistence/SettingsStore.h"
 #include "platform/ThemeManager.h"
 #include "ui/EditorPane.h"
+#include "ui/MultiRowTabBar.h"
 #include "extension/ExtensionRegistry.h"
 #include "extension/builtin/WordCountExtension.h"
 #include "extension/builtin/MarkdownPreviewExtension.h"
@@ -122,8 +123,10 @@ MainWindow::MainWindow(QWidget *parent, bool restoreSessionOnLaunch)
 
     // Dual-View（雙檢視，複刻 Notepad++ 兩欄檢視）：兩個 QTabWidget 並排於水平 QSplitter。
     // 第二檢視預設隱藏，使用者把文件移動/複製過去時才出現，空了又自動隱藏。
-    m_tabs = new QTabWidget;
-    m_tabs2 = new QTabWidget;
+    // 兩個檢視都用 MultiRowTabWidget：它安裝支援多列換行的分頁列
+    // （複刻 Notepad++ Multi-Line Tab Bar）。未啟用多列時，其行為與 QTabBar 完全相同。
+    m_tabs = new macpad::ui::MultiRowTabWidget;
+    m_tabs2 = new macpad::ui::MultiRowTabWidget;
     m_viewSplit = new QSplitter(Qt::Horizontal, this);
     m_viewSplit->addWidget(m_tabs);
     m_viewSplit->addWidget(m_tabs2);

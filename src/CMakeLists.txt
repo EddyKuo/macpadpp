@@ -52,6 +52,8 @@ set(MACPAD_LIB_SOURCES
     features/udl/UdlManager.h
     features/langs/BuiltinLanguages.cpp
     features/langs/BuiltinLanguages.h
+    ui/MultiRowTabBar.cpp
+    ui/MultiRowTabBar.h
     ui/ColorPicker.cpp
     ui/ColorPicker.h
     ui/WindowsListDialog.cpp

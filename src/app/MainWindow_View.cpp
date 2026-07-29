@@ -8,6 +8,7 @@
 #include "persistence/SettingsStore.h"
 #include "platform/ThemeManager.h"
 #include "ui/EditorPane.h"
+#include "ui/MultiRowTabBar.h"
 #include "extension/ExtensionRegistry.h"
 #include "extension/builtin/WordCountExtension.h"
 #include "extension/builtin/MarkdownPreviewExtension.h"
@@ -209,6 +210,18 @@ void MainWindow::setActiveTabWidget(QTabWidget *w)
 }
 
 
+// 分頁列座標 → 分頁索引。多列模式下必須用 MultiRowTabBar 的自算矩形，
+// QTabBar::tabAt 非虛擬函式，仍會回傳單列版面的結果。
+int MainWindow::tabIndexAtPos(QTabWidget *w, const QPoint &pos) const
+{
+    if (!w)
+        return -1;
+    if (auto *bar = qobject_cast<macpad::ui::MultiRowTabBar *>(w->tabBar()))
+        return bar->tabIndexAt(pos);
+    return w->tabBar()->tabAt(pos);
+}
+
+
 // 為某個檢視容器接上「關閉/右鍵選單/切換分頁」訊號（兩個檢視共用同一套行為）
 void MainWindow::wireTabWidget(QTabWidget *w)
 {
@@ -223,7 +236,9 @@ void MainWindow::wireTabWidget(QTabWidget *w)
     w->tabBar()->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(w->tabBar(), &QTabBar::customContextMenuRequested, this,
             [this, w](const QPoint &pos) {
-        const int idx = w->tabBar()->tabAt(pos);
+        // 多列模式下 QTabBar::tabAt 用的是它自己的單列座標，會選到錯的分頁；
+        // MultiRowTabBar::tabIndexAt 在單列時等同 tabAt。
+        const int idx = tabIndexAtPos(w, pos);
         if (idx < 0) return;
         setActiveTabWidget(w);      // 右鍵操作前先讓該檢視成為作用中
         w->setCurrentIndex(idx);

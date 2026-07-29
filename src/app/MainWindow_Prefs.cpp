@@ -8,6 +8,7 @@
 #include "persistence/SettingsStore.h"
 #include "platform/ThemeManager.h"
 #include "ui/EditorPane.h"
+#include "ui/MultiRowTabBar.h"
 #include "extension/ExtensionRegistry.h"
 #include "extension/builtin/WordCountExtension.h"
 #include "extension/builtin/MarkdownPreviewExtension.h"
@@ -226,14 +227,19 @@ void MainWindow::applyWindowPrefs(const macpad::persistence::Settings &s)
     }
     // 狀態列可見性
     statusBar()->setVisible(s.showStatusBar);
-    // 分頁列：可見性 / 垂直排列 / 關閉鈕 / 多行（多行以停用捲動鈕近似，QTabBar 無原生多行）
+    // 分頁列：可見性 / 垂直排列 / 關閉鈕 / 多列換行
     for (QTabWidget *w : {m_tabs, m_tabs2}) {
         if (!w)
             continue;
         w->tabBar()->setVisible(s.showTabBar);
         w->setTabPosition(s.tabBarVertical ? QTabWidget::West : QTabWidget::North);
         w->setTabsClosable(s.tabBarShowCloseButton);
-        w->tabBar()->setUsesScrollButtons(!s.tabBarMultiLine);
+        // 多列換行由 MultiRowTabBar 真正實作（先前只能以停用捲動鈕近似）。
+        // 垂直排列時分頁本來就是縱向堆疊，多列無意義，故僅在水平時啟用。
+        if (auto *bar = qobject_cast<macpad::ui::MultiRowTabBar *>(w->tabBar()))
+            bar->setMultiRow(s.tabBarMultiLine && !s.tabBarVertical);
+        else
+            w->tabBar()->setUsesScrollButtons(!s.tabBarMultiLine);
     }
     // 最近檔案選單依偏好（max/full-path/submenu）重建
     rebuildRecentMenu();
