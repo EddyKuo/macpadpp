@@ -4,6 +4,9 @@
 #include <QFileInfo>
 #include <QHash>
 #include <QPair>
+#include <QSet>
+
+#include "features/langs/BuiltinLanguages.h"
 
 namespace macpad::features {
 
@@ -169,6 +172,21 @@ QStringList ApiDatabase::entriesFor(const QString &langKey)
     if (langKey == QLatin1String("sql")) return sqlEntries();
     if (langKey == QLatin1String("bash")) return bashEntries();
     if (langKey == QLatin1String("json")) return jsonEntries();
+
+    // 內建語言表（Go / Rust / Swift / PowerShell…）：直接以該語言的關鍵字群組作為
+    // 自動完成字典，使新增語言不必逐一手寫 *Entries()。已由上面手寫清單覆蓋的語言
+    // 不受影響（手寫清單較豐富，含常用函式與 call tip）。
+    const UdlDefinition def = BuiltinLanguages::definitionFor(langKey);
+    if (def.isValid()) {
+        QStringList out;
+        for (const QSet<QString> &group : def.keywordGroups)
+            for (const QString &kw : group)
+                out << kw;
+        out.removeDuplicates();
+        out.sort(Qt::CaseInsensitive);
+        return out;
+    }
+
     return {};
 }
 

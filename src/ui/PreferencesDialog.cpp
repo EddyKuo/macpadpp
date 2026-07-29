@@ -4,6 +4,7 @@
 #include <QComboBox>
 #include <QDialogButtonBox>
 #include <QFormLayout>
+#include <QListWidget>
 #include <QLabel>
 #include <QLineEdit>
 #include <QSpinBox>
@@ -141,6 +142,22 @@ QWidget *PreferencesDialog::buildEditingPage()
     m_columnSelectionToMultiEdit = new QCheckBox(tr("欄選結束時轉為多游標編輯"), page);
     m_columnSelectionToMultiEdit->setChecked(current.columnSelectionToMultiEdit);
 
+    // 以下對齊 Notepad++ Editing 面板的後續版本新增項
+    m_undoSelectionHistory = new QCheckBox(tr("Undo/Redo 納入選取歷史"), page);
+    m_undoSelectionHistory->setChecked(current.undoSelectionHistory);
+
+    m_selectionDragDrop = new QCheckBox(tr("允許拖放選取的文字"), page);
+    m_selectionDragDrop->setChecked(current.selectionDragDrop);
+
+    m_syncZoomBetweenViews = new QCheckBox(tr("兩個檢視同步縮放層級"), page);
+    m_syncZoomBetweenViews->setChecked(current.syncZoomBetweenViews);
+
+    m_openCopyAfterSaveACopy = new QCheckBox(tr("「另存副本」後自動開啟副本"), page);
+    m_openCopyAfterSaveACopy->setChecked(current.openCopyAfterSaveACopy);
+
+    m_advancedAutoIndent = new QCheckBox(tr("進階自動縮排（依語言在 { 或 : 之後多縮一級）"), page);
+    m_advancedAutoIndent->setChecked(current.advancedAutoIndent);
+
     auto *form = new QFormLayout(page);
     form->addRow(m_showLineNumbers);
     form->addRow(m_showIndentGuides);
@@ -151,6 +168,11 @@ QWidget *PreferencesDialog::buildEditingPage()
     form->addRow(m_enableVirtualSpace);
     form->addRow(m_copyLineWithoutSelection);
     form->addRow(m_columnSelectionToMultiEdit);
+    form->addRow(m_undoSelectionHistory);
+    form->addRow(m_selectionDragDrop);
+    form->addRow(m_syncZoomBetweenViews);
+    form->addRow(m_openCopyAfterSaveACopy);
+    form->addRow(m_advancedAutoIndent);
     return page;
 }
 
@@ -185,6 +207,11 @@ QWidget *PreferencesDialog::buildPrintPage()
     form->addRow(tr("頁尾"), m_printFooter);
     form->addRow(tr("色彩模式"), m_printColourMode);
     form->addRow(tr("邊界"), m_printMarginMm);
+
+    // Notepad++ v8.9.7：文件中的 FormFeed（\f）視為分頁符
+    m_printFormFeedAsPageBreak = new QCheckBox(tr("將 FormFeed（\\f）視為分頁符"), page);
+    m_printFormFeedAsPageBreak->setChecked(current.printFormFeedAsPageBreak);
+    form->addRow(m_printFormFeedAsPageBreak);
 
     auto *note = new QLabel(hint, page);
     note->setWordWrap(true);
@@ -316,6 +343,10 @@ QWidget *PreferencesDialog::buildSearchPage()
     m_confirmReplaceAll = new QCheckBox(tr("「全部取代」前顯示確認"), page);
     m_confirmReplaceAll->setChecked(current.confirmReplaceAll);
 
+    // Notepad++ v8.9.7：增量搜尋顯示符合筆數與目前是第幾筆
+    m_incrementalSearchCount = new QCheckBox(tr("增量搜尋顯示「第 n / 共 m 筆」"), page);
+    m_incrementalSearchCount->setChecked(current.incrementalSearchCount);
+
     m_findInSelectionThreshold = new QSpinBox(page);
     m_findInSelectionThreshold->setRange(0, 1000000);
     m_findInSelectionThreshold->setSpecialValueText(tr("關閉"));
@@ -326,6 +357,7 @@ QWidget *PreferencesDialog::buildSearchPage()
     form->addRow(tr("網路搜尋引擎網址"), m_searchEngineUrl);
     form->addRow(m_keepFindDialogOpen);
     form->addRow(m_confirmReplaceAll);
+    form->addRow(m_incrementalSearchCount);
     form->addRow(tr("自動啟用「在選取範圍內尋找」門檻"), m_findInSelectionThreshold);
     return page;
 }
@@ -409,8 +441,41 @@ QWidget *PreferencesDialog::buildToolbarPage()
     m_toolbarIconSize->addItems({tr("小"), tr("標準"), tr("大")});
     m_toolbarIconSize->setCurrentIndex(int(current.toolbarIconSize));
 
+    // 隱藏指定工具列按鈕（複刻 Notepad++ v8.7.8）。
+    // 清單項目的 id 與 populateToolbar() 的圖示名（QAction::objectName）一致。
+    m_hiddenToolbarButtons = new QListWidget(page);
+    m_hiddenToolbarButtons->setSelectionMode(QAbstractItemView::NoSelection);
+    static const struct { const char *id; const char *label; } kButtons[] = {
+        {"new", "New"}, {"open", "Open"}, {"save", "Save"}, {"saveall", "Save All"},
+        {"close", "Close"}, {"closeall", "Close All"}, {"print", "Print"},
+        {"cut", "Cut"}, {"copy", "Copy"}, {"paste", "Paste"},
+        {"undo", "Undo"}, {"redo", "Redo"},
+        {"find", "Find"}, {"replace", "Replace"},
+        {"zoomin", "Zoom In"}, {"zoomout", "Zoom Out"},
+        {"syncscrollv", "Sync Vertical Scrolling"}, {"syncscrollh", "Sync Horizontal Scrolling"},
+        {"wordwrap", "Word Wrap"}, {"allchars", "Show All Characters"},
+        {"indentguide", "Indent Guide"}, {"udl", "User-Defined Language"},
+        {"docmap", "Document Map"}, {"doclist", "Document List"},
+        {"funclist", "Function List"}, {"filebrowser", "Project Panel"},
+        {"monitoring", "Monitoring"},
+        {"macrorecord", "Record Macro"}, {"macrostop", "Stop Recording"},
+        {"macroplay", "Play Macro"}, {"macrorunmulti", "Run Macro Multiple Times"},
+        {"macrosave", "Save Macro"},
+    };
+    for (const auto &b : kButtons) {
+        auto *item = new QListWidgetItem(tr(b.label), m_hiddenToolbarButtons);
+        item->setData(Qt::UserRole, QString::fromLatin1(b.id));
+        item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
+        // 勾選 = 顯示；未勾選 = 隱藏（比「勾選代表隱藏」直覺）
+        item->setCheckState(current.hiddenToolbarButtons.contains(QString::fromLatin1(b.id),
+                                                                  Qt::CaseInsensitive)
+                                ? Qt::Unchecked
+                                : Qt::Checked);
+    }
+
     auto *form = new QFormLayout(page);
     form->addRow(tr("圖示大小"), m_toolbarIconSize);
+    form->addRow(tr("顯示的按鈕"), m_hiddenToolbarButtons);
     return page;
 }
 
@@ -431,11 +496,24 @@ QWidget *PreferencesDialog::buildTabBarPage()
     m_tabBarDoubleClickCloses = new QCheckBox(tr("雙擊分頁關閉"), page);
     m_tabBarDoubleClickCloses->setChecked(current.tabBarDoubleClickCloses);
 
+    // 分頁標籤長度上限（Notepad++ v8.8.8）：0 = 不限制
+    m_tabBarLabelMaxLength = new QSpinBox(page);
+    m_tabBarLabelMaxLength->setRange(0, 200);
+    m_tabBarLabelMaxLength->setSpecialValueText(tr("不限制"));
+    m_tabBarLabelMaxLength->setValue(current.tabBarLabelMaxLength);
+
+    // 未命名分頁以內容首行命名（Notepad++ v8.8.2）
+    m_tabBarUntitledNameFromFirstLine =
+        new QCheckBox(tr("未命名分頁以內容首行作為分頁名"), page);
+    m_tabBarUntitledNameFromFirstLine->setChecked(current.tabBarUntitledNameFromFirstLine);
+
     auto *form = new QFormLayout(page);
     form->addRow(m_tabBarMultiLine);
     form->addRow(m_tabBarVertical);
     form->addRow(m_tabBarShowCloseButton);
     form->addRow(m_tabBarDoubleClickCloses);
+    form->addRow(tr("分頁標籤長度上限："), m_tabBarLabelMaxLength);
+    form->addRow(m_tabBarUntitledNameFromFirstLine);
     return page;
 }
 
@@ -619,11 +697,25 @@ Settings PreferencesDialog::result() const
     s.enableVirtualSpace = m_enableVirtualSpace->isChecked();
     s.copyLineWithoutSelection = m_copyLineWithoutSelection->isChecked();
     s.columnSelectionToMultiEdit = m_columnSelectionToMultiEdit->isChecked();
+    s.undoSelectionHistory = m_undoSelectionHistory->isChecked();
+    s.selectionDragDrop = m_selectionDragDrop->isChecked();
+    s.syncZoomBetweenViews = m_syncZoomBetweenViews->isChecked();
+    s.openCopyAfterSaveACopy = m_openCopyAfterSaveACopy->isChecked();
+    s.advancedAutoIndent = m_advancedAutoIndent->isChecked();
+
+    s.hiddenToolbarButtons.clear();
+    for (int i = 0; i < m_hiddenToolbarButtons->count(); ++i) {
+        QListWidgetItem *item = m_hiddenToolbarButtons->item(i);
+        if (item->checkState() == Qt::Unchecked)   // 未勾選 = 隱藏
+            s.hiddenToolbarButtons << item->data(Qt::UserRole).toString();
+    }
 
     s.printHeader = m_printHeader->text();
     s.printFooter = m_printFooter->text();
     s.printColourMode = m_printColourMode->currentIndex();
     s.printMarginMm = m_printMarginMm->value();
+    s.printFormFeedAsPageBreak = m_printFormFeedAsPageBreak->isChecked();
+    s.incrementalSearchCount = m_incrementalSearchCount->isChecked();
     s.defaultEol = Eol(m_defaultEol->currentIndex());
     s.defaultEncoding = Encoding(m_defaultEncoding->currentIndex());
     s.autoDetectFileStatus = m_autoDetectFileStatus->isChecked();
@@ -667,6 +759,8 @@ Settings PreferencesDialog::result() const
     s.tabBarVertical = m_tabBarVertical->isChecked();
     s.tabBarShowCloseButton = m_tabBarShowCloseButton->isChecked();
     s.tabBarDoubleClickCloses = m_tabBarDoubleClickCloses->isChecked();
+    s.tabBarLabelMaxLength = m_tabBarLabelMaxLength->value();
+    s.tabBarUntitledNameFromFirstLine = m_tabBarUntitledNameFromFirstLine->isChecked();
 
     s.edgeMode = EdgeMode(m_edgeMode->currentIndex());
     s.foldMarginStyle = FoldMarginStyle(m_foldMarginStyle->currentIndex());

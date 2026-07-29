@@ -157,6 +157,17 @@ EditorWidget::EditorWidget(QWidget *parent)
     connect(this, &QsciScintilla::cursorPositionChanged,
             this, &EditorWidget::onCursorPositionChanged);
 
+    // 選取歷史（Notepad++ v8.8.1）：記錄選取/游標變化，供 Undo 逐步回退；
+    // 文件一旦被修改就重置——選取歷史只在「上次修改之後」有意義。
+    connect(this, &QsciScintilla::selectionChanged, this,
+            [this] { recordSelectionSnapshot(); });
+    connect(this, &QsciScintilla::cursorPositionChanged, this,
+            [this](int, int) { recordSelectionSnapshot(); });
+    connect(this, &QsciScintilla::textChanged, this, [this] {
+        m_selHistory.clear();
+        m_selHistoryPos = 0;
+    });
+
     // 攔截 viewport 事件：Ctrl/⌘+雙擊選整個字（ctrlDoubleClickWholeWord）與拖放開檔。
     // 兩者都必須掛在 viewport 上——QAbstractScrollArea 的事件落點在此，非 widget 本身。
     viewport()->installEventFilter(this);
@@ -1073,6 +1084,176 @@ void EditorWidget::contextMenuEvent(QContextMenuEvent *event)
     emit contextMenuRequested(event->globalPos());
 }
 
+// === Undo / Redo 強化（複刻 Notepad++ v8.8.9 捲動位置、v8.8.1 選取歷史）===
+
+void EditorWidget::recordSelectionSnapshot()
+{
+    if (!m_undoSelectionHistory || m_restoringSelection)
+        return;
+    SelSnapshot s;
+    if (hasSelectedText())
+        getSelection(&s.aLine, &s.aIdx, &s.cLine, &s.cIdx);
+    else
+        getCursorPosition(&s.cLine, &s.cIdx), s.aLine = s.cLine, s.aIdx = s.cIdx;
+
+    // 與最新一筆相同就不重覆記錄（游標未動的重複訊號很常見）
+    if (m_selHistoryPos > 0) {
+        const SelSnapshot &last = m_selHistory.at(m_selHistoryPos - 1);
+        if (last.aLine == s.aLine && last.aIdx == s.aIdx &&
+            last.cLine == s.cLine && last.cIdx == s.cIdx)
+            return;
+    }
+    m_selHistory.resize(m_selHistoryPos);   // 記錄新選取時丟棄「重做」方向的歷史
+    m_selHistory.push_back(s);
+    // 上限保護：只保留最近 256 筆，避免長時間編輯累積無上限的記憶體
+    constexpr int kMaxSelHistory = 256;
+    if (m_selHistory.size() > kMaxSelHistory)
+        m_selHistory.remove(0, m_selHistory.size() - kMaxSelHistory);
+    m_selHistoryPos = static_cast<int>(m_selHistory.size());
+}
+
+bool EditorWidget::restorePreviousSelection()
+{
+    // 至少要有「目前」與「前一筆」才談得上回退
+    if (!m_undoSelectionHistory || m_selHistoryPos < 2)
+        return false;
+    --m_selHistoryPos;
+    const SelSnapshot &s = m_selHistory.at(m_selHistoryPos - 1);
+    m_restoringSelection = true;
+    if (s.aLine == s.cLine && s.aIdx == s.cIdx)
+        setCursorPosition(s.cLine, s.cIdx);
+    else
+        setSelection(s.aLine, s.aIdx, s.cLine, s.cIdx);
+    m_restoringSelection = false;
+    return true;
+}
+
+void EditorWidget::undoWithHistory()
+{
+    // 選取歷史優先：自上次文件修改以來若只發生過選取變更，Undo 先逐步還原選取
+    if (restorePreviousSelection())
+        return;
+
+    const int first = firstVisibleLine();
+    QsciScintilla::undo();
+    // 還原垂直捲動位置（v8.8.9）：僅在還原後游標仍落在原視野內才回捲，
+    // 否則會看不到剛剛被復原的內容。
+    int line = 0, idx = 0;
+    getCursorPosition(&line, &idx);
+    const int visible = SendScintilla(SCI_LINESONSCREEN);
+    if (line >= first && line < first + visible)
+        setFirstVisibleLine(first);
+
+    m_selHistory.clear();
+    m_selHistoryPos = 0;
+}
+
+void EditorWidget::redoWithHistory()
+{
+    const int first = firstVisibleLine();
+    QsciScintilla::redo();
+    int line = 0, idx = 0;
+    getCursorPosition(&line, &idx);
+    const int visible = SendScintilla(SCI_LINESONSCREEN);
+    if (line >= first && line < first + visible)
+        setFirstVisibleLine(first);
+
+    m_selHistory.clear();
+    m_selHistoryPos = 0;
+}
+
+
+void EditorWidget::applyZoomIn()
+{
+    zoomIn();
+    emit zoomChanged(static_cast<int>(SendScintilla(SCI_GETZOOM)));
+}
+
+void EditorWidget::applyZoomOut()
+{
+    zoomOut();
+    emit zoomChanged(static_cast<int>(SendScintilla(SCI_GETZOOM)));
+}
+
+void EditorWidget::applyZoomTo(int level)
+{
+    zoomTo(level);
+    emit zoomChanged(static_cast<int>(SendScintilla(SCI_GETZOOM)));
+}
+
+
+void EditorWidget::wheelEvent(QWheelEvent *event)
+{
+    // Ctrl+滾輪由 Scintilla 內部處理縮放；此處於事件後比對縮放值，
+    // 有變動才發出 zoomChanged（供跨檢視同步縮放，Notepad++ v8.9.5）。
+    const bool zooming = event->modifiers().testFlag(Qt::ControlModifier);
+    const int before = zooming ? static_cast<int>(SendScintilla(SCI_GETZOOM)) : 0;
+    QsciScintilla::wheelEvent(event);
+    if (!zooming)
+        return;
+    const int after = static_cast<int>(SendScintilla(SCI_GETZOOM));
+    if (after != before)
+        emit zoomChanged(after);
+}
+
+
+void EditorWidget::mousePressEvent(QMouseEvent *event)
+{
+    // 停用拖放選取文字（v8.9.3）：在既有選取範圍內按下左鍵時先取消選取，
+    // 讓這一次按下成為「重新選取」的起點，而不是拖走選取內容。
+    if (!m_selectionDragDrop && event->button() == Qt::LeftButton && hasSelectedText()) {
+        const long pos = SendScintilla(SCI_POSITIONFROMPOINT,
+                                       static_cast<unsigned long>(event->position().x()),
+                                       static_cast<long>(event->position().y()));
+        const long selStart = SendScintilla(SCI_GETSELECTIONSTART);
+        const long selEnd = SendScintilla(SCI_GETSELECTIONEND);
+        if (pos >= selStart && pos < selEnd)
+            SendScintilla(SCI_SETEMPTYSELECTION, static_cast<unsigned long>(pos));
+    }
+    QsciScintilla::mousePressEvent(event);
+}
+
+
+// 進階自動縮排（複刻 Notepad++ v8.7「可停用 C-like 自動縮排」、v8.7.5「Swift/TypeScript/Go」）。
+// QsciScintilla::setAutoIndent 只會沿用上一行的縮排；此處再依語言語法追加一級縮排：
+//   - 大括號語言（C/C++/Java/JS/Go/Rust/Swift/Kotlin…）：上一行以 { 結尾 → 多縮一級
+//   - 冒號語言（Python/YAML…）：上一行以 : 結尾 → 多縮一級
+// prevLine 為按下 Enter 之前、游標之前的那段文字（不含後續被帶到新行的內容）。
+void EditorWidget::applyAdvancedAutoIndent(const QString &prevLine)
+{
+    const QString trimmed = prevLine.trimmed();
+    if (trimmed.isEmpty())
+        return;
+
+    // 語言判定以 lexer 名稱為準；無 lexer（純文字）不做進階縮排。
+    QsciLexer *lex = lexer();
+    if (!lex)
+        return;
+    const QString lang = QString::fromLatin1(lex->language()).toLower();
+
+    // 以冒號結尾代表區塊起始的語言
+    static const QStringList kColonLangs = {QStringLiteral("python"), QStringLiteral("yaml"),
+                                            QStringLiteral("coffeescript")};
+    bool indentMore = false;
+    if (kColonLangs.contains(lang)) {
+        indentMore = trimmed.endsWith(QLatin1Char(':'));
+    } else {
+        // 其餘一律視為大括號語系（含新增的 Go / Rust / Swift / Kotlin / Dart…）。
+        // 只認「行尾的 {」，避免把 `foo({a: 1})` 這種行也多縮一級。
+        indentMore = trimmed.endsWith(QLatin1Char('{'));
+    }
+    if (!indentMore)
+        return;
+
+    int line = 0, idx = 0;
+    getCursorPosition(&line, &idx);
+    // setIndentation 以「欄」為單位，會依 indentationsUseTabs 自行決定用 tab 或空白
+    setIndentation(line, indentation(line) + qMax(1, tabWidth()));
+    // 新行此時只有縮排，行尾即縮排之後——把游標帶過去
+    SendScintilla(SCI_LINEEND);
+}
+
+
 void EditorWidget::keyPressEvent(QKeyEvent *event)
 {
     // 路徑自動完成手動觸發（Ctrl+Alt+Space）：攔截於 base 處理之前，
@@ -1086,7 +1267,20 @@ void EditorWidget::keyPressEvent(QKeyEvent *event)
     }
 
     const QString typed = event->text();
+    // 進階自動縮排（複刻 Notepad++ v8.7 / v8.7.5）：需要在按下 Enter「之前」取得原行內容
+    const bool isEnter = (event->key() == Qt::Key_Return || event->key() == Qt::Key_Enter)
+                         && !(event->modifiers() & Qt::ControlModifier);
+    QString lineBeforeEnter;
+    if (isEnter && m_advancedAutoIndent) {
+        int line = 0, idx = 0;
+        getCursorPosition(&line, &idx);
+        lineBeforeEnter = text(line).left(idx);
+    }
+
     QsciScintilla::keyPressEvent(event);
+
+    if (isEnter && m_advancedAutoIndent)
+        applyAdvancedAutoIndent(lineBeforeEnter);
 
     // 自動配對符號（FR-050）：鍵入開符號後，緊接插入對應閉符號並讓游標留在中間
     if (m_autoClose && typed.size() == 1) {
@@ -1344,10 +1538,24 @@ void EditorWidget::applyApiCompletions(const QStringList &entries)
         m_apis = nullptr;
     }
 
+    // ApiDatabase 未收錄該語言時，退回 lexer 自身的關鍵字表（QScintilla 原生 lexer 皆有提供），
+    // 讓 Java / C# / Ruby / Perl / Lua… 等語言也具備關鍵字自動完成，而非只有文件內字詞。
+    QStringList effective = entries;
+    if (effective.isEmpty()) {
+        for (int set = 1; set <= 9; ++set) {
+            const char *kws = lex->keywords(set);
+            if (!kws)
+                continue;
+            effective << QString::fromLatin1(kws).split(QLatin1Char(' '), Qt::SkipEmptyParts);
+        }
+        effective.removeDuplicates();
+        effective.sort(Qt::CaseInsensitive);
+    }
+
     auto *apis = new QsciAPIs(lex);  // 建構時 parent 為 lex
     // 改由 EditorWidget 持有：與 lexer 生命週期解耦，換 lexer/刪舊 lexer 時 m_apis 不會被連帶刪除而懸空。
     apis->setParent(this);
-    for (const QString &entry : entries)
+    for (const QString &entry : effective)
         apis->add(entry);
     apis->prepare();       // 於背景 thread 進行；銷毀時由 dtor 負責收斂，避免 SIGBUS
     lex->setAPIs(apis);

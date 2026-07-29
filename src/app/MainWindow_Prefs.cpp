@@ -8,6 +8,8 @@
 #include "persistence/SettingsStore.h"
 #include "platform/ThemeManager.h"
 #include "ui/EditorPane.h"
+#include "ui/MultiRowTabBar.h"
+#include "features/update/UpdateChecker.h"
 #include "extension/ExtensionRegistry.h"
 #include "extension/builtin/WordCountExtension.h"
 #include "extension/builtin/MarkdownPreviewExtension.h"
@@ -172,6 +174,9 @@ void MainWindow::applyEditorPrefs(EditorWidget *editor, const macpad::persistenc
     editor->setCaretLineVisible(s.currentLineHighlight);  // 高亮目前所在行
     editor->setVirtualSpace(s.enableVirtualSpace);        // 允許插入點移至行尾之後
     editor->setColumnSelectionToMultiEdit(s.columnSelectionToMultiEdit);  // 欄選轉多游標
+    editor->setAdvancedAutoIndent(s.advancedAutoIndent);       // 依語言追加一級縮排
+    editor->setUndoSelectionHistory(s.undoSelectionHistory);   // Undo/Redo 納入選取歷史
+    editor->setSelectionDragDropEnabled(s.selectionDragDrop);  // 是否允許拖放選取文字
     applyDelimiters(editor, s);          // delimiterChars → 雙擊選字邊界
     applyPerLangTabWidth(editor, s);     // 依語言覆寫 Tab 寬度（否則沿用上面的全域 tabWidth）
     applyViewPrefs(editor);                            // wrap/whitespace/eol/縮排參考線
@@ -223,14 +228,19 @@ void MainWindow::applyWindowPrefs(const macpad::persistence::Settings &s)
     }
     // 狀態列可見性
     statusBar()->setVisible(s.showStatusBar);
-    // 分頁列：可見性 / 垂直排列 / 關閉鈕 / 多行（多行以停用捲動鈕近似，QTabBar 無原生多行）
+    // 分頁列：可見性 / 垂直排列 / 關閉鈕 / 多列換行
     for (QTabWidget *w : {m_tabs, m_tabs2}) {
         if (!w)
             continue;
         w->tabBar()->setVisible(s.showTabBar);
         w->setTabPosition(s.tabBarVertical ? QTabWidget::West : QTabWidget::North);
         w->setTabsClosable(s.tabBarShowCloseButton);
-        w->tabBar()->setUsesScrollButtons(!s.tabBarMultiLine);
+        // 多列換行由 MultiRowTabBar 真正實作（先前只能以停用捲動鈕近似）。
+        // 垂直排列時分頁本來就是縱向堆疊，多列無意義，故僅在水平時啟用。
+        if (auto *bar = qobject_cast<macpad::ui::MultiRowTabBar *>(w->tabBar()))
+            bar->setMultiRow(s.tabBarMultiLine && !s.tabBarVertical);
+        else
+            w->tabBar()->setUsesScrollButtons(!s.tabBarMultiLine);
     }
     // 最近檔案選單依偏好（max/full-path/submenu）重建
     rebuildRecentMenu();
@@ -289,6 +299,44 @@ void MainWindow::setFullReadOnly(bool on)
         if (e)
             e->setPolicyReadOnly(on);   // 政策鎖定：Clear Read-Only Flag 不得解除
     });
+}
+
+
+// 檢查更新（複刻 Notepad++ 的 Check for Updates / auto-updater）。
+// silent=true 為啟動時的自動檢查：只在「真的有新版」時才打擾使用者，失敗完全靜默
+// （沒網路是常態，不該每次開檔都跳錯誤）。
+// 刻意不做自我下載覆寫——詳見 features/update/UpdateChecker.h 的說明。
+void MainWindow::checkForUpdates(bool silent)
+{
+    auto *checker = new macpad::features::UpdateChecker(this);
+    connect(checker, &macpad::features::UpdateChecker::finished, this,
+            [this, checker, silent](bool hasUpdate, const QString &latest,
+                                    const QString &url, const QString &err) {
+        checker->deleteLater();
+
+        if (!err.isEmpty()) {
+            if (!silent)
+                QMessageBox::warning(this, tr("Check for Updates"),
+                                     tr("無法取得更新資訊：%1").arg(err));
+            return;
+        }
+        if (!hasUpdate) {
+            if (!silent)
+                QMessageBox::information(this, tr("Check for Updates"),
+                                         tr("目前已是最新版本（%1）。")
+                                             .arg(QString::fromLatin1(MACPAD_VERSION)));
+            return;
+        }
+
+        const auto btn = QMessageBox::question(
+            this, tr("Check for Updates"),
+            tr("有新版本可用：%1（目前為 %2）。\n要開啟下載頁面嗎？")
+                .arg(latest, QString::fromLatin1(MACPAD_VERSION)),
+            QMessageBox::Yes | QMessageBox::No, QMessageBox::Yes);
+        if (btn == QMessageBox::Yes && !url.isEmpty())
+            QDesktopServices::openUrl(QUrl(url));
+    });
+    checker->check(QString::fromLatin1(MACPAD_VERSION));
 }
 
 

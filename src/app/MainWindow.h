@@ -45,6 +45,7 @@ class MainWindow : public QMainWindow, public macpad::extension::IHostServices {
     // 單元測試存取私有成員（分頁容器、右鍵選單建構、關閉側邊分頁等）——Qt 慣用測試模式
     friend class TestContextMenu;
     friend class TestSessionSnapshot;
+    friend class TestPinTab;
 public:
     // restoreSessionOnLaunch=false 供命令列 -nosession（FR-051）略過本次啟動的 session 還原
     explicit MainWindow(QWidget *parent = nullptr, bool restoreSessionOnLaunch = true);
@@ -70,6 +71,8 @@ public:
     // -systemtray：常駐系統匣（Windows 通知區 / macOS 選單列狀態區）。
     // 系統不支援時安全略過（回傳 false），不影響主視窗運作。
     bool enableSystemTray();
+    // 檢查更新（複刻 Notepad++）：silent=true 為啟動時自動檢查，失敗與「已是最新」皆不打擾
+    void checkForUpdates(bool silent);
 
 public slots:
     // 開啟指定檔案（已開啟則聚焦既有分頁——FR-001 邊界）
@@ -114,6 +117,12 @@ private slots:
     void reloadFromDisk();
     void saveAll();
     void saveCopyAs();
+    // 存檔對話框的檔案類型篩選字串（含使用者 UDL 與內建語言；複刻 Notepad++ v8.7）
+    QString saveDialogFilters() const;
+    // 對所有已開啟文件套用/解除唯讀（複刻 Notepad++ v8.8.6）
+    void setAllDocumentsReadOnly(bool readOnly);
+    // 將縮放層級同步到另一個檢視的所有編輯器（複刻 Notepad++ v8.9.5）
+    void syncZoomToOtherViews(macpad::core::EditorWidget *source, int zoom);
     void renameCurrentFile();
     void closeAllTabs();
     void closeAllButCurrent();
@@ -136,9 +145,15 @@ private slots:
     void moveCurrentTab(int delta);
     void toggleMonitoring();
     void buildWindowMenu();
+    // Window ▸ Windows…：可排序的文件管理對話框（複刻 Notepad++；v8.8.6 起可依修改時間排序）
+    void showWindowsListDialog();
     void setDistractionFree(bool on);
     void setPostIt(bool on);
     void showIncrementalSearch();
+    // 更新增量搜尋工具列的「第 n / 共 m 筆」（複刻 Notepad++ v8.9.7）
+    void updateIncrementalSearchCount(const QString &needle);
+    // 列印目前文件（工具列與 File ▸ Print… 共用同一條路徑，含 Print 偏好與 FormFeed 分頁）
+    void printCurrentDocument();
     void viewCurrentFileInBrowser(const QString &appName);
     // 編輯區右鍵選單（複刻 Notepad++ 編輯區右鍵）：由 EditorWidget::contextMenuRequested 觸發，
     // sender() 即被右鍵的編輯器；先將其設為作用中分頁再建構選單，使選單各項作用於正確文件。
@@ -155,6 +170,22 @@ private slots:
     void addCopyPathActions(QMenu *menu, macpad::core::EditorWidget *ed, bool hasFile);
     // 分頁右鍵的檔案操作輔助（Close to Left/Right 需指定檢視與基準索引）
     void closeTabsToOneSide(QTabWidget *w, int pivot, bool toLeft);
+
+    // === 釘選分頁（複刻 Notepad++ v8.7.2 Pin Tab）===
+    // 設定釘選狀態：更新旗標、把分頁搬到釘選區邊界、刷新標題（📌 前綴）與關閉鈕。
+    void setTabPinned(QTabWidget *w, int index, bool pinned);
+    // 指定分頁是否為釘選（index 越界或非 EditorPane 時回傳 false）
+    bool isTabPinned(QTabWidget *w, int index) const;
+    // 某檢視中釘選分頁的數量（= 釘選區的右邊界索引）
+    int pinnedCount(QTabWidget *w) const;
+    // 關閉除釘選以外的所有分頁（File ▸ Close All BUT Pinned）
+    void closeAllButPinned();
+
+    // 分頁標籤文字：基底名稱（clone 追隨來源）＋ 未命名首行命名 ＋ 長度上限 ＋ 釘選/唯讀前綴。
+    // 抽成純查詢函式以利單元測試。
+    QString tabLabelFor(macpad::ui::EditorPane *pane) const;
+    // 分頁 tooltip：已存檔顯示完整路徑；未命名顯示建立時間（複刻 Notepad++ v8.7.1）
+    QString tabTooltipFor(macpad::ui::EditorPane *pane) const;
 
 private:
     void createMenus();
@@ -191,6 +222,7 @@ private:
     void populateToolbar();                    // 填入按鈕；須在 createMenus 之後
     void retintToolbar();                      // 依主題重新上色圖示
     void updateToolbarState();                 // 依目前狀態啟用/停用按鈕（如同步捲動需雙檢視）
+    void applyHiddenToolbarButtons();          // 依偏好隱藏指定按鈕（Notepad++ v8.7.8）
     void createSearchMenu(QMenu *searchMenu);  // Notepad++ Search 選單（填入預建的選單）
     void createEditMenuOps(QMenu *editMenu);   // Notepad++ 對等文字操作
     void applyTextOp(const std::function<QString(const QString &)> &op);
@@ -220,6 +252,8 @@ private:
     macpad::core::EditorWidget *editorIn(QTabWidget *w, int index) const;
     void setActiveTabWidget(QTabWidget *w);             // 切換作用中檢視並刷新面板/狀態列
     void wireTabWidget(QTabWidget *w);                  // 為某檢視接上關閉/右鍵/切換等訊號
+    // 分頁列座標 → 分頁索引（多列模式下不可用 QTabBar::tabAt，見實作說明）
+    int tabIndexAtPos(QTabWidget *w, const QPoint &pos) const;
     void wireEditorSignals(macpad::core::EditorWidget *editor);  // 編輯器→狀態列/標題連線（供分頁與 clone 共用）
     void closeTabIn(QTabWidget *w, int index);          // 關閉指定檢視的分頁（closeTab 的底層）
     void updateSecondViewVisibility();                  // 第二檢視空了就隱藏、有內容就顯示
@@ -273,6 +307,7 @@ private:
     QString m_lastDir;                   // defaultDirPolicy=RememberLast 用：上次開/存檔對話框目錄
     QToolBar *m_incBar = nullptr;       // 漸進式搜尋工具列
     QLineEdit *m_incSearch = nullptr;
+    QLabel *m_incCount = nullptr;       // 增量搜尋的「第 n / 共 m 筆」標籤
     QList<QDockWidget *> m_dfHidden;    // Distraction Free 時暫時隱藏的面板
     QList<QDockWidget *> m_postItHidden;
     bool m_distractionFree = false;

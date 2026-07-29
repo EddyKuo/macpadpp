@@ -52,6 +52,8 @@ static QJsonObject stateToJson(const SessionState &state)
         o.insert(QStringLiteral("bookmarks"), bookmarks);
         o.insert(QStringLiteral("language_override"), t.languageOverride);
         o.insert(QStringLiteral("view"), t.view);
+        if (t.pinned)
+            o.insert(QStringLiteral("pinned"), true);
         // Notepad++ session 快照：未存內容（僅在 dirty 時寫出，避免膨脹 session.json）
         if (t.untitled)
             o.insert(QStringLiteral("untitled"), true);
@@ -62,6 +64,19 @@ static QJsonObject stateToJson(const SessionState &state)
         tabs.append(o);
     }
     root.insert(QStringLiteral("tabs"), tabs);
+
+    // Folder as Workspace：根資料夾與展開狀態（Notepad++ v8.9.7）。
+    // 皆為空時完全不寫出欄位，維持舊 session 檔的形狀不變。
+    auto insertList = [&root](const char *key, const QStringList &list) {
+        if (list.isEmpty())
+            return;
+        QJsonArray arr;
+        for (const QString &s : list)
+            arr.append(s);
+        root.insert(QString::fromLatin1(key), arr);
+    };
+    insertList("workspace_roots", state.workspaceRoots);
+    insertList("workspace_expanded", state.workspaceExpanded);
     return root;
 }
 
@@ -98,8 +113,21 @@ static SessionState jsonToState(const QJsonObject &root)
         t.untitled = untitled;
         t.dirty = o.value(QStringLiteral("dirty")).toBool(false);
         t.unsavedContent = o.value(QStringLiteral("unsaved")).toString();
+        t.pinned = o.value(QStringLiteral("pinned")).toBool(false);
         state.tabs.push_back(t);
     }
+    auto readList = [&root](const char *key) {
+        QStringList out;
+        for (const QJsonValue &v : root.value(QString::fromLatin1(key)).toArray()) {
+            const QString s = v.toString();
+            if (!s.isEmpty())
+                out << s;
+        }
+        return out;
+    };
+    state.workspaceRoots = readList("workspace_roots");
+    state.workspaceExpanded = readList("workspace_expanded");
+
     state.activeIndex = rawActive - skippedBeforeActive;  // 依過濾後的陣列重新映射
     if (state.activeIndex < 0 || state.activeIndex >= state.tabs.size())
         state.activeIndex = 0;

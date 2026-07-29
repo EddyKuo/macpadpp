@@ -12,6 +12,7 @@
 
 class QComboBox;
 class QCheckBox;
+class QListWidget;
 class QSpinBox;
 class QLineEdit;
 class QTabWidget;
@@ -70,6 +71,14 @@ private:
     QCheckBox *m_enableVirtualSpace = nullptr;
     QCheckBox *m_copyLineWithoutSelection = nullptr;
     QCheckBox *m_columnSelectionToMultiEdit = nullptr;
+    QCheckBox *m_undoSelectionHistory = nullptr;
+    QCheckBox *m_printFormFeedAsPageBreak = nullptr;
+    QCheckBox *m_incrementalSearchCount = nullptr;
+    QCheckBox *m_selectionDragDrop = nullptr;
+    QCheckBox *m_syncZoomBetweenViews = nullptr;
+    QCheckBox *m_openCopyAfterSaveACopy = nullptr;
+    QCheckBox *m_advancedAutoIndent = nullptr;
+    QListWidget *m_hiddenToolbarButtons = nullptr;
 
     // New Document
     QComboBox *m_defaultEol = nullptr;
@@ -128,6 +137,8 @@ private:
     QCheckBox *m_tabBarVertical = nullptr;
     QCheckBox *m_tabBarShowCloseButton = nullptr;
     QCheckBox *m_tabBarDoubleClickCloses = nullptr;
+    QSpinBox *m_tabBarLabelMaxLength = nullptr;
+    QCheckBox *m_tabBarUntitledNameFromFirstLine = nullptr;
 
     // Margins / Border / Edge
     QComboBox *m_edgeMode = nullptr;

@@ -17,6 +17,7 @@
 #include "features/run/RunCommand.h"
 #include "features/udl/UdlLexer.h"
 #include "features/export/HtmlExporter.h"
+#include "features/export/RtfExporter.h"
 #include "features/textops/TextOps.h"
 #include "features/mime/MimeTools.h"
 #include "features/print/DocumentPrinter.h"
@@ -27,6 +28,7 @@
 #include "features/findall/FindAllEngine.h"
 #include "features/findall/FindAllDock.h"
 #include "features/backup/BackupService.h"
+#include "features/update/UpdateChecker.h"
 
 #include <QDateTime>
 
@@ -196,37 +198,20 @@ void MainWindow::populateToolbar()
         if (w->count()) closeTab(w->currentIndex());
     });
     add("closeall", tr("Close All"), [this] { closeAllTabs(); });
-    add("print", tr("Print…"), [this] {
-        if (EditorWidget *e = currentEditor()) {
-            // 套用 Preferences ▸ Print 的頁首/頁尾、色彩模式與邊界（真正生效，非死設定）
-            const auto ps = macpad::persistence::SettingsStore::load();
-            macpad::features::DocumentPrinter printer;
-            printer.setFilePath(e->isUntitled() ? QString() : e->filePath());
-            printer.setHeaderTemplate(ps.printHeader);
-            printer.setFooterTemplate(ps.printFooter);
-            printer.setMagnification(0);
-            // 深色主題直接照畫面配色列印會整頁塗黑，故色彩模式獨立設定（預設黑字白底）
-            e->SendScintilla(QsciScintillaBase::SCI_SETPRINTCOLOURMODE,
-                             static_cast<unsigned long>(qBound(0, ps.printColourMode, 3)));
-            const qreal m = qBound(0, ps.printMarginMm, 50);
-            printer.setPageMargins(QMarginsF(m, m, m, m), QPageLayout::Millimeter);
-            QPrintDialog dlg(&printer, this);
-            if (dlg.exec() == QDialog::Accepted) printer.printRange(e);
-        }
-    });
+    add("print", tr("Print…"), [this] { printCurrentDocument(); });
     m_toolbar->addSeparator();
     add("cut", tr("Cut"), [this] { if (auto *e = currentEditor()) e->cut(); });
     add("copy", tr("Copy"), [this] { if (auto *e = currentEditor()) e->copy(); });
     add("paste", tr("Paste"), [this] { if (auto *e = currentEditor()) e->paste(); });
     m_toolbar->addSeparator();
-    add("undo", tr("Undo"), [this] { if (auto *e = currentEditor()) e->undo(); });
-    add("redo", tr("Redo"), [this] { if (auto *e = currentEditor()) e->redo(); });
+    add("undo", tr("Undo"), [this] { if (auto *e = currentEditor()) e->undoWithHistory(); });
+    add("redo", tr("Redo"), [this] { if (auto *e = currentEditor()) e->redoWithHistory(); });
     m_toolbar->addSeparator();
     add("find", tr("Find…"), [this] { showFind(); });
     add("replace", tr("Replace…"), [this] { showReplace(); });
     m_toolbar->addSeparator();
-    add("zoomin", tr("Zoom In"), [this] { if (auto *e = currentEditor()) e->zoomIn(); });
-    add("zoomout", tr("Zoom Out"), [this] { if (auto *e = currentEditor()) e->zoomOut(); });
+    add("zoomin", tr("Zoom In"), [this] { if (auto *e = currentEditor()) e->applyZoomIn(); });
+    add("zoomout", tr("Zoom Out"), [this] { if (auto *e = currentEditor()) e->applyZoomOut(); });
     m_toolbar->addSeparator();
     reuse("syncscrollv", m_syncVAct);
     reuse("syncscrollh", m_syncHAct);
@@ -267,7 +252,23 @@ void MainWindow::populateToolbar()
     reuse("macrosave",     m_macroSaveAct);
 
     retintToolbar();     // 依目前主題上色
+    applyHiddenToolbarButtons();
     updateToolbarState();
+}
+
+
+// 依偏好隱藏指定工具列按鈕（複刻 Notepad++ v8.7.8「以設定隱藏指定工具列按鈕」）。
+// 只隱藏工具列上的 widget，不動 QAction 本身——多數按鈕與選單共用同一個 QAction，
+// 若用 QAction::setVisible 會連選單項一起消失。
+void MainWindow::applyHiddenToolbarButtons()
+{
+    if (!m_toolbar)
+        return;
+    const QStringList hidden = macpad::persistence::SettingsStore::load().hiddenToolbarButtons;
+    for (const auto &pair : m_tbIcons) {
+        if (QWidget *w = m_toolbar->widgetForAction(pair.first))
+            w->setVisible(!hidden.contains(pair.second, Qt::CaseInsensitive));
+    }
 }
 
 
@@ -377,8 +378,13 @@ void MainWindow::createMenus()
     aboutAct->setMenuRole(QAction::AboutRole);
     connect(aboutAct, &QAction::triggered, this, [this] {
         QMessageBox::about(this, tr("About macpad++"),
-                           tr("macpad++ — Notepad++ 對等的原生 macOS 編輯器\nQt6 + QScintilla"));
+                           tr("macpad++ %1 — Notepad++ 對等的原生跨平台編輯器（macOS / Windows）\n"
+                              "Qt6 + QScintilla")
+                               .arg(QString::fromLatin1(MACPAD_VERSION)));
     });
+    // Check for Updates…（複刻 Notepad++ 的更新檢查；只查詢與告知，不自我覆寫）
+    QAction *updateAct = new QAction(tr("Check for Updates…"), this);
+    connect(updateAct, &QAction::triggered, this, [this] { checkForUpdates(/*silent=*/false); });
     QAction *quitAct = new QAction(tr("Quit macpad++"), this);
     quitAct->setShortcut(QKeySequence::Quit);
     quitAct->setMenuRole(QAction::QuitRole);
@@ -388,6 +394,7 @@ void MainWindow::createMenus()
     // 其他平台則留在 File。關鍵是它們都在 QMenu 內，不再是 bare action。
     fileMenu->addSeparator();
     fileMenu->addAction(prefsAct);
+    fileMenu->addAction(updateAct);
     fileMenu->addAction(aboutAct);
     fileMenu->addAction(quitAct);
 
@@ -467,13 +474,23 @@ void MainWindow::createFileMenu(QMenu *fileMenu)
         w->show();
     });
     fileMenu->addSeparator();
-    fileMenu->addAction(tr("Print…"), QKeySequence::Print, this, [this] {
+    fileMenu->addAction(tr("Print…"), QKeySequence::Print, this,
+                        [this] { printCurrentDocument(); });
+    // Export as RTF…（複刻 Notepad++）：與 HTML 匯出對等，保留語法高亮色彩
+    fileMenu->addAction(tr("Export as RTF…"), this, [this] {
         EditorWidget *e = currentEditor();
         if (!e) return;
-        QsciPrinter printer;               // 保留語法高亮列印（FR-036）
-        QPrintDialog dlg(&printer, this);
-        if (dlg.exec() == QDialog::Accepted)
-            printer.printRange(e);
+        const QString path = QFileDialog::getSaveFileName(this, tr("Export as RTF"),
+                                                          QString(), tr("RTF (*.rtf)"));
+        if (path.isEmpty()) return;
+        QFile f(path);
+        if (f.open(QIODevice::WriteOnly)) {
+            // RTF 為 7-bit ANSI 容器，非 ASCII 已由 rtfEscape 轉成 \uN 逃逸序列
+            f.write(macpad::features::RtfExporter::toRtf(e).toLatin1());
+            statusBar()->showMessage(tr("已匯出 RTF"), 3000);
+        } else {
+            QMessageBox::warning(this, tr("Export as RTF"), tr("無法寫入：%1").arg(path));
+        }
     });
     fileMenu->addAction(tr("Export as HTML…"), this, [this] {
         EditorWidget *e = currentEditor();
@@ -495,6 +512,8 @@ void MainWindow::createFileMenu(QMenu *fileMenu)
     });
     fileMenu->addAction(tr("Close All"), this, [this] { closeAllTabs(); });
     fileMenu->addAction(tr("Close All but This"), this, [this] { closeAllButCurrent(); });
+    // Notepad++ v8.7.3：僅保留釘選分頁，其餘全關
+    fileMenu->addAction(tr("Close All BUT Pinned"), this, [this] { closeAllButPinned(); });
     fileMenu->addAction(tr("Restore Recent Closed File"),
                         QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_T), this,
                         [this] { restoreClosedTab(); });
@@ -507,10 +526,10 @@ void MainWindow::createEditMenu(QMenu *editMenu)
 {
     // Edit 選單（QScintilla 內建 undo/redo/剪貼；多游標為 Cmd+Click，FR-005）
     editMenu->addAction(tr("Undo"), QKeySequence::Undo, this, [this] {
-        if (auto *e = currentEditor()) e->undo();
+        if (auto *e = currentEditor()) e->undoWithHistory();
     });
     editMenu->addAction(tr("Redo"), QKeySequence::Redo, this, [this] {
-        if (auto *e = currentEditor()) e->redo();
+        if (auto *e = currentEditor()) e->redoWithHistory();
     });
     editMenu->addSeparator();
     editMenu->addAction(tr("Cut"), QKeySequence::Cut, this, [this] {
@@ -877,15 +896,43 @@ void MainWindow::createLanguageMenu(QMenu *langMenu)
     // 偏好 disabledLanguages 中的語言（以顯示名或內部鍵比對）不列入（Notepad++ Language 選單隱藏對等）
     QMenu *setLangMenu = langMenu->addMenu(tr("Set Language"));
     const QStringList disabledLangs = macpad::persistence::SettingsStore::load().disabledLanguages;
+
+    // 語言數已達百餘種，平鋪會超出螢幕高度。複刻 Notepad++ 做法：依首字母分群，
+    // 同一首字母有多個語言時收成子選單（如「A ▸ Ada / ASP / Assembly…」），
+    // 只有單一語言的首字母則直接列在上層。Plain Text 恆置頂、不參與分群。
+    QVector<macpad::core::LanguageEntry> visible;
     for (const auto &lang : macpad::core::LexerFactory::languages()) {
         if (disabledLangs.contains(lang.key, Qt::CaseInsensitive)
             || disabledLangs.contains(lang.displayName, Qt::CaseInsensitive))
             continue;
+        visible.push_back(lang);
+    }
+
+    auto addLangAction = [this](QMenu *menu, const macpad::core::LanguageEntry &lang) {
         const QString key = lang.key;
-        setLangMenu->addAction(lang.displayName, this, [this, key] {
+        menu->addAction(lang.displayName, this, [this, key] {
             if (EditorWidget *e = currentEditor())
                 e->setLanguageLexer(macpad::core::LexerFactory::createForLanguage(key, e));
         });
+    };
+
+    QMap<QChar, QVector<macpad::core::LanguageEntry>> byLetter;   // QMap：鍵已排序
+    for (const auto &lang : visible) {
+        if (lang.key.isEmpty()) {           // Plain Text 置頂
+            addLangAction(setLangMenu, lang);
+            setLangMenu->addSeparator();
+            continue;
+        }
+        byLetter[lang.displayName.at(0).toUpper()].push_back(lang);
+    }
+    for (auto it = byLetter.constBegin(); it != byLetter.constEnd(); ++it) {
+        if (it.value().size() == 1) {
+            addLangAction(setLangMenu, it.value().first());
+            continue;
+        }
+        QMenu *sub = setLangMenu->addMenu(QString(it.key()));
+        for (const auto &lang : it.value())
+            addLangAction(sub, lang);
     }
     langMenu->addSeparator();
 
@@ -1088,13 +1135,13 @@ void MainWindow::createViewMenu(QMenu *viewMenu)
 {
     // View 選單：Zoom（FR-023）+ 全螢幕（FR-023）
     viewMenu->addAction(tr("Zoom In"), QKeySequence::ZoomIn, this, [this] {
-        if (auto *ed = currentEditor()) ed->zoomIn();
+        if (auto *ed = currentEditor()) ed->applyZoomIn();
     });
     viewMenu->addAction(tr("Zoom Out"), QKeySequence::ZoomOut, this, [this] {
-        if (auto *ed = currentEditor()) ed->zoomOut();
+        if (auto *ed = currentEditor()) ed->applyZoomOut();
     });
     viewMenu->addAction(tr("Reset Zoom"), QKeySequence(Qt::CTRL | Qt::Key_0), this, [this] {
-        if (auto *ed = currentEditor()) ed->zoomTo(0);
+        if (auto *ed = currentEditor()) ed->applyZoomTo(0);
     });
     if (m_toolbar) {
         QAction *tbAct = m_toolbar->toggleViewAction();
@@ -1530,6 +1577,11 @@ void MainWindow::createEditMenuOps(QMenu *editMenu)
     // 清除後同步解除編輯鎖，使用者才能真正往下編輯並存檔。
     QAction *clearRoAct = editMenu->addAction(tr("Clear Read-Only Flag"), this,
                                              [this] { clearFileReadOnlyFlag(); });
+    // 對所有已開啟文件套用/解除唯讀（複刻 Notepad++ v8.8.6）
+    editMenu->addAction(tr("Set Read-Only for All Documents"), this,
+                        [this] { setAllDocumentsReadOnly(true); });
+    editMenu->addAction(tr("Clear Read-Only for All Documents"), this,
+                        [this] { setAllDocumentsReadOnly(false); });
     // 選單建構時尚無任何分頁，預設停用；currentChanged 會依實際檔案屬性校正。
     clearRoAct->setEnabled(false);
     // 切換分頁時同步唯讀勾選狀態（兩個檢視都要監聽）
@@ -1758,6 +1810,9 @@ void MainWindow::buildWindowMenu()
     m_windowMenu->addAction(tr("Previous Document"),
                             QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_Tab),
                             this, [this] { activateTabRelative(-1); });
+    m_windowMenu->addSeparator();
+    // Windows…：可排序的文件管理對話框（複刻 Notepad++ Window ▸ Windows…）
+    m_windowMenu->addAction(tr("Windows…"), this, [this] { showWindowsListDialog(); });
     m_windowMenu->addSeparator();
     // 開啟中的文件清單（打勾標示目前分頁）——涵蓋兩個檢視（Dual-View）
     for (QTabWidget *w : {m_tabs, m_tabs2}) {

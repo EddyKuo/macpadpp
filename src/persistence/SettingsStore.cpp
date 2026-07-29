@@ -315,6 +315,37 @@ Settings SettingsStore::load()
         o.value(QStringLiteral("tab_bar_show_close_button")).toBool(s.tabBarShowCloseButton);
     s.tabBarDoubleClickCloses =
         o.value(QStringLiteral("tab_bar_double_click_closes")).toBool(s.tabBarDoubleClickCloses);
+    s.tabBarLabelMaxLength =
+        o.value(QStringLiteral("tab_bar_label_max_length")).toInt(s.tabBarLabelMaxLength);
+    s.tabBarUntitledNameFromFirstLine =
+        o.value(QStringLiteral("tab_bar_untitled_name_from_first_line"))
+            .toBool(s.tabBarUntitledNameFromFirstLine);
+    s.undoSelectionHistory =
+        o.value(QStringLiteral("undo_selection_history")).toBool(s.undoSelectionHistory);
+    s.selectionDragDrop =
+        o.value(QStringLiteral("selection_drag_drop")).toBool(s.selectionDragDrop);
+    s.syncZoomBetweenViews =
+        o.value(QStringLiteral("sync_zoom_between_views")).toBool(s.syncZoomBetweenViews);
+    s.openCopyAfterSaveACopy =
+        o.value(QStringLiteral("open_copy_after_save_a_copy")).toBool(s.openCopyAfterSaveACopy);
+    s.printFormFeedAsPageBreak =
+        o.value(QStringLiteral("print_formfeed_as_page_break")).toBool(s.printFormFeedAsPageBreak);
+    s.incrementalSearchCount =
+        o.value(QStringLiteral("incremental_search_count")).toBool(s.incrementalSearchCount);
+    s.advancedAutoIndent =
+        o.value(QStringLiteral("advanced_auto_indent")).toBool(s.advancedAutoIndent);
+    s.hiddenToolbarButtons.clear();
+    for (const QJsonValue &v : o.value(QStringLiteral("hidden_toolbar_buttons")).toArray()) {
+        const QString id = v.toString();
+        if (!id.isEmpty())
+            s.hiddenToolbarButtons << id;
+    }
+    s.customColors.clear();
+    for (const QJsonValue &v : o.value(QStringLiteral("custom_colors")).toArray()) {
+        const QString c = v.toString();
+        if (!c.isEmpty())
+            s.customColors << c;
+    }
 
     // Margins / Border / Edge
     s.edgeMode = edgeModeFromString(o.value(QStringLiteral("edge_mode")).toString(edgeModeToString(s.edgeMode)));
@@ -443,6 +474,28 @@ bool SettingsStore::save(const Settings &s)
     o.insert(QStringLiteral("tab_bar_vertical"), s.tabBarVertical);
     o.insert(QStringLiteral("tab_bar_show_close_button"), s.tabBarShowCloseButton);
     o.insert(QStringLiteral("tab_bar_double_click_closes"), s.tabBarDoubleClickCloses);
+    o.insert(QStringLiteral("tab_bar_label_max_length"), s.tabBarLabelMaxLength);
+    o.insert(QStringLiteral("tab_bar_untitled_name_from_first_line"),
+             s.tabBarUntitledNameFromFirstLine);
+    o.insert(QStringLiteral("undo_selection_history"), s.undoSelectionHistory);
+    o.insert(QStringLiteral("selection_drag_drop"), s.selectionDragDrop);
+    o.insert(QStringLiteral("sync_zoom_between_views"), s.syncZoomBetweenViews);
+    o.insert(QStringLiteral("open_copy_after_save_a_copy"), s.openCopyAfterSaveACopy);
+    o.insert(QStringLiteral("print_formfeed_as_page_break"), s.printFormFeedAsPageBreak);
+    o.insert(QStringLiteral("incremental_search_count"), s.incrementalSearchCount);
+    o.insert(QStringLiteral("advanced_auto_indent"), s.advancedAutoIndent);
+    if (!s.hiddenToolbarButtons.isEmpty()) {
+        QJsonArray ids;
+        for (const QString &id : s.hiddenToolbarButtons)
+            ids.append(id);
+        o.insert(QStringLiteral("hidden_toolbar_buttons"), ids);
+    }
+    if (!s.customColors.isEmpty()) {
+        QJsonArray colors;
+        for (const QString &c : s.customColors)
+            colors.append(c);
+        o.insert(QStringLiteral("custom_colors"), colors);
+    }
 
     // Margins / Border / Edge
     o.insert(QStringLiteral("edge_mode"), edgeModeToString(s.edgeMode));

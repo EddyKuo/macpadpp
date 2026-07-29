@@ -24,11 +24,16 @@ struct TabState {
     bool untitled = false;     // 此分頁為未命名（無檔）的未存緩衝區
     bool dirty = false;        // 有未存變更（還原後維持 dirty 標記）
     QString unsavedContent;    // dirty 時的完整緩衝內容：untitled 用以重建、named 用以覆蓋磁碟版
+    bool pinned = false;       // 釘選分頁（Notepad++ v8.7.2 Pin Tab），跨 session 保留
 };
 
 struct SessionState {
     int activeIndex = 0;
     QVector<TabState> tabs;
+    // Folder as Workspace：根資料夾清單，以及展開中的資料夾（Notepad++ v8.9.7
+    // 「跨 session 記住展開/收合狀態」）。空清單代表沒有工作區。
+    QStringList workspaceRoots;
+    QStringList workspaceExpanded;
 };
 
 class SessionStore {

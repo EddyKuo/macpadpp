@@ -81,6 +81,180 @@ QMap<QString, FunctionListRule> builtinDefaults()
         m.insert(QStringLiteral("java"), r);
     }
 
+    // ── 對齊 Notepad++ functionList.xml 的語言擴充 ────────────────────────────
+    // 以下規則與上面四種同為「純設定」，不需要新增解析器分支。
+    // simple()：不追蹤所屬範疇；scoped()：依 classExpr 與大括號深度追蹤 class/module 歸屬。
+    // 大小寫不敏感的語言（VB/SQL/Pascal…）以 (?i) 內嵌旗標處理。
+    auto simple = [&m](const char *lang, const QStringList &exprs) {
+        FunctionListRule r;
+        r.functionExprs = exprs;
+        r.trackScope = false;
+        m.insert(QString::fromLatin1(lang), r);
+    };
+    auto scoped = [&m](const char *lang, const QString &classExpr, const QStringList &exprs) {
+        FunctionListRule r;
+        r.functionExprs = exprs;
+        r.classExpr = classExpr;
+        r.trackScope = true;
+        m.insert(QString::fromLatin1(lang), r);
+    };
+
+    scoped("csharp",
+           QStringLiteral("^\\s*(?:public|private|protected|internal)?\\s*(?:static\\s+|sealed\\s+"
+                          "|abstract\\s+|partial\\s+)*(?:class|struct|interface|record|enum)\\s+(\\w+)"),
+           {QStringLiteral("^\\s*(?:public|private|protected|internal)?\\s*(?:static\\s+|sealed\\s+"
+                           "|abstract\\s+|partial\\s+)*(?:class|struct|interface|record|enum)\\s+(\\w+)"),
+            QStringLiteral("^\\s*(?:public|private|protected|internal)?\\s*(?:static\\s+|virtual\\s+"
+                           "|override\\s+|async\\s+|sealed\\s+|extern\\s+|partial\\s+)*"
+                           "[\\w<>\\[\\],\\.\\s]+?(\\w+)\\s*\\([^;]*\\)\\s*\\{?\\s*$")});
+
+    scoped("php",
+           QStringLiteral("^\\s*(?:abstract\\s+|final\\s+)?(?:class|interface|trait|enum)\\s+(\\w+)"),
+           {QStringLiteral("^\\s*(?:(?:public|private|protected|static|abstract|final)\\s+)*"
+                           "function\\s+&?(\\w+)"),
+            QStringLiteral("^\\s*(?:abstract\\s+|final\\s+)?(?:class|interface|trait|enum)\\s+(\\w+)")});
+
+    scoped("perl", QStringLiteral("^\\s*package\\s+([\\w:]+)"),
+           {QStringLiteral("^\\s*sub\\s+(\\w+)"),
+            QStringLiteral("^\\s*package\\s+([\\w:]+)")});
+
+    scoped("ruby", QStringLiteral("^\\s*(?:class|module)\\s+([\\w:]+)"),
+           {QStringLiteral("^\\s*def\\s+(?:self\\.)?([\\w\\?!=]+)"),
+            QStringLiteral("^\\s*(?:class|module)\\s+([\\w:]+)")});
+
+    simple("go", {QStringLiteral("^\\s*func\\s+(?:\\([^)]*\\)\\s*)?(\\w+)"),
+                  QStringLiteral("^\\s*type\\s+(\\w+)\\s+(?:struct|interface)")});
+
+    scoped("rust",
+           QStringLiteral("^\\s*(?:pub(?:\\([^)]*\\))?\\s+)?(?:impl|trait|mod)\\s+(?:<[^>]*>\\s*)?(\\w+)"),
+           {QStringLiteral("^\\s*(?:pub(?:\\([^)]*\\))?\\s+)?(?:async\\s+)?(?:unsafe\\s+)?"
+                           "(?:extern\\s+\"[^\"]*\"\\s+)?fn\\s+(\\w+)"),
+            QStringLiteral("^\\s*(?:pub(?:\\([^)]*\\))?\\s+)?(?:struct|enum|trait|union)\\s+(\\w+)")});
+
+    scoped("swift",
+           QStringLiteral("^\\s*(?:(?:public|private|internal|fileprivate|open)\\s+)?(?:final\\s+)?"
+                          "(?:class|struct|enum|protocol|extension)\\s+(\\w+)"),
+           {QStringLiteral("^\\s*(?:(?:public|private|internal|fileprivate|open)\\s+)?"
+                           "(?:(?:static|class|final|override|mutating|convenience|required)\\s+)*"
+                           "func\\s+(\\w+)"),
+            QStringLiteral("^\\s*(?:(?:public|private|internal|fileprivate|open)\\s+)?(?:final\\s+)?"
+                           "(?:class|struct|enum|protocol|extension)\\s+(\\w+)")});
+
+    scoped("kotlin",
+           QStringLiteral("^\\s*(?:(?:public|private|protected|internal)\\s+)?"
+                          "(?:(?:open|abstract|sealed|data|enum|inner|value)\\s+)*"
+                          "(?:class|object|interface)\\s+(\\w+)"),
+           {QStringLiteral("^\\s*(?:(?:public|private|protected|internal)\\s+)?"
+                           "(?:(?:open|override|suspend|inline|abstract|final|operator|tailrec)\\s+)*"
+                           "fun\\s+(?:<[^>]*>\\s*)?(?:[\\w\\.]+\\.)?(\\w+)"),
+            QStringLiteral("^\\s*(?:(?:public|private|protected|internal)\\s+)?"
+                           "(?:(?:open|abstract|sealed|data|enum|inner|value)\\s+)*"
+                           "(?:class|object|interface)\\s+(\\w+)")});
+
+    scoped("scala",
+           QStringLiteral("^\\s*(?:(?:private|protected|final|sealed|abstract|case|implicit)\\s+)*"
+                          "(?:class|object|trait)\\s+(\\w+)"),
+           {QStringLiteral("^\\s*(?:(?:private|protected|final|override|implicit)\\s+)*def\\s+(\\w+)"),
+            QStringLiteral("^\\s*(?:(?:private|protected|final|sealed|abstract|case|implicit)\\s+)*"
+                           "(?:class|object|trait)\\s+(\\w+)")});
+
+    scoped("dart", QStringLiteral("^\\s*(?:abstract\\s+)?(?:class|mixin|extension|enum)\\s+(\\w+)"),
+           {QStringLiteral("^\\s*(?:abstract\\s+)?(?:class|mixin|extension|enum)\\s+(\\w+)"),
+            QStringLiteral("^\\s*(?:(?:static|final|const|external|factory)\\s+)*"
+                           "[\\w<>,\\s\\[\\]\\?]+?\\s+(\\w+)\\s*\\([^;{}]*\\)\\s*(?:async\\*?\\s*)?\\{")});
+
+    scoped("groovy",
+           QStringLiteral("^\\s*(?:(?:public|private|protected)\\s+)?(?:(?:static|final|abstract)\\s+)*"
+                          "(?:class|interface|enum|trait)\\s+(\\w+)"),
+           {QStringLiteral("^\\s*(?:(?:public|private|protected)\\s+)?(?:(?:static|final|abstract|def)\\s+)*"
+                           "[\\w<>\\[\\],\\.\\s]*?(\\w+)\\s*\\([^;{}]*\\)\\s*\\{"),
+            QStringLiteral("^\\s*(?:(?:public|private|protected)\\s+)?(?:(?:static|final|abstract)\\s+)*"
+                           "(?:class|interface|enum|trait)\\s+(\\w+)")});
+
+    simple("powershell", {QStringLiteral("(?i)^\\s*function\\s+([\\w\\-]+)"),
+                          QStringLiteral("(?i)^\\s*filter\\s+([\\w\\-]+)"),
+                          QStringLiteral("(?i)^\\s*class\\s+(\\w+)")});
+
+    simple("r", {QStringLiteral("^\\s*([\\w\\.]+)\\s*(?:<-|=)\\s*function\\s*\\(")});
+
+    simple("lua", {QStringLiteral("^\\s*(?:local\\s+)?function\\s+([\\w\\.:]+)"),
+                   QStringLiteral("^\\s*([\\w\\.:]+)\\s*=\\s*function\\s*\\(")});
+
+    simple("bash", {QStringLiteral("^\\s*function\\s+([\\w\\-]+)"),
+                    QStringLiteral("^\\s*([\\w\\-]+)\\s*\\(\\s*\\)\\s*\\{?")});
+
+    simple("batch", {QStringLiteral("^\\s*:([\\w\\-]+)\\s*$")});
+
+    simple("sql", {QStringLiteral("(?i)^\\s*(?:create|alter)\\s+(?:or\\s+replace\\s+)?"
+                                  "(?:proc|procedure|function|trigger|view|table)\\s+([\\w\\.\\[\\]\"]+)")});
+
+    simple("css", {QStringLiteral("^\\s*@(?:media|supports|keyframes)\\s+([^\\{]+?)\\s*\\{"),
+                   QStringLiteral("^\\s*([^\\{\\}@/;]+?)\\s*\\{\\s*$")});
+
+    scoped("vb", QStringLiteral("(?i)^\\s*(?:public\\s+|private\\s+|friend\\s+)?"
+                                "(?:class|module|structure)\\s+(\\w+)"),
+           {QStringLiteral("(?i)^\\s*(?:(?:public|private|friend|protected|shared|overrides|"
+                           "overridable|partial)\\s+)*(?:sub|function|property)\\s+(\\w+)"),
+            QStringLiteral("(?i)^\\s*(?:public\\s+|private\\s+|friend\\s+)?"
+                           "(?:class|module|structure)\\s+(\\w+)")});
+
+    simple("pascal", {QStringLiteral("(?i)^\\s*(?:procedure|function|constructor|destructor)\\s+([\\w\\.]+)")});
+
+    simple("fortran", {QStringLiteral("(?i)^\\s*(?:recursive\\s+|pure\\s+|elemental\\s+)*"
+                                      "(?:subroutine|module|program)\\s+(\\w+)"),
+                       QStringLiteral("(?i)^\\s*(?:[\\w\\*\\(\\)]+\\s+)?function\\s+(\\w+)")});
+
+    simple("haskell", {QStringLiteral("^([a-z_][\\w']*)\\s*::"),
+                       QStringLiteral("^(?:data|newtype|type|class|instance)\\s+([A-Z][\\w']*)")});
+
+    simple("matlab", {QStringLiteral("^\\s*function\\s+(?:\\[[^\\]]*\\]\\s*=\\s*|[\\w\\.]+\\s*=\\s*)?(\\w+)")});
+
+    simple("tcl", {QStringLiteral("^\\s*proc\\s+([\\w:]+)")});
+
+    simple("nim", {QStringLiteral("^\\s*(?:proc|func|method|iterator|template|macro|converter)\\s+"
+                                  "`?([\\w]+)`?")});
+
+    scoped("d", QStringLiteral("^\\s*(?:class|struct|interface|union|enum|template)\\s+(\\w+)"),
+           {QStringLiteral("^\\s*(?:class|struct|interface|union|enum|template)\\s+(\\w+)"),
+            QStringLiteral("^\\s*(?:(?:public|private|protected|package|export)\\s+)?"
+                           "(?:(?:static|final|override|abstract|const|nothrow|pure|shared)\\s+)*"
+                           "[\\w\\.\\[\\]\\*!\\(\\)]+\\s+(\\w+)\\s*\\([^;{}]*\\)\\s*"
+                           "(?:const|nothrow|pure|@safe|@trusted|@nogc|\\s)*\\{")});
+
+    simple("tex", {QStringLiteral("^\\s*\\\\(?:chapter|part)\\*?\\{([^\\}]*)\\}"),
+                   QStringLiteral("^\\s*\\\\(?:sub)*section\\*?\\{([^\\}]*)\\}"),
+                   QStringLiteral("^\\s*\\\\newcommand\\*?\\{?\\\\(\\w+)")});
+
+    simple("asm", {QStringLiteral("^\\s*(\\w+)\\s+(?:proc|PROC)\\b"),
+                   QStringLiteral("^(\\w+):")});
+
+    simple("properties", {QStringLiteral("^\\s*\\[([^\\]]+)\\]")});
+
+    simple("toml", {QStringLiteral("^\\s*\\[+([^\\]]+)\\]+")});
+
+    simple("markdown", {QStringLiteral("^#{1,6}\\s+(.+?)\\s*#*\\s*$")});
+
+    simple("autoit", {QStringLiteral("(?i)^\\s*func\\s+(\\w+)")});
+
+    simple("nsis", {QStringLiteral("(?i)^\\s*(?:function|section)\\s+(?:/o\\s+)?[\"']?([\\w\\.\\-]+)")});
+
+    simple("inno", {QStringLiteral("(?i)^\\s*(?:procedure|function)\\s+(\\w+)")});
+
+    simple("verilog", {QStringLiteral("^\\s*(?:module|task|function)\\s+(?:automatic\\s+)?"
+                                      "(?:\\[[^\\]]*\\]\\s*)?(\\w+)")});
+
+    simple("vhdl", {QStringLiteral("(?i)^\\s*(?:entity|architecture|procedure|function|package)\\s+(\\w+)")});
+
+    simple("erlang", {QStringLiteral("^([a-z][\\w@]*)\\s*\\(")});
+
+    simple("coffeescript", {QStringLiteral("^\\s*([\\w\\.]+)\\s*[:=]\\s*(?:\\([^)]*\\)\\s*)?[-=]>")});
+
+    simple("sas", {QStringLiteral("(?i)^\\s*(?:proc|%macro)\\s+(\\w+)")});
+
+    simple("cmake", {QStringLiteral("(?i)^\\s*(?:function|macro)\\s*\\(\\s*(\\w+)")});
+
+    simple("makefile", {QStringLiteral("^([\\w\\.\\-/$\\(\\)]+)\\s*:(?!=)")});
+
     return m;
 }
 

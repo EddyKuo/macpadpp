@@ -50,8 +50,20 @@ set(MACPAD_LIB_SOURCES
     features/udl/UdlLexer.h
     features/udl/UdlManager.cpp
     features/udl/UdlManager.h
+    features/langs/BuiltinLanguages.cpp
+    features/langs/BuiltinLanguages.h
+    features/update/UpdateChecker.cpp
+    features/update/UpdateChecker.h
+    ui/MultiRowTabBar.cpp
+    ui/MultiRowTabBar.h
+    ui/ColorPicker.cpp
+    ui/ColorPicker.h
+    ui/WindowsListDialog.cpp
+    ui/WindowsListDialog.h
     features/export/HtmlExporter.cpp
     features/export/HtmlExporter.h
+    features/export/RtfExporter.cpp
+    features/export/RtfExporter.h
     features/textops/TextOps.cpp
     features/textops/TextOps.h
     features/columneditor/ColumnEditor.cpp
@@ -125,6 +137,9 @@ set(MACPAD_LIB_SOURCES
 )
 
 add_library(macpad_lib STATIC ${MACPAD_LIB_SOURCES})
+
+# 版本字串供程式內使用（About 對話框、更新檢查比對）
+target_compile_definitions(macpad_lib PUBLIC MACPAD_VERSION="${PROJECT_VERSION}")
 
 target_include_directories(macpad_lib PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}

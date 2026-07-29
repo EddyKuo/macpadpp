@@ -326,8 +326,38 @@ public:
     void insertDateLong();                        // 依 QLocale 長格式（如 Saturday, March 14, 2026 9:41:00 AM）
     void insertDateCustom(const QString &format);  // 依 QDateTime::toString(format) 自訂格式字串
 
+    // === Undo / Redo 強化（複刻 Notepad++ v8.8.9、v8.8.1）===
+    // 取代直接呼叫 QsciScintilla::undo()/redo()：
+    //  1) 一律在操作後還原原本的垂直捲動位置（v8.8.9），避免視野被拉走；
+    //  2) 啟用選取歷史時（v8.8.1），若上次文件修改之後只發生過「選取變更」，
+    //     則先逐步還原選取，選取歷史用盡才真正回退文件內容。
+    void undoWithHistory();
+    void redoWithHistory();
+    // 選取歷史開關（對應 Preferences 的 undoSelectionHistory）
+    void setUndoSelectionHistory(bool on) { m_undoSelectionHistory = on; }
+    bool undoSelectionHistory() const { return m_undoSelectionHistory; }
+    // 供測試/診斷：目前尚可回退的選取歷史筆數
+    int selectionHistoryDepth() const { return m_selHistoryPos; }
+
+    // 進階自動縮排（複刻 Notepad++ v8.7 可停用 C-like 自動縮排、v8.7.5 擴充語言）：
+    // 除了沿用上一行縮排，還會依語言在 `{`／`:` 之後追加一級縮排。
+    void setAdvancedAutoIndent(bool on) { m_advancedAutoIndent = on; }
+    bool advancedAutoIndent() const { return m_advancedAutoIndent; }
+
+    // 縮放並發出 zoomChanged（供跨檢視同步縮放；直接呼叫 QsciScintilla::zoomIn 不會通知）
+    void applyZoomIn();
+    void applyZoomOut();
+    void applyZoomTo(int level);
+
+    // 停用「拖放選取文字」（複刻 Notepad++ v8.9.3）：關閉時在選取範圍內按下滑鼠
+    // 會直接改為重新選取，而不是把選取內容拖走。
+    void setSelectionDragDropEnabled(bool on) { m_selectionDragDrop = on; }
+    bool selectionDragDropEnabled() const { return m_selectionDragDrop; }
+
 signals:
     void dirtyChanged(bool dirty);
+    // 縮放層級改變（選單縮放或 Ctrl+滾輪）；供跨檢視同步縮放（Notepad++ v8.9.5）
+    void zoomChanged(int zoom);
     void metaChanged();     // 編碼/EOL 變更（狀態列更新）
     void lexerChanged();    // lexer 重建（供 MainWindow 重新套主題/降飽和）
     void callTipRequested(const QString &functionName);  // 鍵入 '(' 時發出，供上層查簽名
@@ -340,6 +370,10 @@ signals:
 
 protected:
     void keyPressEvent(QKeyEvent *event) override;
+    // Ctrl+滾輪縮放：QsciScintilla 內部處理，於此攔截以發出 zoomChanged（跨檢視同步縮放用）
+    void wheelEvent(QWheelEvent *event) override;
+    // 停用拖放選取文字時，於選取範圍內按下滑鼠先清掉選取（見 setSelectionDragDropEnabled）
+    void mousePressEvent(QMouseEvent *event) override;
     // 攔截 viewport 的雙擊事件以支援 Ctrl/⌘+雙擊選整個字（見 m_ctrlDoubleClickWholeWord）。
     bool eventFilter(QObject *watched, QEvent *event) override;
     // 右鍵：停用 Scintilla 內建 popup（見建構子 SCI_USEPOPUP），改發 contextMenuRequested。
@@ -400,6 +434,21 @@ private:
     bool m_wordCompletion = true;    // 字詞自動完成開關
     bool m_callTips = true;          // call tip 開關
     bool m_columnSelectionToMultiEdit = false;  // 欄位選取轉多重編輯偏好開關
+
+    // === Undo/Redo 選取歷史（Notepad++ v8.8.1）===
+    // 一筆選取快照：anchor/caret 各自的行與欄
+    struct SelSnapshot { int aLine = 0, aIdx = 0, cLine = 0, cIdx = 0; };
+    bool m_undoSelectionHistory = false;
+    QVector<SelSnapshot> m_selHistory;   // 自上次文件修改以來的選取變化（由舊到新）
+    int m_selHistoryPos = 0;             // 尚可回退的筆數（= m_selHistory 已生效的長度）
+    bool m_restoringSelection = false;   // 還原選取期間不再記錄，避免自我遞迴
+    void recordSelectionSnapshot();
+    bool restorePreviousSelection();     // 有可回退的選取則還原並回傳 true
+
+    bool m_selectionDragDrop = true;     // 允許拖放選取文字（Notepad++ v8.9.3 可停用）
+    bool m_advancedAutoIndent = true;    // 進階自動縮排（Notepad++ v8.7 起可停用）
+    // 按下 Enter 後依語言追加一級縮排；prevLine 為 Enter 之前游標左側的那段文字
+    void applyAdvancedAutoIndent(const QString &prevLine);
 
     // API 自動完成資料（FR-055）——由 EditorWidget 持有（parent 改為 this，與 lexer 生命週期解耦），
     // 銷毀前主動收斂背景 prepare() 的 worker thread，避免 async 競態造成的懸空回呼（SIGBUS）。

@@ -157,8 +157,16 @@ macpad::persistence::SessionState MainWindow::buildCurrentSession() const
             // FR-052：手動/自動判定出的語言鍵（無對應則留空，還原時以副檔名自動偵測）
             t.languageOverride = languageKeyForLexer(e->lexer());
             t.view = (w == m_tabs2) ? 1 : 0;   // FR-062：記錄所屬檢視
+            t.pinned = isTabPinned(w, i);      // 釘選狀態跨 session 保留（Notepad++ Pin Tab）
             state.tabs.push_back(t);
         }
+    }
+
+    // Folder as Workspace：根資料夾與展開中的資料夾（Notepad++ v8.9.7 記住展開狀態）。
+    // 先前工作區完全不持久化，重開後必須手動再加一次資料夾。
+    if (m_workspace) {
+        state.workspaceRoots = m_workspace->roots();
+        state.workspaceExpanded = m_workspace->expandedPaths();
     }
     return state;
 }
@@ -235,6 +243,12 @@ void MainWindow::openSessionState(const macpad::persistence::SessionState &state
             if (QsciLexer *lex = macpad::core::LexerFactory::createForLanguage(t.languageOverride, editor))
                 editor->setLanguageLexer(lex);
         }
+        // 釘選狀態還原（Notepad++ Pin Tab）。此處只設旗標、不搬動分頁：
+        // 還原順序即為存檔時的順序，釘選分頁本來就已排在前段，重新搬動反而會打亂。
+        if (t.pinned) {
+            if (EditorPane *p = paneIn(target, target->count() - 1))
+                p->setPinned(true);
+        }
     }
     updateSecondViewVisibility();   // 第二檢視有還原分頁才顯示（FR-062）
     // 作用中分頁歸位：activeIndex 對應 buildCurrentSession 的攤平順序，取還原成功者中的對應項。
@@ -245,6 +259,22 @@ void MainWindow::openSessionState(const macpad::persistence::SessionState &state
         if (restored[ai].second)
             w->setCurrentIndex(w->indexOf(restored[ai].second));
     }
+    // Folder as Workspace 還原：先加回根資料夾，再還原展開狀態（Notepad++ v8.9.7）。
+    // 已不存在的資料夾自動略過，不讓失效路徑塞滿側欄。
+    if (m_workspace && !state.workspaceRoots.isEmpty()) {
+        bool any = false;
+        for (const QString &root : state.workspaceRoots) {
+            if (!QFileInfo(root).isDir())
+                continue;
+            m_workspace->addRoot(root);
+            any = true;
+        }
+        if (any) {
+            m_workspace->setExpandedPaths(state.workspaceExpanded);
+            m_workspace->show();
+        }
+    }
+
     // 提示：哪些內容是從「已刪除的檔案」以未存快照還原（顯示為 untitled，需另存新檔）
     if (!recoveredFromDeleted.isEmpty())
         statusBar()->showMessage(

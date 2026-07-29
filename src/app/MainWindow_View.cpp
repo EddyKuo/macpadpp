@@ -8,6 +8,7 @@
 #include "persistence/SettingsStore.h"
 #include "platform/ThemeManager.h"
 #include "ui/EditorPane.h"
+#include "ui/MultiRowTabBar.h"
 #include "extension/ExtensionRegistry.h"
 #include "extension/builtin/WordCountExtension.h"
 #include "extension/builtin/MarkdownPreviewExtension.h"
@@ -32,6 +33,9 @@
 #include <QPrintDialog>
 #include <QInputDialog>
 #include <QColorDialog>
+
+#include "ui/ColorPicker.h"
+#include "ui/WindowsListDialog.h"
 #include <QTabBar>
 #include "ui/DocumentListDock.h"
 #include "ui/Panels.h"
@@ -206,6 +210,18 @@ void MainWindow::setActiveTabWidget(QTabWidget *w)
 }
 
 
+// 分頁列座標 → 分頁索引。多列模式下必須用 MultiRowTabBar 的自算矩形，
+// QTabBar::tabAt 非虛擬函式，仍會回傳單列版面的結果。
+int MainWindow::tabIndexAtPos(QTabWidget *w, const QPoint &pos) const
+{
+    if (!w)
+        return -1;
+    if (auto *bar = qobject_cast<macpad::ui::MultiRowTabBar *>(w->tabBar()))
+        return bar->tabIndexAt(pos);
+    return w->tabBar()->tabAt(pos);
+}
+
+
 // 為某個檢視容器接上「關閉/右鍵選單/切換分頁」訊號（兩個檢視共用同一套行為）
 void MainWindow::wireTabWidget(QTabWidget *w)
 {
@@ -220,7 +236,9 @@ void MainWindow::wireTabWidget(QTabWidget *w)
     w->tabBar()->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(w->tabBar(), &QTabBar::customContextMenuRequested, this,
             [this, w](const QPoint &pos) {
-        const int idx = w->tabBar()->tabAt(pos);
+        // 多列模式下 QTabBar::tabAt 用的是它自己的單列座標，會選到錯的分頁；
+        // MultiRowTabBar::tabIndexAt 在單列時等同 tabAt。
+        const int idx = tabIndexAtPos(w, pos);
         if (idx < 0) return;
         setActiveTabWidget(w);      // 右鍵操作前先讓該檢視成為作用中
         w->setCurrentIndex(idx);
@@ -255,6 +273,9 @@ void MainWindow::wireTabWidget(QTabWidget *w)
 void MainWindow::wireEditorSignals(EditorWidget *editor)
 {
     connect(editor, &EditorWidget::dirtyChanged, this, &MainWindow::updateTabTitle);
+    // 跨檢視同步縮放（Notepad++ v8.9.5）：Ctrl+滾輪或選單縮放皆會發出 zoomChanged
+    connect(editor, &EditorWidget::zoomChanged, this,
+            [this, editor](int z) { syncZoomToOtherViews(editor, z); });
     connect(editor, &EditorWidget::metaChanged, this, &MainWindow::updateStatusBar);
     connect(editor, &EditorWidget::lexerChanged, this, [this, editor] {
         themeEditor(editor);
@@ -322,19 +343,97 @@ void MainWindow::closeTabsToOneSide(QTabWidget *w, int pivot, bool toLeft)
     if (!w)
         return;
     if (toLeft) {
-        // 反覆關閉最左（index 0）pivot 次；每關一次樞紐左移一格
-        for (int n = 0; n < pivot; ++n) {
+        // 反覆關閉最左的「非釘選」分頁，直到樞紐左側只剩釘選分頁。
+        // （複刻 Notepad++：釘選分頁不被批次關閉指令波及）
+        int target = 0;
+        while (target < pivot) {
+            if (isTabPinned(w, target)) {
+                ++target;               // 釘選：跳過，樞紐位置不變
+                continue;
+            }
             const int before = w->count();
-            closeTabIn(w, 0);
+            closeTabIn(w, target);
             if (w->count() == before)   // 使用者於存檔提示取消
                 return;
+            --pivot;                     // 關掉一個 → 樞紐左移一格
         }
     } else {
-        // 反覆關閉樞紐右側第一個（pivot+1）直到沒有右側分頁
-        while (w->count() > pivot + 1) {
+        // 反覆關閉樞紐右側第一個「非釘選」分頁，直到沒有可關的右側分頁
+        int target = pivot + 1;
+        while (target < w->count()) {
+            if (isTabPinned(w, target)) {
+                ++target;
+                continue;
+            }
             const int before = w->count();
-            closeTabIn(w, pivot + 1);
+            closeTabIn(w, target);
             if (w->count() == before)
+                return;
+        }
+    }
+}
+
+
+// === 釘選分頁（複刻 Notepad++ v8.7.2 Pin Tab / v8.7.3 Close All BUT Pinned）===
+
+bool MainWindow::isTabPinned(QTabWidget *w, int index) const
+{
+    const auto *pane = paneIn(w, index);
+    return pane && pane->isPinned();
+}
+
+int MainWindow::pinnedCount(QTabWidget *w) const
+{
+    if (!w)
+        return 0;
+    int n = 0;
+    for (int i = 0; i < w->count(); ++i)
+        if (isTabPinned(w, i))
+            ++n;
+    return n;
+}
+
+void MainWindow::setTabPinned(QTabWidget *w, int index, bool pinned)
+{
+    if (!w || index < 0 || index >= w->count())
+        return;
+    auto *pane = paneIn(w, index);
+    if (!pane || pane->isPinned() == pinned)
+        return;
+
+    pane->setPinned(pinned);
+
+    // 釘選分頁一律靠左集中：釘選時搬到釘選區末端，取消釘選時搬到釘選區之後的第一格。
+    // 先算出目標位置再搬動，避免搬動後索引失效。
+    const int pinned_ = pinnedCount(w);
+    const int target = pinned ? pinned_ - 1 : pinned_;
+    if (target != index && target >= 0 && target < w->count()) {
+        w->tabBar()->moveTab(index, target);
+        index = target;
+    }
+
+    // 釘選分頁不提供關閉鈕（避免誤觸），與 Notepad++ 一致
+    if (w->tabsClosable()) {
+        for (auto pos : {QTabBar::RightSide, QTabBar::LeftSide}) {
+            if (QWidget *btn = w->tabBar()->tabButton(index, pos))
+                btn->setVisible(!pinned);
+        }
+    }
+    updateTabTitle();
+}
+
+
+void MainWindow::closeAllButPinned()
+{
+    for (QTabWidget *w : {m_tabs, m_tabs2}) {
+        if (!w)
+            continue;
+        for (int i = w->count() - 1; i >= 0; --i) {
+            if (isTabPinned(w, i))
+                continue;
+            const int before = w->count();
+            closeTabIn(w, i);
+            if (w->count() == before)   // 使用者於存檔提示取消
                 return;
         }
     }
@@ -417,8 +516,8 @@ QMenu *MainWindow::buildEditorContextMenu(EditorWidget *ed, QWidget *parent)
     auto *menu = new QMenu(parent);
 
     // --- 復原 / 重做 ---
-    menu->addAction(tr("Undo"), this, [ed] { ed->undo(); })->setEnabled(ed->isUndoAvailable());
-    menu->addAction(tr("Redo"), this, [ed] { ed->redo(); })->setEnabled(ed->isRedoAvailable());
+    menu->addAction(tr("Undo"), this, [ed] { ed->undoWithHistory(); })->setEnabled(ed->isUndoAvailable());
+    menu->addAction(tr("Redo"), this, [ed] { ed->redoWithHistory(); })->setEnabled(ed->isRedoAvailable());
     menu->addSeparator();
 
     // --- 剪貼簿基本操作 ---
@@ -534,8 +633,15 @@ QMenu *MainWindow::buildTabContextMenu(QTabWidget *w, int index, QWidget *parent
     auto *menu = new QMenu(parent);
 
     // --- 檔案操作 ---
+    // --- 釘選（複刻 Notepad++ v8.7.2/v8.7.3）---
+    const bool pinned = isTabPinned(w, index);
+    menu->addAction(pinned ? tr("Unpin Tab") : tr("Pin Tab"), this,
+                    [this, w, index, pinned] { setTabPinned(w, index, !pinned); });
+    menu->addSeparator();
+
     menu->addAction(tr("Close"), this, [this, w, index] { closeTabIn(w, index); });
     menu->addAction(tr("Close All but This"), this, [this] { closeAllButCurrent(); });
+    menu->addAction(tr("Close All BUT Pinned"), this, [this] { closeAllButPinned(); });
     menu->addAction(tr("Close All to the Left"), this,
                     [this, w, index] { closeTabsToOneSide(w, index, /*toLeft=*/true); });
     menu->addAction(tr("Close All to the Right"), this,
@@ -558,7 +664,7 @@ QMenu *MainWindow::buildTabContextMenu(QTabWidget *w, int index, QWidget *parent
 
     // --- 外觀/鎖定 ---
     menu->addAction(tr("Set Tab Color…"), this, [this, w, index] {
-        const QColor c = QColorDialog::getColor(Qt::white, this, tr("Tab Color"));
+        const QColor c = macpad::ui::ColorPicker::getColor(Qt::white, this, tr("Tab Color"));
         if (c.isValid())
             w->tabBar()->setTabTextColor(index, c);
     });
@@ -821,6 +927,142 @@ void MainWindow::toggleMonitoring()
 }
 
 
+// Window ▸ Windows…（複刻 Notepad++ 的文件管理對話框）。
+// 以「攤平的 (檢視, 分頁索引)」清單為索引依據，與對話框回報的列號一一對應。
+void MainWindow::showWindowsListDialog()
+{
+    QVector<QPair<QTabWidget *, int>> map;
+    QVector<macpad::ui::WindowsListEntry> entries;
+    for (QTabWidget *w : {m_tabs, m_tabs2}) {
+        if (!w)
+            continue;
+        for (int i = 0; i < w->count(); ++i) {
+            EditorWidget *e = editorIn(w, i);
+            if (!e)
+                continue;
+            macpad::ui::WindowsListEntry entry;
+            entry.name = w->tabText(i);
+            entry.path = e->isUntitled() ? QString() : e->filePath();
+            entry.type = docTypeName(e);
+            entry.size = e->text().toUtf8().size();
+            if (!entry.path.isEmpty())
+                entry.modified = QFileInfo(entry.path).lastModified();
+            entries.push_back(entry);
+            map.push_back({w, i});
+        }
+    }
+    if (entries.isEmpty())
+        return;
+
+    macpad::ui::WindowsListDialog dlg(entries, this);
+
+    connect(&dlg, &macpad::ui::WindowsListDialog::activateRequested, this, [this, map](int row) {
+        if (row < 0 || row >= map.size())
+            return;
+        setActiveTabWidget(map[row].first);
+        map[row].first->setCurrentIndex(map[row].second);
+    });
+    connect(&dlg, &macpad::ui::WindowsListDialog::saveRequested, this,
+            [this, map](const QVector<int> &rows) {
+        QTabWidget *prevW = currentTabWidget();
+        const int prevIdx = prevW ? prevW->currentIndex() : -1;
+        for (int row : rows) {
+            if (row < 0 || row >= map.size())
+                continue;
+            setActiveTabWidget(map[row].first);
+            map[row].first->setCurrentIndex(map[row].second);
+            saveCurrent();
+        }
+        if (prevW && prevIdx >= 0 && prevIdx < prevW->count()) {
+            setActiveTabWidget(prevW);
+            prevW->setCurrentIndex(prevIdx);
+        }
+    });
+    connect(&dlg, &macpad::ui::WindowsListDialog::closeRequested, this,
+            [this, map](const QVector<int> &rows) {
+        // 由後往前關，避免關閉前面的分頁使後面的索引位移
+        QVector<int> ordered = rows;
+        std::sort(ordered.begin(), ordered.end(), std::greater<int>());
+        for (int row : ordered) {
+            if (row < 0 || row >= map.size())
+                continue;
+            closeTabIn(map[row].first, map[row].second);
+        }
+    });
+    connect(&dlg, &macpad::ui::WindowsListDialog::sortTabsRequested, this, [this] {
+        // 依分頁標題排序目前檢視的分頁（Notepad++ 的 Sort Tabs）；釘選分頁維持在前段不動。
+        QTabWidget *w = currentTabWidget();
+        if (!w)
+            return;
+        const int firstMovable = pinnedCount(w);
+        for (int i = firstMovable; i < w->count(); ++i) {
+            int best = i;
+            for (int j = i + 1; j < w->count(); ++j)
+                if (w->tabText(j).compare(w->tabText(best), Qt::CaseInsensitive) < 0)
+                    best = j;
+            if (best != i)
+                w->tabBar()->moveTab(best, i);
+        }
+    });
+
+    dlg.exec();
+}
+
+
+void MainWindow::syncZoomToOtherViews(EditorWidget *source, int zoom)
+{
+    if (!macpad::persistence::SettingsStore::load().syncZoomBetweenViews)
+        return;
+    forEachEditor([&](EditorWidget *e) {
+        if (e == source)
+            return;
+        if (static_cast<int>(e->SendScintilla(QsciScintillaBase::SCI_GETZOOM)) != zoom)
+            e->zoomTo(zoom);
+    });
+}
+
+
+QString MainWindow::tabLabelFor(EditorPane *pane) const
+{
+    if (!pane)
+        return QString();
+    const auto s = macpad::persistence::SettingsStore::load();
+    EditorWidget *e = pane->primary();
+    QString title = pane->tabTitle();          // clone 追隨來源檔名
+
+    // 未命名分頁以內容首行命名（Notepad++ v8.8.2）；首行為空白時維持 untitled(N)
+    if (s.tabBarUntitledNameFromFirstLine && e && e->isUntitled()) {
+        const QString firstLine = e->text(0).trimmed();
+        if (!firstLine.isEmpty())
+            title = firstLine;
+    }
+
+    // 標籤長度上限（Notepad++ v8.8.8）——避免單一長檔名把分頁列撐爆
+    if (s.tabBarLabelMaxLength > 0 && title.size() > s.tabBarLabelMaxLength)
+        title = title.left(qMax(1, s.tabBarLabelMaxLength - 1)) + QStringLiteral("…");
+
+    // 前綴標記：釘選（📌）與唯讀（🔒）
+    QString prefix;
+    if (pane->isPinned())
+        prefix += QStringLiteral("📌 ");
+    if (e && e->isReadOnly())
+        prefix += QStringLiteral("🔒 ");
+    return prefix + title;
+}
+
+
+QString MainWindow::tabTooltipFor(EditorPane *pane) const
+{
+    if (!pane || !pane->primary())
+        return QString();
+    EditorWidget *e = pane->primary();
+    if (!e->isUntitled())
+        return e->filePath();
+    // 未命名分頁沒有路徑可顯示 → 改顯示建立時間（複刻 Notepad++ v8.7.1）
+    return tr("Created: %1").arg(pane->createdAt().toString(Qt::TextDate));
+}
+
+
 void MainWindow::updateTabTitle()
 {
     for (QTabWidget *w : {m_tabs, m_tabs2}) {
@@ -830,8 +1072,8 @@ void MainWindow::updateTabTitle()
             EditorPane *p = paneIn(w, i);
             if (!p)
                 continue;
-            w->setTabText(i, p->tabTitle());              // clone 追隨來源檔名
-            w->setTabToolTip(i, p->primary()->filePath());
+            w->setTabText(i, tabLabelFor(p));             // clone 追隨來源檔名
+            w->setTabToolTip(i, tabTooltipFor(p));
         }
     }
     refreshDocList();
