@@ -28,6 +28,15 @@ public:
     static bool save(const Theme &theme);
     // 從外部 JSON 檔匯入一份主題（存入本地 themes/ 目錄）
     static bool importFromFile(const QString &path);
+
+    // 從 Notepad++ 原生 stylers.xml / <主題>.xml 匯入（複刻其龐大的既有主題生態）。
+    // 成功時主題以檔名（不含副檔名）為名存入 themes/；失敗時 errorMessage 帶原因。
+    static bool importFromNppXmlFile(const QString &path, QString *errorMessage = nullptr);
+
+    // 純轉換：Notepad++ stylers XML 內容 → Theme。不碰檔案系統，便於單元測試。
+    // themeName 作為產出主題的名稱。解析失敗回傳 name 為空的 Theme。
+    static Theme themeFromNppXml(const QByteArray &xml, const QString &themeName,
+                                 QString *errorMessage = nullptr);
     // 將指定名稱的主題匯出成獨立 JSON 檔
     static bool exportToFile(const QString &name, const QString &path);
     // 刪除指定名稱的主題

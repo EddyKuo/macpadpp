@@ -179,6 +179,89 @@ private slots:
         QCOMPARE(after.dark, false);                                  // 仍是使用者版本
         QCOMPARE(after.styles.global.editorBg, QStringLiteral("#010101"));
     }
+
+    // Notepad++ 原生 stylers.xml 匯入（複刻其既有主題生態）
+    void importNotepadPlusXml()
+    {
+        const QByteArray xml = R"(<?xml version="1.0" encoding="UTF-8" ?>
+<NotepadPlus>
+  <GlobalStyles>
+    <WidgetStyle name="Global override" styleID="0" fgColor="DCDCDC" bgColor="1E1E1E" />
+    <WidgetStyle name="Current line background colour" styleID="0" bgColor="282828" />
+    <WidgetStyle name="Selected text colour" styleID="0" bgColor="264F78" />
+    <WidgetStyle name="Caret colour" styleID="2069" fgColor="FFFFFF" />
+    <WidgetStyle name="Line number margin" styleID="33" fgColor="858585" bgColor="1E1E1E" />
+    <WidgetStyle name="Indent guideline style" styleID="37" fgColor="404040" />
+    <WidgetStyle name="Smart HighLighting" styleID="29" bgColor="123456" />
+  </GlobalStyles>
+  <LexerStyles>
+    <LexerType name="cpp" desc="C++" ext="">
+      <WordsStyle name="COMMENT" styleID="1" fgColor="6A9955" fontStyle="2" />
+      <WordsStyle name="NUMBER" styleID="4" fgColor="B5CEA8" fontStyle="0" />
+      <WordsStyle name="INSTRUCTION WORD" styleID="5" fgColor="569CD6" fontStyle="1" />
+      <WordsStyle name="EMPTY" styleID="9" />
+    </LexerType>
+    <LexerType name="lisp" desc="Lisp" ext="">
+      <WordsStyle name="COMMENT" styleID="1" fgColor="FF0000" />
+    </LexerType>
+  </LexerStyles>
+</NotepadPlus>)";
+
+        QString err;
+        const Theme t = ThemeStore::themeFromNppXml(xml, QStringLiteral("VS Dark"), &err);
+        QVERIFY2(!t.name.isEmpty(), qPrintable(err));
+        QCOMPARE(t.name, QStringLiteral("VS Dark"));
+        QVERIFY(t.dark);   // 依 editorBg 亮度判定
+
+        // 全域樣式：RRGGBB → #RRGGBB
+        QCOMPARE(t.styles.global.editorFg, QStringLiteral("#DCDCDC"));
+        QCOMPARE(t.styles.global.editorBg, QStringLiteral("#1E1E1E"));
+        QCOMPARE(t.styles.global.caretLineBg, QStringLiteral("#282828"));
+        QCOMPARE(t.styles.global.selectionBg, QStringLiteral("#264F78"));
+        QCOMPARE(t.styles.global.caretColor, QStringLiteral("#FFFFFF"));
+        QCOMPARE(t.styles.global.marginFg, QStringLiteral("#858585"));
+        QCOMPARE(t.styles.global.indentGuide, QStringLiteral("#404040"));
+
+        // 支援的語言有匯入；不支援的（lisp）整段略過，不硬猜
+        QVERIFY(t.styles.byLang.contains(QStringLiteral("cpp")));
+        QVERIFY(!t.styles.byLang.contains(QStringLiteral("lisp")));
+
+        const auto &cpp = t.styles.byLang[QStringLiteral("cpp")];
+        // 全空的 WordsStyle（EMPTY）不應產生覆寫項
+        QCOMPARE(cpp.size(), 3);
+
+        auto findStyle = [&cpp](int id) -> StyleOverride {
+            for (const auto &so : cpp)
+                if (so.style == id) return so;
+            return {};
+        };
+        // fontStyle 位元旗標：1=bold 2=italic 4=underline
+        const auto comment = findStyle(1);
+        QCOMPARE(comment.fg, QStringLiteral("#6A9955"));
+        QVERIFY(comment.italic);
+        QVERIFY(!comment.bold);
+        const auto keyword = findStyle(5);
+        QVERIFY(keyword.bold);
+        QVERIFY(!keyword.italic);
+        const auto number = findStyle(4);
+        QVERIFY(!number.bold && !number.italic);
+    }
+
+    // 非 Notepad++ 主題檔要明確失敗（IL-4 失敗快失敗明，不得靜默產生空主題）
+    void importNotepadPlusXmlRejectsForeignFiles()
+    {
+        QString err;
+        const Theme bad = ThemeStore::themeFromNppXml("<html><body>nope</body></html>",
+                                                      QStringLiteral("x"), &err);
+        QVERIFY(bad.name.isEmpty());
+        QVERIFY(!err.isEmpty());
+
+        QString err2;
+        const Theme broken = ThemeStore::themeFromNppXml("<NotepadPlus><unclosed>",
+                                                         QStringLiteral("y"), &err2);
+        QVERIFY(broken.name.isEmpty());
+        QVERIFY(!err2.isEmpty());
+    }
 };
 
 QTEST_GUILESS_MAIN(TestThemeStore)

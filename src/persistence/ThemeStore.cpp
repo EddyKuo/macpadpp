@@ -8,6 +8,9 @@
 #include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonObject>
+#include <QColor>              // 深/淺色判定
+#include <QHash>
+#include <QXmlStreamReader>    // Notepad++ stylers.xml 匯入
 
 namespace macpad::persistence {
 
@@ -121,6 +124,194 @@ int ThemeStore::seedBundledThemes()
         }
     }
     return seeded;
+}
+
+// ── Notepad++ stylers.xml 匯入 ────────────────────────────────────────────
+// Notepad++ 主題為 XML，結構如下（顏色為不含 '#' 的 RRGGBB）：
+//   <NotepadPlus>
+//     <GlobalStyles>
+//       <WidgetStyle name="Global override" styleID="0" fgColor="DCDCDC" bgColor="1E1E1E"/>
+//       <WidgetStyle name="Current line background colour" bgColor="282828"/>  …
+//     </GlobalStyles>
+//     <LexerStyles>
+//       <LexerType name="cpp" desc="C++"><WordsStyle name="COMMENT" styleID="1" fgColor="6A9955" fontStyle="1"/>…
+//     </LexerStyles>
+//   </NotepadPlus>
+// fontStyle 為位元旗標：1=bold 2=italic 4=underline。
+
+namespace {
+
+// "1E1E1E" → "#1E1E1E"；空字串或格式不符回傳空字串（代表不覆寫）。
+QString nppColor(const QString &raw)
+{
+    const QString t = raw.trimmed();
+    if (t.size() != 6)
+        return {};
+    for (const QChar c : t) {
+        if (!isxdigit(c.toLatin1()))
+            return {};
+    }
+    return QLatin1Char('#') + t.toUpper();
+}
+
+// Notepad++ 的 LexerType name → 本專案 LexerFactory 語言鍵。
+// 只映射兩邊都支援者；未列出的語言略過（不強行猜測，IL-1）。
+QString nppLangToKey(const QString &nppName)
+{
+    static const QHash<QString, QString> kMap = {
+        {QStringLiteral("cpp"), QStringLiteral("cpp")},
+        {QStringLiteral("c"), QStringLiteral("cpp")},
+        {QStringLiteral("java"), QStringLiteral("java")},
+        {QStringLiteral("javascript"), QStringLiteral("javascript")},
+        {QStringLiteral("javascript.js"), QStringLiteral("javascript")},
+        {QStringLiteral("python"), QStringLiteral("python")},
+        {QStringLiteral("json"), QStringLiteral("json")},
+        {QStringLiteral("css"), QStringLiteral("css")},
+        {QStringLiteral("bash"), QStringLiteral("bash")},
+        {QStringLiteral("sql"), QStringLiteral("sql")},
+        {QStringLiteral("yaml"), QStringLiteral("yaml")},
+        {QStringLiteral("markdown"), QStringLiteral("markdown")},
+        {QStringLiteral("html"), QStringLiteral("html")},
+        {QStringLiteral("xml"), QStringLiteral("xml")},
+    };
+    return kMap.value(nppName.trimmed().toLower());
+}
+
+// GlobalStyles 的 WidgetStyle name → GlobalStyles 欄位指標（取 fg 或 bg）。
+// Notepad++ 各項名稱固定，直接以名稱對應，不依賴 styleID（不同版本會漂移）。
+void applyGlobalWidget(GlobalStyles &g, const QString &name,
+                       const QString &fg, const QString &bg)
+{
+    const QString n = name.trimmed().toLower();
+    if (n == QLatin1String("global override")) {
+        if (!fg.isEmpty()) g.editorFg = fg;
+        if (!bg.isEmpty()) g.editorBg = bg;
+    } else if (n == QLatin1String("default style")) {
+        if (!fg.isEmpty()) g.editorFg = fg;
+        if (!bg.isEmpty()) g.editorBg = bg;
+    } else if (n == QLatin1String("current line background colour")) {
+        g.caretLineBg = bg.isEmpty() ? fg : bg;
+    } else if (n == QLatin1String("selected text colour")) {
+        g.selectionBg = bg.isEmpty() ? fg : bg;
+    } else if (n == QLatin1String("caret colour")) {
+        g.caretColor = fg;
+    } else if (n == QLatin1String("edge colour")) {
+        g.edgeColor = fg;
+    } else if (n == QLatin1String("line number margin")) {
+        g.marginFg = fg;
+        g.marginBg = bg;
+    } else if (n == QLatin1String("current line number")) {
+        g.currentLineNumber = fg;
+    } else if (n == QLatin1String("fold margin")) {
+        g.foldMargin = bg.isEmpty() ? fg : bg;
+    } else if (n == QLatin1String("fold active")) {
+        g.foldActive = fg;
+    } else if (n == QLatin1String("white space symbol")) {
+        g.whitespaceFg = fg;
+    } else if (n == QLatin1String("bookmark margin")) {
+        g.bookmarkMargin = bg.isEmpty() ? fg : bg;
+    } else if (n == QLatin1String("indent guideline style")) {
+        g.indentGuide = fg;
+    } else if (n == QLatin1String("bad brace colour")) {
+        g.badBrace = fg;
+    } else if (n == QLatin1String("mark colour")) {
+        g.markColor = fg;
+    } else if (n == QLatin1String("url hovered")) {
+        g.urlHovered = fg;
+    }
+    // 其餘（Brace highlight、Smart HighLighting…）本專案無對應欄位，略過。
+}
+
+// 以背景亮度判定深/淺色主題（Notepad++ 的 XML 不含此資訊）。
+bool looksDark(const QString &bgHex)
+{
+    const QColor c(bgHex);
+    if (!c.isValid())
+        return false;
+    // 感知亮度（ITU-R BT.601）；< 128 視為深色
+    return (0.299 * c.red() + 0.587 * c.green() + 0.114 * c.blue()) < 128.0;
+}
+
+}  // namespace
+
+Theme ThemeStore::themeFromNppXml(const QByteArray &xml, const QString &themeName,
+                                  QString *errorMessage)
+{
+    Theme theme;
+    QXmlStreamReader r(xml);
+
+    QString currentLang;     // 目前 LexerType 對應到的本專案語言鍵（空 = 不支援，略過）
+    bool sawNotepadPlus = false;
+
+    while (!r.atEnd()) {
+        r.readNext();
+        if (!r.isStartElement())
+            continue;
+        const QStringView el = r.name();
+        const QXmlStreamAttributes at = r.attributes();
+
+        if (el == QLatin1String("NotepadPlus")) {
+            sawNotepadPlus = true;
+        } else if (el == QLatin1String("WidgetStyle")) {
+            applyGlobalWidget(theme.styles.global,
+                              at.value(QLatin1String("name")).toString(),
+                              nppColor(at.value(QLatin1String("fgColor")).toString()),
+                              nppColor(at.value(QLatin1String("bgColor")).toString()));
+        } else if (el == QLatin1String("LexerType")) {
+            currentLang = nppLangToKey(at.value(QLatin1String("name")).toString());
+        } else if (el == QLatin1String("WordsStyle")) {
+            if (currentLang.isEmpty())
+                continue;   // 該語言本專案無對應，整段略過
+            bool ok = false;
+            const int styleId = at.value(QLatin1String("styleID")).toInt(&ok);
+            if (!ok)
+                continue;
+            StyleOverride so;
+            so.style = styleId;
+            so.fg = nppColor(at.value(QLatin1String("fgColor")).toString());
+            so.bg = nppColor(at.value(QLatin1String("bgColor")).toString());
+            const int fontStyle = at.value(QLatin1String("fontStyle")).toInt();
+            so.bold      = (fontStyle & 1) != 0;
+            so.italic    = (fontStyle & 2) != 0;
+            so.underline = (fontStyle & 4) != 0;
+            // 全空的覆寫沒有意義，不要塞進去膨脹檔案
+            if (so.fg.isEmpty() && so.bg.isEmpty() && !so.bold && !so.italic && !so.underline)
+                continue;
+            theme.styles.byLang[currentLang].append(so);
+        }
+    }
+
+    if (r.hasError()) {
+        if (errorMessage)
+            *errorMessage = QObject::tr("XML parse error: %1").arg(r.errorString());
+        return {};
+    }
+    if (!sawNotepadPlus) {
+        if (errorMessage)
+            *errorMessage = QObject::tr("Not a Notepad++ theme file (missing <NotepadPlus> root)");
+        return {};
+    }
+
+    theme.name = themeName;
+    theme.dark = looksDark(theme.styles.global.editorBg);
+    return theme;
+}
+
+bool ThemeStore::importFromNppXmlFile(const QString &path, QString *errorMessage)
+{
+    QFile f(path);
+    if (!f.open(QIODevice::ReadOnly)) {
+        if (errorMessage)
+            *errorMessage = f.errorString();
+        return false;
+    }
+    const QByteArray xml = f.readAll();
+    f.close();
+
+    const Theme theme = themeFromNppXml(xml, QFileInfo(path).completeBaseName(), errorMessage);
+    if (theme.name.isEmpty())
+        return false;   // errorMessage 已由 themeFromNppXml 填寫
+    return save(theme);
 }
 
 }  // namespace macpad::persistence

@@ -2053,6 +2053,16 @@ Qt6 + QScintilla</translation>
         <source>Failed to change the read-only attribute of the file</source>
         <translation>ファイルの読み取り専用属性を変更できませんでした</translation>
     </message>
+    <message>
+        <location filename="../../src/persistence/ThemeStore.cpp" line="286"/>
+        <source>XML parse error: %1</source>
+        <translation>XML 解析エラー：%1</translation>
+    </message>
+    <message>
+        <location filename="../../src/persistence/ThemeStore.cpp" line="291"/>
+        <source>Not a Notepad++ theme file (missing &lt;NotepadPlus&gt; root)</source>
+        <translation>Notepad++ のテーマファイルではありません（&lt;NotepadPlus&gt; ルート要素がありません）</translation>
+    </message>
 </context>
 <context>
     <name>macpad::extension::MarkdownPreviewDock</name>
@@ -3870,55 +3880,59 @@ Qt6 + QScintilla</translation>
 <context>
     <name>macpad::ui::ThemePickerDialog</name>
     <message>
-        <location filename="../../src/ui/ThemePickerDialog.cpp" line="20"/>
+        <location filename="../../src/ui/ThemePickerDialog.cpp" line="21"/>
         <source>Themes</source>
         <translation>テーマ</translation>
     </message>
     <message>
-        <location filename="../../src/ui/ThemePickerDialog.cpp" line="30"/>
+        <location filename="../../src/ui/ThemePickerDialog.cpp" line="31"/>
         <source>Apply</source>
         <translation>適用</translation>
     </message>
     <message>
-        <location filename="../../src/ui/ThemePickerDialog.cpp" line="31"/>
+        <location filename="../../src/ui/ThemePickerDialog.cpp" line="32"/>
         <source>Import…</source>
         <translation>インポート…</translation>
     </message>
     <message>
-        <location filename="../../src/ui/ThemePickerDialog.cpp" line="32"/>
+        <location filename="../../src/ui/ThemePickerDialog.cpp" line="33"/>
         <source>Export…</source>
         <translation>エクスポート…</translation>
     </message>
     <message>
-        <location filename="../../src/ui/ThemePickerDialog.cpp" line="33"/>
+        <location filename="../../src/ui/ThemePickerDialog.cpp" line="34"/>
         <source>Delete</source>
         <translation>削除</translation>
     </message>
     <message>
-        <location filename="../../src/ui/ThemePickerDialog.cpp" line="93"/>
-        <location filename="../../src/ui/ThemePickerDialog.cpp" line="98"/>
+        <location filename="../../src/ui/ThemePickerDialog.cpp" line="97"/>
+        <location filename="../../src/ui/ThemePickerDialog.cpp" line="108"/>
         <source>Import Theme</source>
         <translation>テーマのインポート</translation>
     </message>
     <message>
-        <location filename="../../src/ui/ThemePickerDialog.cpp" line="94"/>
-        <location filename="../../src/ui/ThemePickerDialog.cpp" line="111"/>
+        <location filename="../../src/ui/ThemePickerDialog.cpp" line="98"/>
+        <source>All Supported (*.json *.xml);;Theme Files (*.json);;Notepad++ Theme (*.xml)</source>
+        <translation>対応形式すべて (*.json *.xml);;テーマファイル (*.json);;Notepad++ テーマ (*.xml)</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/ThemePickerDialog.cpp" line="122"/>
         <source>Theme Files (*.json)</source>
         <translation>テーマファイル (*.json)</translation>
     </message>
     <message>
-        <location filename="../../src/ui/ThemePickerDialog.cpp" line="98"/>
+        <location filename="../../src/ui/ThemePickerDialog.cpp" line="109"/>
         <source>Failed to import theme from file.</source>
         <translation>ファイルからテーマをインポートできませんでした。</translation>
     </message>
     <message>
-        <location filename="../../src/ui/ThemePickerDialog.cpp" line="109"/>
-        <location filename="../../src/ui/ThemePickerDialog.cpp" line="115"/>
+        <location filename="../../src/ui/ThemePickerDialog.cpp" line="120"/>
+        <location filename="../../src/ui/ThemePickerDialog.cpp" line="126"/>
         <source>Export Theme</source>
         <translation>テーマのエクスポート</translation>
     </message>
     <message>
-        <location filename="../../src/ui/ThemePickerDialog.cpp" line="115"/>
+        <location filename="../../src/ui/ThemePickerDialog.cpp" line="126"/>
         <source>Failed to export theme to file.</source>
         <translation>テーマをファイルにエクスポートできませんでした。</translation>
     </message>

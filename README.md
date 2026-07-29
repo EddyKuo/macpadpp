@@ -35,6 +35,8 @@
 - **檔案唯讀屬性** — 開啟磁碟上唯讀的檔案會自動進入唯讀模式(避免編輯半天才在存檔時失敗),
   可用 **Edit ▸ Clear Read-Only Flag** 清除檔案系統屬性並同步解鎖(複刻 Notepad++)。
 - **系統匣常駐** — `-systemtray` 啟動後常駐(Windows 通知區 / macOS 選單列狀態區),可切換顯示/隱藏視窗。
+- **可直接匯入 Notepad++ 主題** — 主題對話框的 Import 除了本專案 JSON 格式,亦支援 Notepad++ 原生的
+  `stylers.xml` / `<主題>.xml`,可沿用其龐大的既有主題生態(深/淺色依背景亮度自動判定)。
 - **完整右鍵選單** — 複刻 Notepad++ 編輯區 `contextMenu.xml`:Undo/Redo、剪貼、Selection(Begin/End、
   欄位)、Copy 路徑/檔名/目錄、Paste Special、Style Token 5 色、書籤、On Selection(開檔 / 網路搜尋)、
   開啟位置、Reload/Rename/垃圾桶、唯讀切換;Function List 面板亦有右鍵(跳至定義 / 複製 / 展開收合 / 排序)。

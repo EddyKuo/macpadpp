@@ -4,6 +4,7 @@
 
 #include <QDialogButtonBox>
 #include <QFileDialog>
+#include <QFileInfo>
 #include <QHBoxLayout>
 #include <QListWidget>
 #include <QMessageBox>
@@ -90,12 +91,22 @@ void ThemePickerDialog::onApply()
 
 void ThemePickerDialog::onImport()
 {
-    const QString path = QFileDialog::getOpenFileName(this, tr("Import Theme"), QString(),
-                                                        tr("Theme Files (*.json)"));
+    // 同時接受本專案的 JSON 主題與 Notepad++ 原生的 stylers/<主題>.xml，
+    // 讓使用者能直接沿用 Notepad++ 龐大的既有主題生態。
+    const QString path = QFileDialog::getOpenFileName(
+        this, tr("Import Theme"), QString(),
+        tr("All Supported (*.json *.xml);;Theme Files (*.json);;Notepad++ Theme (*.xml)"));
     if (path.isEmpty())
         return;
-    if (!ThemeStore::importFromFile(path)) {
-        QMessageBox::warning(this, tr("Import Theme"), tr("Failed to import theme from file."));
+
+    QString err;
+    const bool isXml = QFileInfo(path).suffix().compare(QLatin1String("xml"),
+                                                        Qt::CaseInsensitive) == 0;
+    const bool ok = isXml ? ThemeStore::importFromNppXmlFile(path, &err)
+                          : ThemeStore::importFromFile(path);
+    if (!ok) {
+        QMessageBox::warning(this, tr("Import Theme"),
+                             err.isEmpty() ? tr("Failed to import theme from file.") : err);
         return;
     }
     refreshList();
