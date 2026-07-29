@@ -7,6 +7,18 @@
 
 using namespace macpad::core;
 
+// Windows 無法刪除帶唯讀屬性的檔案：測試若因 QVERIFY 失敗而提前返回，留下的唯讀檔
+// 會讓 QTemporaryDir 的遞迴清理失敗（macOS/POSIX 則不受影響，可刪唯讀檔）。
+// 以 RAII 保證離開作用域時必定恢復可寫，讓失敗只是「失敗」而不會再牽連清理。
+struct RestoreWritable {
+    QString path;
+    ~RestoreWritable()
+    {
+        if (!path.isEmpty())
+            EditorWidget::setFileReadOnly(path, false);
+    }
+};
+
 class TestEditor : public QObject {
     Q_OBJECT
 private slots:
@@ -169,6 +181,8 @@ private slots:
             f.write("hello");
         }
 
+        RestoreWritable guard{path};   // 即使下方斷言失敗，也保證檔案可被清理
+
         // 一般可寫檔案 → 非唯讀
         QVERIFY(!EditorWidget::isFileReadOnly(path));
 
@@ -203,6 +217,7 @@ private slots:
             QFileDevice::ReadUser   | QFileDevice::WriteUser  |
             QFileDevice::ReadGroup  | QFileDevice::WriteGroup |
             QFileDevice::ReadOther;
+        RestoreWritable guard{path};
         QVERIFY(QFile::setPermissions(path, original));
         QCOMPARE(QFileInfo(path).permissions(), original);
 
@@ -399,6 +414,7 @@ private slots:
             QVERIFY(f.open(QIODevice::WriteOnly));
             f.write("locked content");
         }
+        RestoreWritable guard{path};   // 即使下方斷言失敗，也保證檔案可被清理
         QVERIFY(EditorWidget::setFileReadOnly(path, true));
 
         EditorWidget e;
