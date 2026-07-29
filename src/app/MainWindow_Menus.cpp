@@ -116,7 +116,9 @@ static constexpr int kViewDocIdBase = 100000;
 static QIcon tintedSvgIcon(const QString &path, const QColor &color)
 {
     QSvgRenderer renderer(path);
-    const int px = 40;   // 內部高解析，QIcon 會依需要縮放
+    // 工具列最大 32 邏輯像素，在 2x 畫面上需要 64 個裝置像素；再往上還有 3x 螢幕。
+    // 這裡一次算繪到 128，讓 QIcon 一律以「縮小」取得目標尺寸——放大點陣圖必糊。
+    const int px = 128;
     QPixmap pm(px, px);
     pm.fill(Qt::transparent);
     QPainter p(&pm);

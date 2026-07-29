@@ -15,12 +15,12 @@ class TestIcons : public QObject {
 
     // 與 MainWindow 的 tintedSvgIcon 相同作法：算繪後以 SourceIn 換色，
     // 因此真正被使用的只有 alpha 通道。
-    static QPixmap renderTinted(const QString &path, const QColor &color)
+    static QPixmap renderTinted(const QString &path, const QColor &color, int px = 40)
     {
         QSvgRenderer renderer(path);
         if (!renderer.isValid())
             return {};
-        QPixmap pm(40, 40);
+        QPixmap pm(px, px);
         pm.fill(Qt::transparent);
         QPainter p(&pm);
         renderer.render(&p);
@@ -28,6 +28,44 @@ class TestIcons : public QObject {
         p.fillRect(pm.rect(), color);
         p.end();
         return pm;
+    }
+
+    // kInked：判定「這個像素看得見」的 alpha 門檻。用 >0 會把幾乎全透明的反鋸齒
+    // 像素也算進來，在小尺寸下足以把空隙「橋接」起來，讓下面的檢查失去意義。
+    static constexpr int kInked = 128;
+
+    // 不透明區塊的連通元件數（8 連通）——用來判定「兩個疊放的圖形之間確實有空隙」。
+    // 換色管線只用 alpha，若空隙被填滿，兩份會融成同一個元件而數量下降。
+    static int opaqueComponents(const QImage &img)
+    {
+        QVector<bool> seen(img.width() * img.height(), false);
+        int count = 0;
+        for (int y0 = 0; y0 < img.height(); ++y0) {
+            for (int x0 = 0; x0 < img.width(); ++x0) {
+                const int start = y0 * img.width() + x0;
+                if (seen[start] || qAlpha(img.pixel(x0, y0)) < kInked)
+                    continue;
+                ++count;
+                QVector<QPoint> stack{QPoint(x0, y0)};
+                seen[start] = true;
+                while (!stack.isEmpty()) {
+                    const QPoint p = stack.takeLast();
+                    for (int dy = -1; dy <= 1; ++dy) {
+                        for (int dx = -1; dx <= 1; ++dx) {
+                            const int nx = p.x() + dx, ny = p.y() + dy;
+                            if (nx < 0 || ny < 0 || nx >= img.width() || ny >= img.height())
+                                continue;
+                            const int idx = ny * img.width() + nx;
+                            if (seen[idx] || qAlpha(img.pixel(nx, ny)) < kInked)
+                                continue;
+                            seen[idx] = true;
+                            stack.append(QPoint(nx, ny));
+                        }
+                    }
+                }
+            }
+        }
+        return count;
     }
 
     // 不透明像素比例——用來判定「圖示不是一片空白」
@@ -85,6 +123,25 @@ private slots:
         const QPixmap white = renderTinted(path, Qt::white);
         QVERIFY(!black.isNull() && !white.isNull());
         QVERIFY(black.toImage() != white.toImage());
+    }
+
+    // saveall 是以 save 位移疊放兩份合成的（scripts/icons/compose_stack.py），
+    // 交界處必須挖出實體空隙。若空隙消失，兩份會融成一團實心色——因為換色管線
+    // 只用 alpha，重疊區與非重疊區顏色完全相同，肉眼只看得到一個奇怪的形狀。
+    // 用連通元件數量驗證：合成後應比單份 save 多出可辨識的區塊。
+    void saveAllKeepsVisibleGapBetweenCopies()
+    {
+        // 涵蓋工具列全部四種尺寸（16/18/24/32），最小尺寸最容易讓空隙消失
+        for (int px : {16, 18, 24, 32}) {
+            const int single = opaqueComponents(
+                renderTinted(QStringLiteral(":/icons/save.svg"), Qt::black, px).toImage());
+            const int stacked = opaqueComponents(
+                renderTinted(QStringLiteral(":/icons/saveall.svg"), Qt::black, px).toImage());
+            QVERIFY2(stacked > single,
+                     qPrintable(QStringLiteral("%1px：saveall 連通元件 %2 未多於 save 的 %3，"
+                                               "後方那份可能已與前方融合")
+                                    .arg(px).arg(stacked).arg(single)));
+        }
     }
 
     // 資源中不得再出現 currentColor——它可編譯、可打包，但在 Qt 下就是看不見。
