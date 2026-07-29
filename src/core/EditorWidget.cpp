@@ -397,21 +397,28 @@ bool EditorWidget::setFileReadOnly(const QString &path, bool readOnly, QString *
         return false;
     }
 
-    // 只增減「擁有者」的寫入位元，group/other 一律不動。
+    // 要動哪些寫入位元，兩平台語意不同，必須分開處理：
     //
-    // 為何不連 group/other 的寫入位元一起清除：POSIX 的權限無法從「已鎖定」狀態還原原貌
-    // ——若鎖定時清掉 664 的 group 寫入，解鎖時無從得知原本該不該補回去（補回去可能過度
-    // 授權、不補則是靜默降權），round-trip 必然失真。只動 owner 位元則 664→464→664
-    // 完全無損。語意上也正確：POSIX 對「檔案擁有者」的權限判定只看 owner 位元，故清掉
-    // owner 寫入後 QFileInfo::isWritable() 即為 false，達成唯讀效果；而非擁有者本來就
-    // 無權變更權限。Windows 上 Qt 將此對應到 FILE_ATTRIBUTE_READONLY，行為一致。
+    // Windows：Qt 是以「是否還有任一寫入位元」來決定 FILE_ATTRIBUTE_READONLY——只要
+    //   group/other 任一寫入位元仍在，就不會設唯讀屬性，唯讀設定等同無效。且 Windows 上
+    //   group/other 位元是 Qt 由該屬性合成映射出來的，並非真實獨立權限，整組清除不會遺失資訊。
+    // POSIX：group/other 是真實且獨立的權限。若鎖定時一併清掉 664 的 group 寫入，解鎖時
+    //   無從得知原本該不該補回（補回可能過度授權、不補則是靜默降權），round-trip 必然失真。
+    //   只動 owner 位元則 664→464→664 完全無損；語意上也正確，因為 POSIX 對「檔案擁有者」
+    //   的權限判定只看 owner 位元，清掉後 QFileInfo::isWritable() 即為 false。
     QFileDevice::Permissions perms = info.permissions();
-    const QFileDevice::Permissions ownerWriteBits =
+#ifdef Q_OS_WIN
+    const QFileDevice::Permissions writeBits =
+        QFileDevice::WriteOwner | QFileDevice::WriteUser
+        | QFileDevice::WriteGroup | QFileDevice::WriteOther;
+#else
+    const QFileDevice::Permissions writeBits =
         QFileDevice::WriteOwner | QFileDevice::WriteUser;
+#endif
     if (readOnly)
-        perms &= ~ownerWriteBits;
+        perms &= ~writeBits;
     else
-        perms |= ownerWriteBits;
+        perms |= writeBits;
 
     if (!QFile::setPermissions(path, perms)) {
         if (errorMessage)

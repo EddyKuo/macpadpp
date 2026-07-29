@@ -79,3 +79,23 @@ jobs:
         run: |
           set "PATH=%QT_ROOT_DIR%\bin;%QT_ROOT_DIR%\lib;%PATH%"
           ctest --test-dir build --output-on-failure
+
+      # Windows 上測試程序若異常終止，被緩衝的 stdout 會整批遺失——CTest 的
+      # --output-on-failure 便什麼都印不出來（只看得到「Failed」三個字）。
+      # 這裡改用 QtTest 的檔案輸出（-o），它每跑完一個案例就寫檔，
+      # 即使隨後崩潰，檔案裡的「最後一筆」就是兇手。
+      - name: 失敗時輸出逐案測試日誌
+        if: failure()
+        shell: pwsh
+        run: |
+          $env:PATH = "$env:QT_ROOT_DIR\bin;$env:QT_ROOT_DIR\lib;$env:PATH"
+          Get-ChildItem build/tests -Filter 'test_*.exe' | ForEach-Object {
+            $log = Join-Path $env:RUNNER_TEMP "$($_.BaseName).qtest.txt"
+            & $_.FullName -o "$log,txt" -v1 *> $null
+            $code = $LASTEXITCODE
+            if ($code -ne 0) {
+              Write-Host "===== FAILED: $($_.BaseName)  (exit code $code) ====="
+              if (Test-Path $log) { Get-Content $log }
+              else { Write-Host "(未產生日誌——崩潰早於第一個案例)" }
+            }
+          }
