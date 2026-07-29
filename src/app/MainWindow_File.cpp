@@ -393,6 +393,8 @@ void MainWindow::closeAllButCurrent()
         for (int i = w->count() - 1; i >= 0; --i) {
             if (editorIn(w, i) == keep)
                 continue;
+            if (isTabPinned(w, i))   // 釘選分頁不被批次關閉波及（複刻 Notepad++）
+                continue;
             const int before = w->count();
             closeTabIn(w, i);
             if (w->count() == before)

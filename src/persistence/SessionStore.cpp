@@ -52,6 +52,8 @@ static QJsonObject stateToJson(const SessionState &state)
         o.insert(QStringLiteral("bookmarks"), bookmarks);
         o.insert(QStringLiteral("language_override"), t.languageOverride);
         o.insert(QStringLiteral("view"), t.view);
+        if (t.pinned)
+            o.insert(QStringLiteral("pinned"), true);
         // Notepad++ session 快照：未存內容（僅在 dirty 時寫出，避免膨脹 session.json）
         if (t.untitled)
             o.insert(QStringLiteral("untitled"), true);
@@ -98,6 +100,7 @@ static SessionState jsonToState(const QJsonObject &root)
         t.untitled = untitled;
         t.dirty = o.value(QStringLiteral("dirty")).toBool(false);
         t.unsavedContent = o.value(QStringLiteral("unsaved")).toString();
+        t.pinned = o.value(QStringLiteral("pinned")).toBool(false);
         state.tabs.push_back(t);
     }
     state.activeIndex = rawActive - skippedBeforeActive;  // 依過濾後的陣列重新映射

@@ -128,6 +128,8 @@ private:
     QCheckBox *m_tabBarVertical = nullptr;
     QCheckBox *m_tabBarShowCloseButton = nullptr;
     QCheckBox *m_tabBarDoubleClickCloses = nullptr;
+    QSpinBox *m_tabBarLabelMaxLength = nullptr;
+    QCheckBox *m_tabBarUntitledNameFromFirstLine = nullptr;
 
     // Margins / Border / Edge
     QComboBox *m_edgeMode = nullptr;

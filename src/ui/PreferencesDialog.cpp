@@ -431,11 +431,24 @@ QWidget *PreferencesDialog::buildTabBarPage()
     m_tabBarDoubleClickCloses = new QCheckBox(tr("雙擊分頁關閉"), page);
     m_tabBarDoubleClickCloses->setChecked(current.tabBarDoubleClickCloses);
 
+    // 分頁標籤長度上限（Notepad++ v8.8.8）：0 = 不限制
+    m_tabBarLabelMaxLength = new QSpinBox(page);
+    m_tabBarLabelMaxLength->setRange(0, 200);
+    m_tabBarLabelMaxLength->setSpecialValueText(tr("不限制"));
+    m_tabBarLabelMaxLength->setValue(current.tabBarLabelMaxLength);
+
+    // 未命名分頁以內容首行命名（Notepad++ v8.8.2）
+    m_tabBarUntitledNameFromFirstLine =
+        new QCheckBox(tr("未命名分頁以內容首行作為分頁名"), page);
+    m_tabBarUntitledNameFromFirstLine->setChecked(current.tabBarUntitledNameFromFirstLine);
+
     auto *form = new QFormLayout(page);
     form->addRow(m_tabBarMultiLine);
     form->addRow(m_tabBarVertical);
     form->addRow(m_tabBarShowCloseButton);
     form->addRow(m_tabBarDoubleClickCloses);
+    form->addRow(tr("分頁標籤長度上限："), m_tabBarLabelMaxLength);
+    form->addRow(m_tabBarUntitledNameFromFirstLine);
     return page;
 }
 
@@ -667,6 +680,8 @@ Settings PreferencesDialog::result() const
     s.tabBarVertical = m_tabBarVertical->isChecked();
     s.tabBarShowCloseButton = m_tabBarShowCloseButton->isChecked();
     s.tabBarDoubleClickCloses = m_tabBarDoubleClickCloses->isChecked();
+    s.tabBarLabelMaxLength = m_tabBarLabelMaxLength->value();
+    s.tabBarUntitledNameFromFirstLine = m_tabBarUntitledNameFromFirstLine->isChecked();
 
     s.edgeMode = EdgeMode(m_edgeMode->currentIndex());
     s.foldMarginStyle = FoldMarginStyle(m_foldMarginStyle->currentIndex());

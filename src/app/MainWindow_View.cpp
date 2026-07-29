@@ -322,19 +322,97 @@ void MainWindow::closeTabsToOneSide(QTabWidget *w, int pivot, bool toLeft)
     if (!w)
         return;
     if (toLeft) {
-        // 反覆關閉最左（index 0）pivot 次；每關一次樞紐左移一格
-        for (int n = 0; n < pivot; ++n) {
+        // 反覆關閉最左的「非釘選」分頁，直到樞紐左側只剩釘選分頁。
+        // （複刻 Notepad++：釘選分頁不被批次關閉指令波及）
+        int target = 0;
+        while (target < pivot) {
+            if (isTabPinned(w, target)) {
+                ++target;               // 釘選：跳過，樞紐位置不變
+                continue;
+            }
             const int before = w->count();
-            closeTabIn(w, 0);
+            closeTabIn(w, target);
             if (w->count() == before)   // 使用者於存檔提示取消
                 return;
+            --pivot;                     // 關掉一個 → 樞紐左移一格
         }
     } else {
-        // 反覆關閉樞紐右側第一個（pivot+1）直到沒有右側分頁
-        while (w->count() > pivot + 1) {
+        // 反覆關閉樞紐右側第一個「非釘選」分頁，直到沒有可關的右側分頁
+        int target = pivot + 1;
+        while (target < w->count()) {
+            if (isTabPinned(w, target)) {
+                ++target;
+                continue;
+            }
             const int before = w->count();
-            closeTabIn(w, pivot + 1);
+            closeTabIn(w, target);
             if (w->count() == before)
+                return;
+        }
+    }
+}
+
+
+// === 釘選分頁（複刻 Notepad++ v8.7.2 Pin Tab / v8.7.3 Close All BUT Pinned）===
+
+bool MainWindow::isTabPinned(QTabWidget *w, int index) const
+{
+    const auto *pane = paneIn(w, index);
+    return pane && pane->isPinned();
+}
+
+int MainWindow::pinnedCount(QTabWidget *w) const
+{
+    if (!w)
+        return 0;
+    int n = 0;
+    for (int i = 0; i < w->count(); ++i)
+        if (isTabPinned(w, i))
+            ++n;
+    return n;
+}
+
+void MainWindow::setTabPinned(QTabWidget *w, int index, bool pinned)
+{
+    if (!w || index < 0 || index >= w->count())
+        return;
+    auto *pane = paneIn(w, index);
+    if (!pane || pane->isPinned() == pinned)
+        return;
+
+    pane->setPinned(pinned);
+
+    // 釘選分頁一律靠左集中：釘選時搬到釘選區末端，取消釘選時搬到釘選區之後的第一格。
+    // 先算出目標位置再搬動，避免搬動後索引失效。
+    const int pinned_ = pinnedCount(w);
+    const int target = pinned ? pinned_ - 1 : pinned_;
+    if (target != index && target >= 0 && target < w->count()) {
+        w->tabBar()->moveTab(index, target);
+        index = target;
+    }
+
+    // 釘選分頁不提供關閉鈕（避免誤觸），與 Notepad++ 一致
+    if (w->tabsClosable()) {
+        for (auto pos : {QTabBar::RightSide, QTabBar::LeftSide}) {
+            if (QWidget *btn = w->tabBar()->tabButton(index, pos))
+                btn->setVisible(!pinned);
+        }
+    }
+    updateTabTitle();
+}
+
+
+void MainWindow::closeAllButPinned()
+{
+    for (QTabWidget *w : {m_tabs, m_tabs2}) {
+        if (!w)
+            continue;
+        for (int i = w->count() - 1; i >= 0; --i) {
+            if (isTabPinned(w, i))
+                continue;
+            const int before = w->count();
+            closeTabIn(w, i);
+            if (w->count() == before)   // 使用者於存檔提示取消
                 return;
         }
     }
@@ -534,8 +612,15 @@ QMenu *MainWindow::buildTabContextMenu(QTabWidget *w, int index, QWidget *parent
     auto *menu = new QMenu(parent);
 
     // --- 檔案操作 ---
+    // --- 釘選（複刻 Notepad++ v8.7.2/v8.7.3）---
+    const bool pinned = isTabPinned(w, index);
+    menu->addAction(pinned ? tr("Unpin Tab") : tr("Pin Tab"), this,
+                    [this, w, index, pinned] { setTabPinned(w, index, !pinned); });
+    menu->addSeparator();
+
     menu->addAction(tr("Close"), this, [this, w, index] { closeTabIn(w, index); });
     menu->addAction(tr("Close All but This"), this, [this] { closeAllButCurrent(); });
+    menu->addAction(tr("Close All BUT Pinned"), this, [this] { closeAllButPinned(); });
     menu->addAction(tr("Close All to the Left"), this,
                     [this, w, index] { closeTabsToOneSide(w, index, /*toLeft=*/true); });
     menu->addAction(tr("Close All to the Right"), this,
@@ -821,6 +906,47 @@ void MainWindow::toggleMonitoring()
 }
 
 
+QString MainWindow::tabLabelFor(EditorPane *pane) const
+{
+    if (!pane)
+        return QString();
+    const auto s = macpad::persistence::SettingsStore::load();
+    EditorWidget *e = pane->primary();
+    QString title = pane->tabTitle();          // clone 追隨來源檔名
+
+    // 未命名分頁以內容首行命名（Notepad++ v8.8.2）；首行為空白時維持 untitled(N)
+    if (s.tabBarUntitledNameFromFirstLine && e && e->isUntitled()) {
+        const QString firstLine = e->text(0).trimmed();
+        if (!firstLine.isEmpty())
+            title = firstLine;
+    }
+
+    // 標籤長度上限（Notepad++ v8.8.8）——避免單一長檔名把分頁列撐爆
+    if (s.tabBarLabelMaxLength > 0 && title.size() > s.tabBarLabelMaxLength)
+        title = title.left(qMax(1, s.tabBarLabelMaxLength - 1)) + QStringLiteral("…");
+
+    // 前綴標記：釘選（📌）與唯讀（🔒）
+    QString prefix;
+    if (pane->isPinned())
+        prefix += QStringLiteral("📌 ");
+    if (e && e->isReadOnly())
+        prefix += QStringLiteral("🔒 ");
+    return prefix + title;
+}
+
+
+QString MainWindow::tabTooltipFor(EditorPane *pane) const
+{
+    if (!pane || !pane->primary())
+        return QString();
+    EditorWidget *e = pane->primary();
+    if (!e->isUntitled())
+        return e->filePath();
+    // 未命名分頁沒有路徑可顯示 → 改顯示建立時間（複刻 Notepad++ v8.7.1）
+    return tr("Created: %1").arg(pane->createdAt().toString(Qt::TextDate));
+}
+
+
 void MainWindow::updateTabTitle()
 {
     for (QTabWidget *w : {m_tabs, m_tabs2}) {
@@ -830,8 +956,8 @@ void MainWindow::updateTabTitle()
             EditorPane *p = paneIn(w, i);
             if (!p)
                 continue;
-            w->setTabText(i, p->tabTitle());              // clone 追隨來源檔名
-            w->setTabToolTip(i, p->primary()->filePath());
+            w->setTabText(i, tabLabelFor(p));             // clone 追隨來源檔名
+            w->setTabToolTip(i, tabTooltipFor(p));
         }
     }
     refreshDocList();

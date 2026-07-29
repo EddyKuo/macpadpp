@@ -46,6 +46,7 @@ set(MACPAD_TESTS
     test_desktopintegration
     test_builtinlangs
     test_functionlist_langs
+    test_pintab
 )
 
 foreach(t ${MACPAD_TESTS})

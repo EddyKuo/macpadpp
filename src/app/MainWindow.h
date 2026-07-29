@@ -45,6 +45,7 @@ class MainWindow : public QMainWindow, public macpad::extension::IHostServices {
     // 單元測試存取私有成員（分頁容器、右鍵選單建構、關閉側邊分頁等）——Qt 慣用測試模式
     friend class TestContextMenu;
     friend class TestSessionSnapshot;
+    friend class TestPinTab;
 public:
     // restoreSessionOnLaunch=false 供命令列 -nosession（FR-051）略過本次啟動的 session 還原
     explicit MainWindow(QWidget *parent = nullptr, bool restoreSessionOnLaunch = true);
@@ -155,6 +156,22 @@ private slots:
     void addCopyPathActions(QMenu *menu, macpad::core::EditorWidget *ed, bool hasFile);
     // 分頁右鍵的檔案操作輔助（Close to Left/Right 需指定檢視與基準索引）
     void closeTabsToOneSide(QTabWidget *w, int pivot, bool toLeft);
+
+    // === 釘選分頁（複刻 Notepad++ v8.7.2 Pin Tab）===
+    // 設定釘選狀態：更新旗標、把分頁搬到釘選區邊界、刷新標題（📌 前綴）與關閉鈕。
+    void setTabPinned(QTabWidget *w, int index, bool pinned);
+    // 指定分頁是否為釘選（index 越界或非 EditorPane 時回傳 false）
+    bool isTabPinned(QTabWidget *w, int index) const;
+    // 某檢視中釘選分頁的數量（= 釘選區的右邊界索引）
+    int pinnedCount(QTabWidget *w) const;
+    // 關閉除釘選以外的所有分頁（File ▸ Close All BUT Pinned）
+    void closeAllButPinned();
+
+    // 分頁標籤文字：基底名稱（clone 追隨來源）＋ 未命名首行命名 ＋ 長度上限 ＋ 釘選/唯讀前綴。
+    // 抽成純查詢函式以利單元測試。
+    QString tabLabelFor(macpad::ui::EditorPane *pane) const;
+    // 分頁 tooltip：已存檔顯示完整路徑；未命名顯示建立時間（複刻 Notepad++ v8.7.1）
+    QString tabTooltipFor(macpad::ui::EditorPane *pane) const;
 
 private:
     void createMenus();

@@ -495,6 +495,8 @@ void MainWindow::createFileMenu(QMenu *fileMenu)
     });
     fileMenu->addAction(tr("Close All"), this, [this] { closeAllTabs(); });
     fileMenu->addAction(tr("Close All but This"), this, [this] { closeAllButCurrent(); });
+    // Notepad++ v8.7.3：僅保留釘選分頁，其餘全關
+    fileMenu->addAction(tr("Close All BUT Pinned"), this, [this] { closeAllButPinned(); });
     fileMenu->addAction(tr("Restore Recent Closed File"),
                         QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_T), this,
                         [this] { restoreClosedTab(); });

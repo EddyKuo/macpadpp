@@ -124,6 +124,10 @@ struct Settings {
     bool tabBarVertical = false;           // 分頁列垂直排列
     bool tabBarShowCloseButton = true;     // 分頁上顯示關閉按鈕
     bool tabBarDoubleClickCloses = false;  // 雙擊分頁關閉
+    // 分頁標籤長度上限（Notepad++ v8.8.8）：超過則截斷並加省略號；0 代表不限制
+    int tabBarLabelMaxLength = 0;
+    // 未命名分頁以內容首行作為分頁名（Notepad++ v8.8.2）
+    bool tabBarUntitledNameFromFirstLine = false;
 
     // === Margins / Border / Edge（新增；edgeColumn 沿用既有 Highlighting 欄位）===
     EdgeMode edgeMode = EdgeMode::None;

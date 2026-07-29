@@ -24,6 +24,7 @@ struct TabState {
     bool untitled = false;     // 此分頁為未命名（無檔）的未存緩衝區
     bool dirty = false;        // 有未存變更（還原後維持 dirty 標記）
     QString unsavedContent;    // dirty 時的完整緩衝內容：untitled 用以重建、named 用以覆蓋磁碟版
+    bool pinned = false;       // 釘選分頁（Notepad++ v8.7.2 Pin Tab），跨 session 保留
 };
 
 struct SessionState {

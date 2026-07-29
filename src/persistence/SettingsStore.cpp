@@ -315,6 +315,11 @@ Settings SettingsStore::load()
         o.value(QStringLiteral("tab_bar_show_close_button")).toBool(s.tabBarShowCloseButton);
     s.tabBarDoubleClickCloses =
         o.value(QStringLiteral("tab_bar_double_click_closes")).toBool(s.tabBarDoubleClickCloses);
+    s.tabBarLabelMaxLength =
+        o.value(QStringLiteral("tab_bar_label_max_length")).toInt(s.tabBarLabelMaxLength);
+    s.tabBarUntitledNameFromFirstLine =
+        o.value(QStringLiteral("tab_bar_untitled_name_from_first_line"))
+            .toBool(s.tabBarUntitledNameFromFirstLine);
 
     // Margins / Border / Edge
     s.edgeMode = edgeModeFromString(o.value(QStringLiteral("edge_mode")).toString(edgeModeToString(s.edgeMode)));
@@ -443,6 +448,9 @@ bool SettingsStore::save(const Settings &s)
     o.insert(QStringLiteral("tab_bar_vertical"), s.tabBarVertical);
     o.insert(QStringLiteral("tab_bar_show_close_button"), s.tabBarShowCloseButton);
     o.insert(QStringLiteral("tab_bar_double_click_closes"), s.tabBarDoubleClickCloses);
+    o.insert(QStringLiteral("tab_bar_label_max_length"), s.tabBarLabelMaxLength);
+    o.insert(QStringLiteral("tab_bar_untitled_name_from_first_line"),
+             s.tabBarUntitledNameFromFirstLine);
 
     // Margins / Border / Edge
     o.insert(QStringLiteral("edge_mode"), edgeModeToString(s.edgeMode));

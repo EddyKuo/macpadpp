@@ -4,6 +4,7 @@
 // 主檢視（primary）持有檔案狀態；分割時新增次檢視共享同一 QsciDocument（同源、游標獨立）。
 // 檔案操作（載入/儲存/編碼/書籤）一律走 primary；次檢視僅供閱讀對照。
 
+#include <QDateTime>
 #include <QList>
 #include <QPointer>
 #include <QString>
@@ -38,6 +39,16 @@ public:
     // 切換水平分割（FR-002）：開啟時新增共享文件的次檢視；再次呼叫關閉
     void toggleSplit();
 
+    // 釘選分頁（複刻 Notepad++ v8.7.2 Pin Tab）：釘選的分頁固定排在分頁列前段、
+    // 不顯示關閉鈕，且不會被「Close All BUT Pinned / Close All to the Left·Right /
+    // Close All but This」批次關閉。狀態隨 session 持久化。
+    bool isPinned() const { return m_pinned; }
+    void setPinned(bool on) { m_pinned = on; }
+
+    // 分頁建立時間（複刻 Notepad++ v8.7.1：未命名分頁的 tooltip 顯示建立時間，
+    // 因為未存檔的分頁沒有路徑可顯示）
+    QDateTime createdAt() const { return m_createdAt; }
+
     // 分割視窗同步捲動（複刻 Notepad++ Synchronize Scrolling）
     void setSyncVerticalScroll(bool on);
     void setSyncHorizontalScroll(bool on);
@@ -55,6 +66,8 @@ private:
     bool m_syncH = false;
     bool m_syncing = false;  // 防止相互 setValue 遞迴
     bool m_isClone = false;  // 由 makeClone 建立的複製檢視
+    bool m_pinned = false;   // 釘選分頁（Notepad++ Pin Tab）
+    QDateTime m_createdAt = QDateTime::currentDateTime();  // 分頁建立時間（未命名分頁 tooltip 用）
     // clone 來源編輯器（供標題追隨；QPointer 於來源分頁關閉後自動歸零，避免懸空指標）
     QPointer<macpad::core::EditorWidget> m_cloneSource;
 };
