@@ -107,6 +107,8 @@ private slots:
     void startMacroRecording();
     void stopMacroRecording();
     void playMacro();
+    // Macro ▸ Run a Macro Multiple Times…（複刻 Notepad++：可選次數或「執行到檔案結尾」）
+    void runMacroMultipleTimes();
 
     // === Notepad++ 對等：檔案操作 ===
     void reloadFromDisk();

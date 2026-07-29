@@ -967,25 +967,8 @@ void MainWindow::createMacroMenu(QMenu *macroMenu)
     macroMenu->addSeparator();
     // Macro Manager（複刻 Notepad++ Modify Shortcut / Delete Macro）
     macroMenu->addAction(tr("Macro Manager…"), this, [this] { openMacroManager(); });
-    macroMenu->addAction(tr("Run a Macro Multiple Times…"), this, [this] {
-        EditorWidget *e = currentEditor();
-        if (!e || m_savedMacro.isEmpty()) {
-            statusBar()->showMessage(tr("尚無已錄製的巨集"), 2000);
-            return;
-        }
-        bool ok = false;
-        const int n = QInputDialog::getInt(this, tr("Run a Macro Multiple Times"),
-                                           tr("Times:"), 1, 1, 100000, 1, &ok);
-        if (!ok)
-            return;
-        e->beginUndoAction();
-        for (int i = 0; i < n; ++i) {
-            QsciMacro macro(e);
-            macro.load(m_savedMacro);
-            macro.play();
-        }
-        e->endUndoAction();
-    });
+    macroMenu->addAction(tr("Run a Macro Multiple Times…"), this,
+                         [this] { runMacroMultipleTimes(); });
     macroMenu->addAction(tr("Save Current Recorded Macro…"), this, [this] {
         if (m_savedMacro.isEmpty()) {
             statusBar()->showMessage(tr("尚無已錄製的巨集"), 2000);

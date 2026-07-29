@@ -99,6 +99,8 @@ using macpad::ui::EditorPane;
 #include <QSpinBox>
 #include <QKeySequenceEdit>
 #include <QDialogButtonBox>
+#include <QDialog>
+#include <QHBoxLayout>
 #include <QVBoxLayout>
 #include <QFutureWatcher>
 #include <QtConcurrent>
@@ -144,6 +146,89 @@ void MainWindow::playMacro()
     QsciMacro macro(editor);
     macro.load(m_savedMacro);
     macro.play();
+}
+
+
+// Macro ▸ Run a Macro Multiple Times…（複刻 Notepad++）
+// 提供「執行 N 次」與「執行到檔案結尾」兩種模式——後者是原本缺的那一半。
+void MainWindow::runMacroMultipleTimes()
+{
+    EditorWidget *e = currentEditor();
+    if (!e || m_savedMacro.isEmpty()) {
+        statusBar()->showMessage(tr("尚無已錄製的巨集"), 2000);
+        return;
+    }
+
+    QDialog dlg(this);
+    dlg.setWindowTitle(tr("Run a Macro Multiple Times"));
+    auto *form = new QVBoxLayout(&dlg);
+
+    auto *timesRadio = new QRadioButton(tr("Run macro"), &dlg);
+    timesRadio->setChecked(true);
+    auto *spin = new QSpinBox(&dlg);
+    spin->setRange(1, 100000);
+    spin->setValue(1);
+    spin->setSuffix(tr(" times"));
+    auto *row = new QHBoxLayout;
+    row->addWidget(timesRadio);
+    row->addWidget(spin);
+    row->addStretch();
+    form->addLayout(row);
+
+    auto *eofRadio = new QRadioButton(tr("Run until the end of file"), &dlg);
+    form->addWidget(eofRadio);
+    // 兩個 radio 互斥；spin 僅在次數模式下可用
+    QObject::connect(timesRadio, &QRadioButton::toggled, spin, &QWidget::setEnabled);
+
+    auto *box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    QObject::connect(box, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
+    QObject::connect(box, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
+    form->addWidget(box);
+
+    if (dlg.exec() != QDialog::Accepted)
+        return;
+
+    const bool untilEof = eofRadio->isChecked();
+    const int times = spin->value();
+
+    e->beginUndoAction();
+    if (!untilEof) {
+        for (int i = 0; i < times; ++i) {
+            QsciMacro macro(e);
+            macro.load(m_savedMacro);
+            macro.play();
+        }
+    } else {
+        // 執行到檔案結尾。兩個終止條件缺一不可：
+        //  (1) 插入點抵達文件結尾；
+        //  (2) 這一輪播放後插入點與長度都沒變 —— 代表巨集不會再推進，
+        //      沒有這條就會在「不移動游標的巨集」上無限迴圈。
+        // 另設硬上限作為最後防線，避免任何未預期情況把 UI 卡死。
+        constexpr int kHardCap = 100000;
+        int iterations = 0;
+        while (iterations < kHardCap) {
+            const int posBefore = static_cast<int>(
+                e->SendScintilla(QsciScintillaBase::SCI_GETCURRENTPOS));
+            const int lenBefore = static_cast<int>(
+                e->SendScintilla(QsciScintillaBase::SCI_GETLENGTH));
+            if (posBefore >= lenBefore)
+                break;   // 已在結尾
+
+            QsciMacro macro(e);
+            macro.load(m_savedMacro);
+            macro.play();
+            ++iterations;
+
+            const int posAfter = static_cast<int>(
+                e->SendScintilla(QsciScintillaBase::SCI_GETCURRENTPOS));
+            const int lenAfter = static_cast<int>(
+                e->SendScintilla(QsciScintillaBase::SCI_GETLENGTH));
+            if (posAfter == posBefore && lenAfter == lenBefore)
+                break;   // 沒有推進 → 再跑也不會結束
+        }
+        statusBar()->showMessage(tr("Macro ran %1 time(s)").arg(iterations), 3000);
+    }
+    e->endUndoAction();
 }
 
 
