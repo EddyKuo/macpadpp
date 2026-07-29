@@ -3,6 +3,7 @@
 #include <QTemporaryDir>
 
 #include "core/EditorWidget.h"
+#include "core/FileEncoding.h"
 
 using namespace macpad::core;
 
@@ -254,6 +255,62 @@ private slots:
         QVERIFY(e.loadFile(path));
         // 中文字必須正確還原（若走 Latin1 路徑會是亂碼）
         QVERIFY2(e.text().contains(chinese), qPrintable(e.text().left(80)));
+    }
+
+    // 回歸防護：非標記式檔案（.cpp/.md/.log…）內文若「剛好」出現 <meta charset=…>
+    // 字樣（註解、範例、貼上的日誌），絕不可據此把整份檔案改用該編碼解碼。
+    void nonMarkupFileIgnoresCharsetDeclaration()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath(QStringLiteral("example.cpp"));
+
+        // Latin-1 的原始碼：含非 ASCII 位元組（故 UTF-8 嚴格解碼會失敗 → Latin1 路徑），
+        // 且註解裡有 HTML 範例。若誤採信該宣告，整份會被當 EUC-KR 解碼而毀掉。
+        QByteArray src = "// author: M\xFCller\n"
+                         "// example: <meta charset=\"EUC-KR\">\n"
+                         "int main() { return 0; }\n";
+        {
+            QFile f(path);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write(src);
+        }
+
+        EditorWidget e;
+        QVERIFY(e.loadFile(path));
+        // 未套用任何具名 codec —— 維持既有的 Latin1 解碼路徑
+        QVERIFY2(e.encodingLabel() != QStringLiteral("EUC-KR"), qPrintable(e.encodingLabel()));
+        QVERIFY(e.text().contains(QStringLiteral("int main")));
+
+        // 對照組：同樣內容但副檔名為 .html → 才會採信宣告
+        const QString htmlPath = dir.filePath(QStringLiteral("same.html"));
+        {
+            QFile f(htmlPath);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write(src);
+        }
+        EditorWidget e2;
+        QVERIFY(e2.loadFile(htmlPath));
+        // 標籤是 codec 的「正規名稱」而非檔案裡的原始拼法（Qt 將 EUC-KR 正規化為
+        // windows-949），如此自動嗅探與手動選取的編碼標籤才會一致。
+        const QString label = e2.encodingLabel();
+        QVERIFY2(label.compare(QStringLiteral("EUC-KR"), Qt::CaseInsensitive) == 0
+                     || label.compare(QStringLiteral("windows-949"), Qt::CaseInsensitive) == 0,
+                 qPrintable(label));
+    }
+
+    // XML 宣告必須錨定於文件開頭（規範要求為第一個節點），內文中出現不算數
+    void xmlDeclarationMustBeAtStart()
+    {
+        using FE = macpad::core::FileEncoding;
+        // 開頭 → 採信
+        QCOMPARE(FE::declaredCharsetIn("<?xml version=\"1.0\" encoding=\"Big5\"?>"),
+                 QStringLiteral("Big5"));
+        // 前面有其他內容 → 不算宣告
+        QVERIFY(FE::declaredCharsetIn("text before <?xml version=\"1.0\" encoding=\"Big5\"?>")
+                    .isEmpty());
+        // 引號前後不一致 → 不接受
+        QVERIFY(FE::declaredCharsetIn("<?xml version=\"1.0\" encoding=\"Big5'?>").isEmpty());
     }
 
     // 拖放開檔：只有「本機既有檔案」才被攔截，其餘一律讓事件回到 Scintilla 文字拖放

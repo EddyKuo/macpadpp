@@ -7,6 +7,7 @@
 #include <QGridLayout>
 #include <QLabel>
 #include <QLineEdit>
+#include <QComboBox>   // 尋找/取代歷史下拉；明確引入
 #include <QMessageBox>
 #include <QPushButton>
 #include <QRegularExpression>
@@ -29,8 +30,20 @@ FindReplaceDialog::FindReplaceDialog(QWidget *parent)
     setWindowTitle(tr("Find / Replace"));
     setModal(false);
 
-    m_findEdit = new QLineEdit(this);
-    m_replaceEdit = new QLineEdit(this);
+    // 尋找/取代欄改用可編輯 QComboBox 以提供歷史紀錄下拉（複刻 Notepad++）。
+    // m_findEdit/m_replaceEdit 仍指向 combo 的 lineEdit()，故既有 text()/setText()
+    // 等呼叫完全不受影響——只是外觀多了一顆下拉箭頭。
+    m_findCombo = new QComboBox(this);
+    m_findCombo->setEditable(true);
+    m_findCombo->setInsertPolicy(QComboBox::NoInsert);   // 由 pushHistory 自行管理順序
+    m_findCombo->setMaxCount(kHistoryMax);
+    m_findEdit = m_findCombo->lineEdit();
+
+    m_replaceCombo = new QComboBox(this);
+    m_replaceCombo->setEditable(true);
+    m_replaceCombo->setInsertPolicy(QComboBox::NoInsert);
+    m_replaceCombo->setMaxCount(kHistoryMax);
+    m_replaceEdit = m_replaceCombo->lineEdit();
     m_caseSensitive = new QCheckBox(tr("Match case"), this);
     m_wholeWord = new QCheckBox(tr("Whole word"), this);
     m_regex = new QCheckBox(tr("Regex"), this);
@@ -71,12 +84,12 @@ FindReplaceDialog::FindReplaceDialog(QWidget *parent)
 
     auto *grid = new QGridLayout(this);
     grid->addWidget(new QLabel(tr("Find:"), this), 0, 0);
-    grid->addWidget(m_findEdit, 0, 1, 1, 3);
+    grid->addWidget(m_findCombo, 0, 1, 1, 3);
     grid->addWidget(findBtn, 0, 4);
     grid->addWidget(countBtn, 0, 5);
     grid->addWidget(swapBtn, 0, 6);
     grid->addWidget(new QLabel(tr("Replace:"), this), 1, 0);
-    grid->addWidget(m_replaceEdit, 1, 1, 1, 3);
+    grid->addWidget(m_replaceCombo, 1, 1, 1, 3);
     grid->addWidget(replaceBtn, 1, 4);
     grid->addWidget(m_caseSensitive, 2, 0);
     grid->addWidget(m_wholeWord, 2, 1);
@@ -138,10 +151,35 @@ FindReplaceDialog::FindReplaceDialog(QWidget *parent)
            [this](bool on) { saveSearchOption(QStringLiteral("extended"), on); });
 }
 
+// 將 text 置頂加入 combo 歷史：已存在則先移除再插到最前（最近使用者優先），並限量。
+// 為靜態且不碰其他狀態，方便單元測試。
+void FindReplaceDialog::pushHistory(QComboBox *combo, const QString &text)
+{
+    if (!combo || text.isEmpty())
+        return;
+    const int existing = combo->findText(text);
+    if (existing >= 0)
+        combo->removeItem(existing);
+    combo->insertItem(0, text);
+    while (combo->count() > kHistoryMax)
+        combo->removeItem(combo->count() - 1);
+    // insertItem 會改動 currentIndex 進而覆寫使用者正在編輯的文字，故明確復原。
+    combo->setCurrentIndex(0);
+}
+
 void FindReplaceDialog::loadSearchOptions()
 {
     QSettings settings;
     settings.beginGroup(QLatin1String(kSettingsGroup));
+    // 歷史紀錄跨 session 保留（複刻 Notepad++）。setCurrentIndex(-1) 讓欄位開啟時是空的，
+    // 否則會自動填入上次的搜尋字串、蓋掉「以選取內容帶入」的行為。
+    for (const auto &pair : {std::pair{m_findCombo,    QStringLiteral("findHistory")},
+                             std::pair{m_replaceCombo, QStringLiteral("replaceHistory")}}) {
+        const QStringList hist = settings.value(pair.second).toStringList();
+        pair.first->addItems(hist.mid(0, kHistoryMax));
+        pair.first->setCurrentIndex(-1);
+        pair.first->clearEditText();
+    }
     m_caseSensitive->setChecked(settings.value(QStringLiteral("matchCase"), false).toBool());
     m_wholeWord->setChecked(settings.value(QStringLiteral("wholeWord"), false).toBool());
     m_regex->setChecked(settings.value(QStringLiteral("regex"), false).toBool());
@@ -150,6 +188,30 @@ void FindReplaceDialog::loadSearchOptions()
     m_dotMatchesNewline->setChecked(
         settings.value(QStringLiteral("dotMatchesNewline"), false).toBool());
     m_extended->setChecked(settings.value(QStringLiteral("extended"), false).toBool());
+    settings.endGroup();
+}
+
+// 把目前欄位內容收進歷史。只在使用者「真的按下搜尋/取代」時呼叫——
+// 若在 textChanged 就記錄，增量搜尋會把每個中間輸入狀態都塞進歷史。
+void FindReplaceDialog::rememberSearchTerms()
+{
+    pushHistory(m_findCombo, m_findEdit->text());
+    pushHistory(m_replaceCombo, m_replaceEdit->text());
+    saveHistory();
+}
+
+// 將兩個 combo 的歷史寫回 QSettings（每次成功搜尋/取代後呼叫）
+void FindReplaceDialog::saveHistory() const
+{
+    QSettings settings;
+    settings.beginGroup(QLatin1String(kSettingsGroup));
+    for (const auto &pair : {std::pair{m_findCombo,    QStringLiteral("findHistory")},
+                             std::pair{m_replaceCombo, QStringLiteral("replaceHistory")}}) {
+        QStringList hist;
+        for (int i = 0; i < pair.first->count(); ++i)
+            hist << pair.first->itemText(i);
+        settings.setValue(pair.second, hist);
+    }
     settings.endGroup();
 }
 
@@ -258,6 +320,7 @@ bool FindReplaceDialog::doFind(bool forward, bool fromStart, bool remember)
 
 void FindReplaceDialog::findNext()
 {
+    rememberSearchTerms();   // 使用者實際執行動作才收進歷史
     if (!m_editor)
         return;
     if (doFind(/*forward=*/true, /*fromStart=*/false)) {
@@ -352,6 +415,7 @@ void FindReplaceDialog::findCodepointRange()
 
 void FindReplaceDialog::replaceOne()
 {
+    rememberSearchTerms();   // 使用者實際執行動作才收進歷史
     if (!m_editor)
         return;
     // 僅在目前選取正是最近一次尋找命中的匹配時才取代，避免誤刪手動選取內容；再找下一個
@@ -362,6 +426,7 @@ void FindReplaceDialog::replaceOne()
 
 void FindReplaceDialog::replaceAll()
 {
+    rememberSearchTerms();   // 使用者實際執行動作才收進歷史
     if (!m_editor || m_findEdit->text().isEmpty())
         return;
 
@@ -425,6 +490,7 @@ void FindReplaceDialog::replaceAll()
 
 void FindReplaceDialog::markAll()
 {
+    rememberSearchTerms();   // 使用者實際執行動作才收進歷史
     if (!m_editor)
         return;
     const int n = m_editor->markAll(m_findEdit->text(), m_regex->isChecked(),

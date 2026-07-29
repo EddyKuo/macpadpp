@@ -7,6 +7,7 @@
 #include <QDialog>
 
 class QLineEdit;
+class QComboBox;
 class QCheckBox;
 class QLabel;
 class QSlider;
@@ -70,6 +71,17 @@ private:
     void saveSearchOption(const QString &key, bool value) const;
 
     macpad::core::EditorWidget *m_editor = nullptr;
+    // 尋找/取代歷史（複刻 Notepad++ 的下拉紀錄）。m_findEdit/m_replaceEdit 指向對應
+    // combo 的 lineEdit()，所有既有 text()/setText() 呼叫因此保持不變。
+    static constexpr int kHistoryMax = 20;
+    QComboBox *m_findCombo = nullptr;
+    QComboBox *m_replaceCombo = nullptr;
+    // 將 text 置頂加入 combo 歷史（去重、限量）；空字串忽略。
+    static void pushHistory(QComboBox *combo, const QString &text);
+    // 記錄目前欄位內容至歷史並寫回 QSettings（每次實際執行搜尋/取代時呼叫）
+    void rememberSearchTerms();
+    void saveHistory() const;
+
     QLineEdit *m_findEdit = nullptr;
     QLineEdit *m_replaceEdit = nullptr;
     QCheckBox *m_caseSensitive = nullptr;

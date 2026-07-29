@@ -325,13 +325,16 @@ bool EditorWidget::loadFile(const QString &path, QString *errorMessage)
     // 「是否為合法 UTF-8」，遇到 Big5/Shift_JIS 等傳統編碼的網頁會落入 Latin1 而顯示亂碼。
     // 檔案自己宣告了編碼時就採信它——但 BOM 優先（detect() 已保證有 BOM 時不填此欄），
     // 且宣告若解析為 UTF-8 就不必特別處理（既有路徑已正確）。
-    if (!det.declaredCharset.isEmpty() && m_encoding != Encoding::Utf8) {
-        const QString declared = det.declaredCharset;
-        if (QTextCodec *codec = QTextCodec::codecForName(declared.toLatin1())) {
-            const QString byName = QString::fromLatin1(codec->name()).toLower();
-            if (byName != QLatin1String("utf-8")) {
-                m_codecName = declared;   // 後續存檔沿用同一編碼，避免存回去變成另一種編碼
-            }
+    // 限縮於標記式格式：非 markup 檔（.cpp/.md/.log…）的內文常合法出現 <meta charset=…>
+    // 這類字樣（註解、範例、貼上的日誌），採信會把整份檔案用錯誤編碼重新解碼。
+    if (!det.declaredCharset.isEmpty() && m_encoding != Encoding::Utf8
+        && FileEncoding::isMarkupSuffix(QFileInfo(path).suffix())) {
+        if (QTextCodec *codec = QTextCodec::codecForName(det.declaredCharset.toLatin1())) {
+            // 存 codec 的正規名稱而非檔案裡的原始拼法，狀態列顯示才會與手動選取的
+            // 編碼一致（否則會出現 "gbk" 與 "GBK" 並存的不一致標籤）。
+            const QString canonical = QString::fromLatin1(codec->name());
+            if (canonical.compare(QLatin1String("UTF-8"), Qt::CaseInsensitive) != 0)
+                m_codecName = canonical;   // 存檔沿用同一編碼，避免存回去變成另一種編碼
         }
     }
 

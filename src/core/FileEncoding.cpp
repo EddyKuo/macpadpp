@@ -3,8 +3,23 @@
 #include <QStringConverter>
 #include <QTextCodec>   // Qt6Core5Compat：傳統/區域編碼支援
 #include <QRegularExpression>   // XML/HTML 字元集宣告嗅探
+#include <QSet>
 
 namespace macpad::core {
+
+bool FileEncoding::isMarkupSuffix(const QString &suffix)
+{
+    // 僅限「規範上檔案會自行宣告編碼」的標記式格式。刻意不含 .md/.txt/.cpp 等——
+    // 那些格式的內文常合法地引用 <meta charset=…> 當範例，採信會造成整份誤解碼。
+    static const QSet<QString> kMarkup = {
+        QStringLiteral("html"), QStringLiteral("htm"),  QStringLiteral("xhtml"),
+        QStringLiteral("shtml"), QStringLiteral("xml"), QStringLiteral("xsl"),
+        QStringLiteral("xslt"), QStringLiteral("xsd"),  QStringLiteral("svg"),
+        QStringLiteral("rss"),  QStringLiteral("atom"), QStringLiteral("plist"),
+        QStringLiteral("wsdl"), QStringLiteral("kml"),  QStringLiteral("dtd"),
+    };
+    return kMarkup.contains(suffix.toLower());
+}
 
 QString FileEncoding::declaredCharsetIn(const QByteArray &head)
 {
@@ -15,11 +30,14 @@ QString FileEncoding::declaredCharsetIn(const QByteArray &head)
     const QString text = QString::fromLatin1(probe);
 
     // <?xml version="1.0" encoding="Big5"?>
+    // 錨定在文件開頭（允許前導空白）——XML 規範要求宣告必須是文件的第一個節點，
+    // 不錨定的話，內文任何位置出現這段字樣都會被誤認成宣告。
+    // 引號以反向參照配對，避免 encoding="utf-8' 這種前後不一致也被接受。
     static const QRegularExpression xmlDecl(
-        QStringLiteral(R"(<\?xml[^>]*?encoding\s*=\s*["']([\w:.+-]+)["'])"),
+        QStringLiteral(R"(^\s*<\?xml[^>]*?encoding\s*=\s*(["'])([\w:.+-]+)\1)"),
         QRegularExpression::CaseInsensitiveOption);
     if (const auto m = xmlDecl.match(text); m.hasMatch())
-        return m.captured(1).trimmed();
+        return m.captured(2).trimmed();
 
     // <meta charset="utf-8">（HTML5）
     static const QRegularExpression metaCharset(

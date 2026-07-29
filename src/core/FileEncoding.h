@@ -44,6 +44,11 @@ public:
     // 只掃描開頭一小段（宣告依規範必須出現在檔案極前段），純函式、可單元測試。
     static QString declaredCharsetIn(const QByteArray &head);
 
+    // 此副檔名是否為「檔案自身會宣告編碼」的標記式格式。
+    // 必須據此限縮 declaredCharsetIn 的採用範圍：否則一個 Latin-1 的 .cpp 只要註解裡
+    // 寫了 <meta charset="EUC-KR"> 當範例，整份檔案就會被誤判改用該編碼解碼。
+    static bool isMarkupSuffix(const QString &suffix);
+
     // 依偵測結果將原始位元組解碼為 QString（內部 UTF-8 表示）
     static QString decode(const QByteArray &raw, Encoding enc);
 

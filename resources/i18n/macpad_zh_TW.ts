@@ -2040,12 +2040,12 @@ Qt6 + QScintilla</translation>
         <translation>（預設）</translation>
     </message>
     <message>
-        <location filename="../../src/core/EditorWidget.cpp" line="376"/>
+        <location filename="../../src/core/EditorWidget.cpp" line="396"/>
         <source>File does not exist</source>
         <translation>檔案不存在</translation>
     </message>
     <message>
-        <location filename="../../src/core/EditorWidget.cpp" line="398"/>
+        <location filename="../../src/core/EditorWidget.cpp" line="418"/>
         <source>Failed to change the read-only attribute of the file</source>
         <translation>無法變更檔案的唯讀屬性</translation>
     </message>
@@ -2293,176 +2293,176 @@ Qt6 + QScintilla</translation>
 <context>
     <name>macpad::features::FindReplaceDialog</name>
     <message>
-        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="29"/>
+        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="30"/>
         <source>Find / Replace</source>
         <translation>尋找/取代</translation>
     </message>
     <message>
-        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="34"/>
+        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="47"/>
         <source>Match case</source>
         <translation>區分大小寫</translation>
     </message>
     <message>
-        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="35"/>
+        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="48"/>
         <source>Whole word</source>
         <translation>全字相符</translation>
     </message>
     <message>
-        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="36"/>
+        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="49"/>
         <source>Regex</source>
         <translation>正規表示式</translation>
     </message>
     <message>
-        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="37"/>
+        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="50"/>
         <source>Wrap around</source>
         <translation>循環搜尋</translation>
     </message>
     <message>
-        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="39"/>
+        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="52"/>
         <source>In selection</source>
         <translation>在選取範圍內</translation>
     </message>
     <message>
-        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="40"/>
+        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="53"/>
         <source>&apos;.&apos; matches newline</source>
         <translation>「.」符合換行字元</translation>
     </message>
     <message>
-        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="41"/>
+        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="54"/>
         <source>Extended (\n \r \t \0 \xNN)</source>
         <translation>擴充 (\n \r \t \0 \xNN)</translation>
     </message>
     <message>
-        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="42"/>
+        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="55"/>
         <source>\n \r \t \0 \b \\ \xNN \uXXXX \u{XXXX} \oNNN \dNNN</source>
         <translation>\n \r \t \0 \b \\ \xNN \uXXXX \u{XXXX} \oNNN \dNNN</translation>
     </message>
     <message>
-        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="47"/>
+        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="60"/>
         <source>lo，如 0x4E00</source>
         <translation>lo，如 0x4E00</translation>
     </message>
     <message>
-        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="49"/>
+        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="62"/>
         <source>hi，如 0x9FFF</source>
         <translation>hi，如 0x9FFF</translation>
     </message>
     <message>
-        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="50"/>
+        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="63"/>
         <source>Find Codepoint</source>
         <translation>尋找碼位</translation>
     </message>
     <message>
-        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="60"/>
+        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="73"/>
         <source>Window opacity</source>
         <translation>視窗不透明度</translation>
     </message>
     <message>
-        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="62"/>
+        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="75"/>
         <source>Find Next</source>
         <translation>找下一個</translation>
     </message>
     <message>
-        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="63"/>
+        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="76"/>
         <source>Replace</source>
         <translation>取代</translation>
     </message>
     <message>
-        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="64"/>
-        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="371"/>
+        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="77"/>
+        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="436"/>
         <source>Replace All</source>
         <translation>全部取代</translation>
     </message>
     <message>
-        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="65"/>
+        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="78"/>
         <source>Mark All</source>
         <translation>全部標記</translation>
     </message>
     <message>
-        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="66"/>
+        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="79"/>
         <source>Count</source>
         <translation>計數</translation>
     </message>
     <message>
-        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="67"/>
+        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="80"/>
         <source>↕</source>
         <translation>↕</translation>
     </message>
     <message>
-        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="68"/>
+        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="81"/>
         <source>Find (Volatile) Next</source>
         <translation>尋找（暫時性）下一個</translation>
     </message>
     <message>
-        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="69"/>
+        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="82"/>
         <source>Find (Volatile) Previous</source>
         <translation>尋找（暫時性）上一個</translation>
     </message>
     <message>
-        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="73"/>
+        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="86"/>
         <source>Find:</source>
         <translation>尋找:</translation>
     </message>
     <message>
-        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="78"/>
+        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="91"/>
         <source>Replace:</source>
         <translation>取代:</translation>
     </message>
     <message>
-        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="92"/>
+        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="105"/>
         <source>Opacity:</source>
         <translation>不透明度：</translation>
     </message>
     <message>
-        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="94"/>
+        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="107"/>
         <source>Codepoint range:</source>
         <translation>字碼範圍：</translation>
     </message>
     <message>
-        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="267"/>
-        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="279"/>
-        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="289"/>
+        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="330"/>
+        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="342"/>
+        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="352"/>
         <source>找不到「%1」</source>
         <translation>找不到「%1」</translation>
     </message>
     <message>
-        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="307"/>
+        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="370"/>
         <source>碼點範圍無效（請輸入 lo &lt;= hi，可用 0x 前綴）</source>
         <translation>碼點範圍無效（請輸入 lo &lt;= hi，可用 0x 前綴）</translation>
     </message>
     <message>
-        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="343"/>
+        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="406"/>
         <source>找到碼點範圍 [%1,%2] 內字元</source>
         <translation>找到碼點範圍 [%1,%2] 內字元</translation>
     </message>
     <message>
-        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="347"/>
+        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="410"/>
         <source>找到碼點範圍 [%1,%2] 內字元（已環繞）</source>
         <translation>找到碼點範圍 [%1,%2] 內字元（已環繞）</translation>
     </message>
     <message>
-        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="350"/>
+        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="413"/>
         <source>找不到碼點範圍 [%1,%2] 內的字元</source>
         <translation>找不到碼點範圍 [%1,%2] 內的字元</translation>
     </message>
     <message>
-        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="372"/>
+        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="437"/>
         <source>即將把所有符合「%1」的內容取代為「%2」，是否繼續？</source>
         <translation>即將把所有符合「%1」的內容取代為「%2」，是否繼續？</translation>
     </message>
     <message>
-        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="411"/>
-        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="422"/>
+        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="476"/>
+        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="487"/>
         <source>已取代 %1 處</source>
         <translation>已取代 %1 處</translation>
     </message>
     <message>
-        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="432"/>
+        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="498"/>
         <source>已標記 %1 處</source>
         <translation>已標記 %1 處</translation>
     </message>
     <message>
-        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="466"/>
+        <location filename="../../src/features/search/FindReplaceDialog.cpp" line="532"/>
         <source>共 %1 處匹配</source>
         <translation>共 %1 處匹配</translation>
     </message>
@@ -2562,7 +2562,7 @@ Qt6 + QScintilla</translation>
 <context>
     <name>macpad::ui::ClipboardHistoryDock</name>
     <message>
-        <location filename="../../src/ui/Panels.cpp" line="176"/>
+        <location filename="../../src/ui/Panels.cpp" line="177"/>
         <source>Clipboard History</source>
         <translation>剪貼簿歷史</translation>
     </message>
@@ -2675,7 +2675,7 @@ Qt6 + QScintilla</translation>
 <context>
     <name>macpad::ui::DocumentMapDock</name>
     <message>
-        <location filename="../../src/ui/Panels.cpp" line="212"/>
+        <location filename="../../src/ui/Panels.cpp" line="213"/>
         <source>Document Map</source>
         <translation>文件地圖</translation>
     </message>
@@ -2683,38 +2683,38 @@ Qt6 + QScintilla</translation>
 <context>
     <name>macpad::ui::FunctionListDock</name>
     <message>
-        <location filename="../../src/ui/Panels.cpp" line="27"/>
+        <location filename="../../src/ui/Panels.cpp" line="28"/>
         <source>Function List</source>
         <translation>函式清單</translation>
     </message>
     <message>
-        <location filename="../../src/ui/Panels.cpp" line="38"/>
+        <location filename="../../src/ui/Panels.cpp" line="39"/>
         <source>篩選…</source>
         <translation>篩選…</translation>
     </message>
     <message>
-        <location filename="../../src/ui/Panels.cpp" line="40"/>
-        <location filename="../../src/ui/Panels.cpp" line="82"/>
+        <location filename="../../src/ui/Panels.cpp" line="41"/>
+        <location filename="../../src/ui/Panels.cpp" line="83"/>
         <source>Sort A-Z</source>
         <translation>排序 A-Z</translation>
     </message>
     <message>
-        <location filename="../../src/ui/Panels.cpp" line="68"/>
+        <location filename="../../src/ui/Panels.cpp" line="69"/>
         <source>Go to Definition</source>
         <translation>跳至定義</translation>
     </message>
     <message>
-        <location filename="../../src/ui/Panels.cpp" line="74"/>
+        <location filename="../../src/ui/Panels.cpp" line="75"/>
         <source>Copy Name</source>
         <translation>複製名稱</translation>
     </message>
     <message>
-        <location filename="../../src/ui/Panels.cpp" line="79"/>
+        <location filename="../../src/ui/Panels.cpp" line="80"/>
         <source>Expand All</source>
         <translation>全部展開</translation>
     </message>
     <message>
-        <location filename="../../src/ui/Panels.cpp" line="80"/>
+        <location filename="../../src/ui/Panels.cpp" line="81"/>
         <source>Collapse All</source>
         <translation>全部摺疊</translation>
     </message>
@@ -4211,149 +4211,154 @@ Qt6 + QScintilla</translation>
 <context>
     <name>macpad::ui::WorkspaceDock</name>
     <message>
-        <location filename="../../src/ui/WorkspaceDock.cpp" line="27"/>
+        <location filename="../../src/ui/WorkspaceDock.cpp" line="29"/>
         <source>Workspace</source>
         <translation>工作區</translation>
     </message>
     <message>
-        <location filename="../../src/ui/WorkspaceDock.cpp" line="131"/>
+        <location filename="../../src/ui/WorkspaceDock.cpp" line="133"/>
         <source>Add Folder…</source>
         <translation>新增資料夾…</translation>
     </message>
     <message>
-        <location filename="../../src/ui/WorkspaceDock.cpp" line="133"/>
+        <location filename="../../src/ui/WorkspaceDock.cpp" line="135"/>
         <source>Add Folder</source>
         <translation>新增資料夾</translation>
     </message>
     <message>
-        <location filename="../../src/ui/WorkspaceDock.cpp" line="138"/>
+        <location filename="../../src/ui/WorkspaceDock.cpp" line="140"/>
         <source>Set Filter…</source>
         <translation>設定篩選器…</translation>
     </message>
     <message>
-        <location filename="../../src/ui/WorkspaceDock.cpp" line="142"/>
+        <location filename="../../src/ui/WorkspaceDock.cpp" line="144"/>
         <source>Set Filter</source>
         <translation>設定篩選器</translation>
     </message>
     <message>
-        <location filename="../../src/ui/WorkspaceDock.cpp" line="143"/>
+        <location filename="../../src/ui/WorkspaceDock.cpp" line="145"/>
         <source>Name filters (e.g. *.cpp;*.h), empty to clear:</source>
         <translation>名稱篩選（例如 *.cpp;*.h），留空以清除：</translation>
     </message>
     <message>
-        <location filename="../../src/ui/WorkspaceDock.cpp" line="153"/>
+        <location filename="../../src/ui/WorkspaceDock.cpp" line="155"/>
         <source>Show Hidden Files</source>
         <translation>顯示隱藏檔案</translation>
     </message>
     <message>
-        <location filename="../../src/ui/WorkspaceDock.cpp" line="170"/>
+        <location filename="../../src/ui/WorkspaceDock.cpp" line="172"/>
         <source>Remove Root</source>
         <translation>移除根目錄</translation>
     </message>
     <message>
-        <location filename="../../src/ui/WorkspaceDock.cpp" line="178"/>
+        <location filename="../../src/ui/WorkspaceDock.cpp" line="180"/>
         <source>New File…</source>
         <translation>新增檔案…</translation>
     </message>
     <message>
-        <location filename="../../src/ui/WorkspaceDock.cpp" line="181"/>
-        <location filename="../../src/ui/WorkspaceDock.cpp" line="187"/>
+        <location filename="../../src/ui/WorkspaceDock.cpp" line="183"/>
+        <location filename="../../src/ui/WorkspaceDock.cpp" line="189"/>
         <source>New File</source>
         <translation>新增檔案</translation>
     </message>
     <message>
-        <location filename="../../src/ui/WorkspaceDock.cpp" line="181"/>
+        <location filename="../../src/ui/WorkspaceDock.cpp" line="183"/>
         <source>File name:</source>
         <translation>檔案名稱：</translation>
     </message>
     <message>
-        <location filename="../../src/ui/WorkspaceDock.cpp" line="187"/>
+        <location filename="../../src/ui/WorkspaceDock.cpp" line="189"/>
         <source>Failed to create file: %1</source>
         <translation>建立檔案失敗：%1</translation>
     </message>
     <message>
-        <location filename="../../src/ui/WorkspaceDock.cpp" line="196"/>
+        <location filename="../../src/ui/WorkspaceDock.cpp" line="198"/>
         <source>New Folder…</source>
         <translation>新增資料夾…</translation>
     </message>
     <message>
-        <location filename="../../src/ui/WorkspaceDock.cpp" line="199"/>
-        <location filename="../../src/ui/WorkspaceDock.cpp" line="204"/>
+        <location filename="../../src/ui/WorkspaceDock.cpp" line="201"/>
+        <location filename="../../src/ui/WorkspaceDock.cpp" line="206"/>
         <source>New Folder</source>
         <translation>新增資料夾</translation>
     </message>
     <message>
-        <location filename="../../src/ui/WorkspaceDock.cpp" line="199"/>
+        <location filename="../../src/ui/WorkspaceDock.cpp" line="201"/>
         <source>Folder name:</source>
         <translation>資料夾名稱：</translation>
     </message>
     <message>
-        <location filename="../../src/ui/WorkspaceDock.cpp" line="204"/>
+        <location filename="../../src/ui/WorkspaceDock.cpp" line="206"/>
         <source>Failed to create folder: %1</source>
         <translation>建立資料夾失敗：%1</translation>
     </message>
     <message>
-        <location filename="../../src/ui/WorkspaceDock.cpp" line="214"/>
+        <location filename="../../src/ui/WorkspaceDock.cpp" line="216"/>
         <source>Rename…</source>
         <translation>重新命名…</translation>
     </message>
     <message>
-        <location filename="../../src/ui/WorkspaceDock.cpp" line="219"/>
-        <location filename="../../src/ui/WorkspaceDock.cpp" line="225"/>
+        <location filename="../../src/ui/WorkspaceDock.cpp" line="221"/>
+        <location filename="../../src/ui/WorkspaceDock.cpp" line="227"/>
         <source>Rename</source>
         <translation>重新命名</translation>
     </message>
     <message>
-        <location filename="../../src/ui/WorkspaceDock.cpp" line="219"/>
+        <location filename="../../src/ui/WorkspaceDock.cpp" line="221"/>
         <source>New name:</source>
         <translation>新名稱：</translation>
     </message>
     <message>
-        <location filename="../../src/ui/WorkspaceDock.cpp" line="225"/>
+        <location filename="../../src/ui/WorkspaceDock.cpp" line="227"/>
         <source>Failed to rename to: %1</source>
         <translation>重新命名為 %1 失敗</translation>
     </message>
     <message>
-        <location filename="../../src/ui/WorkspaceDock.cpp" line="233"/>
-        <location filename="../../src/ui/WorkspaceDock.cpp" line="236"/>
-        <location filename="../../src/ui/WorkspaceDock.cpp" line="241"/>
+        <location filename="../../src/ui/WorkspaceDock.cpp" line="235"/>
+        <location filename="../../src/ui/WorkspaceDock.cpp" line="238"/>
+        <location filename="../../src/ui/WorkspaceDock.cpp" line="243"/>
         <source>Delete</source>
         <translation>刪除</translation>
     </message>
     <message>
-        <location filename="../../src/ui/WorkspaceDock.cpp" line="237"/>
+        <location filename="../../src/ui/WorkspaceDock.cpp" line="239"/>
         <source>Move &quot;%1&quot; to Trash?</source>
         <translation>要將「%1」移到垃圾桶嗎？</translation>
     </message>
     <message>
-        <location filename="../../src/ui/WorkspaceDock.cpp" line="241"/>
+        <location filename="../../src/ui/WorkspaceDock.cpp" line="243"/>
         <source>Failed to move to Trash: %1</source>
         <translation>移至垃圾桶失敗：%1</translation>
     </message>
     <message>
-        <location filename="../../src/ui/WorkspaceDock.cpp" line="251"/>
+        <location filename="../../src/ui/WorkspaceDock.cpp" line="253"/>
         <source>Copy Full Path</source>
         <translation>複製完整路徑</translation>
     </message>
     <message>
-        <location filename="../../src/ui/WorkspaceDock.cpp" line="256"/>
+        <location filename="../../src/ui/WorkspaceDock.cpp" line="258"/>
         <source>Copy File Name</source>
         <translation>複製檔案名稱</translation>
     </message>
     <message>
-        <location filename="../../src/ui/WorkspaceDock.cpp" line="263"/>
+        <location filename="../../src/ui/WorkspaceDock.cpp" line="265"/>
         <source>Find in This Folder…</source>
         <translation>在此資料夾中尋找…</translation>
     </message>
     <message>
-        <location filename="../../src/ui/WorkspaceDock.cpp" line="271"/>
+        <location filename="../../src/ui/WorkspaceDock.cpp" line="273"/>
         <source>Reveal in Finder</source>
         <translation>在 Finder 中顯示</translation>
     </message>
     <message>
-        <location filename="../../src/ui/WorkspaceDock.cpp" line="278"/>
+        <location filename="../../src/ui/WorkspaceDock.cpp" line="280"/>
         <source>Open Terminal Here</source>
         <translation>在此開啟終端機</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/WorkspaceDock.cpp" line="289"/>
+        <source>Open in Default Application</source>
+        <translation>以預設程式開啟</translation>
     </message>
 </context>
 </TS>
