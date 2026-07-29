@@ -27,6 +27,7 @@
 #include "features/findall/FindAllEngine.h"
 #include "features/findall/FindAllDock.h"
 #include "features/backup/BackupService.h"
+#include "features/update/UpdateChecker.h"
 
 #include <QDateTime>
 
@@ -303,6 +304,10 @@ MainWindow::MainWindow(QWidget *parent, bool restoreSessionOnLaunch)
         restoreSession();
     if (m_tabs->count() == 0)
         newFile();
+    // 啟動時檢查更新（複刻 Notepad++ auto-updater）：預設關閉；開啟時才連線，
+    // 且只在真的有新版時提示。延後觸發，避免拖慢視窗顯示。
+    if (settings.autoUpdater)
+        QTimer::singleShot(3000, this, [this] { checkForUpdates(/*silent=*/true); });
     rebuildRecentMenu();
     applyTheme();  // 還原後統一套用主題（含 lexer paper）
 

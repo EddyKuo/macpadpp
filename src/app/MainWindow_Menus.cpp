@@ -28,6 +28,7 @@
 #include "features/findall/FindAllEngine.h"
 #include "features/findall/FindAllDock.h"
 #include "features/backup/BackupService.h"
+#include "features/update/UpdateChecker.h"
 
 #include <QDateTime>
 
@@ -377,8 +378,13 @@ void MainWindow::createMenus()
     aboutAct->setMenuRole(QAction::AboutRole);
     connect(aboutAct, &QAction::triggered, this, [this] {
         QMessageBox::about(this, tr("About macpad++"),
-                           tr("macpad++ — Notepad++ 對等的原生 macOS 編輯器\nQt6 + QScintilla"));
+                           tr("macpad++ %1 — Notepad++ 對等的原生跨平台編輯器（macOS / Windows）\n"
+                              "Qt6 + QScintilla")
+                               .arg(QString::fromLatin1(MACPAD_VERSION)));
     });
+    // Check for Updates…（複刻 Notepad++ 的更新檢查；只查詢與告知，不自我覆寫）
+    QAction *updateAct = new QAction(tr("Check for Updates…"), this);
+    connect(updateAct, &QAction::triggered, this, [this] { checkForUpdates(/*silent=*/false); });
     QAction *quitAct = new QAction(tr("Quit macpad++"), this);
     quitAct->setShortcut(QKeySequence::Quit);
     quitAct->setMenuRole(QAction::QuitRole);
@@ -388,6 +394,7 @@ void MainWindow::createMenus()
     // 其他平台則留在 File。關鍵是它們都在 QMenu 內，不再是 bare action。
     fileMenu->addSeparator();
     fileMenu->addAction(prefsAct);
+    fileMenu->addAction(updateAct);
     fileMenu->addAction(aboutAct);
     fileMenu->addAction(quitAct);
 

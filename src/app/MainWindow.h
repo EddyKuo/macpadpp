@@ -71,6 +71,8 @@ public:
     // -systemtray：常駐系統匣（Windows 通知區 / macOS 選單列狀態區）。
     // 系統不支援時安全略過（回傳 false），不影響主視窗運作。
     bool enableSystemTray();
+    // 檢查更新（複刻 Notepad++）：silent=true 為啟動時自動檢查，失敗與「已是最新」皆不打擾
+    void checkForUpdates(bool silent);
 
 public slots:
     // 開啟指定檔案（已開啟則聚焦既有分頁——FR-001 邊界）

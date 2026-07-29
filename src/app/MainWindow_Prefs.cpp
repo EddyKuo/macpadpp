@@ -9,6 +9,7 @@
 #include "platform/ThemeManager.h"
 #include "ui/EditorPane.h"
 #include "ui/MultiRowTabBar.h"
+#include "features/update/UpdateChecker.h"
 #include "extension/ExtensionRegistry.h"
 #include "extension/builtin/WordCountExtension.h"
 #include "extension/builtin/MarkdownPreviewExtension.h"
@@ -298,6 +299,44 @@ void MainWindow::setFullReadOnly(bool on)
         if (e)
             e->setPolicyReadOnly(on);   // 政策鎖定：Clear Read-Only Flag 不得解除
     });
+}
+
+
+// 檢查更新（複刻 Notepad++ 的 Check for Updates / auto-updater）。
+// silent=true 為啟動時的自動檢查：只在「真的有新版」時才打擾使用者，失敗完全靜默
+// （沒網路是常態，不該每次開檔都跳錯誤）。
+// 刻意不做自我下載覆寫——詳見 features/update/UpdateChecker.h 的說明。
+void MainWindow::checkForUpdates(bool silent)
+{
+    auto *checker = new macpad::features::UpdateChecker(this);
+    connect(checker, &macpad::features::UpdateChecker::finished, this,
+            [this, checker, silent](bool hasUpdate, const QString &latest,
+                                    const QString &url, const QString &err) {
+        checker->deleteLater();
+
+        if (!err.isEmpty()) {
+            if (!silent)
+                QMessageBox::warning(this, tr("Check for Updates"),
+                                     tr("無法取得更新資訊：%1").arg(err));
+            return;
+        }
+        if (!hasUpdate) {
+            if (!silent)
+                QMessageBox::information(this, tr("Check for Updates"),
+                                         tr("目前已是最新版本（%1）。")
+                                             .arg(QString::fromLatin1(MACPAD_VERSION)));
+            return;
+        }
+
+        const auto btn = QMessageBox::question(
+            this, tr("Check for Updates"),
+            tr("有新版本可用：%1（目前為 %2）。\n要開啟下載頁面嗎？")
+                .arg(latest, QString::fromLatin1(MACPAD_VERSION)),
+            QMessageBox::Yes | QMessageBox::No, QMessageBox::Yes);
+        if (btn == QMessageBox::Yes && !url.isEmpty())
+            QDesktopServices::openUrl(QUrl(url));
+    });
+    checker->check(QString::fromLatin1(MACPAD_VERSION));
 }
 
 

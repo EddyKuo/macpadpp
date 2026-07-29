@@ -1,26 +1,61 @@
 # macpad++ ↔ Notepad++ 功能比對
 
-> 原生 macOS 文字/程式碼編輯器 · Qt6 + QScintilla
+> 跨平台（macOS / Windows 10-11）文字/程式碼編輯器 · Qt6 + QScintilla
 > 每列為 Notepad++ 的功能,右欄為 macpad++ 的對應狀態。
-> 更新日期:2026-07-08(Sprint 7.1 —「全部做完」)
+> 更新日期:2026-07-30(對齊上游 **v8.9.7**)
 
 ## 總覽
 
-截至 Sprint 7.1,所有 macOS 可實作的 Notepad++ 功能均已補完,且每一項新增的偏好設定都有真實 runtime
-效果(無死設定)。唯二未實作項為平台本質限制:`autoUpdater`(依設計不連網做自動更新)、
-`tabBarMultiLine`(Qt QTabBar 無原生多列換行,已 best-effort 以捲動按鈕近似)。另有一項 na_macos
-(Windows `.dll` 外掛 ABI)屬平台不可能,macpad++ 以自製 in-process extension protocol 取代。
+先前版本的對照基準停在 Notepad++ v8.7 之前。本輪重新對照上游 **v8.9.7**（2026-03）的
+changelog 與 `langs.model.xml`，把 v8.7 → v8.9.7 之間新增的功能全部補上，
+並重新檢視原先被列為「平台限制」的項目。
+
+**結論：目前沒有任何「因平台做不到」而缺席的功能。** 唯一與上游有意差異的是
+自動更新不做自我覆寫（見下方誠實清單），以及 Notepad++ 的 Windows `.dll` 外掛 ABI
+（架構決策，改以自製 in-process extension protocol 取代）。
+
+### 本輪（2026-07-30）補上的上游功能
+
+| 版本 | 功能 | 狀態 |
+|------|------|:----:|
+| v8.7 | UDL 於存檔對話框提供副檔名篩選 | ✅ |
+| v8.7 | Save a Copy 後可自動開啟副本 | ✅ |
+| v8.7 | 可停用 C-like 自動縮排 | ✅ |
+| v8.7.1 | 未命名分頁 tooltip 顯示建立時間 | ✅ |
+| v8.7.2/8.7.3/8.8 | Pin/Unpin Tab、Close All BUT Pinned | ✅ |
+| v8.7.5 | 進階自動縮排擴充語言（Swift/TypeScript/Go…） | ✅ |
+| v8.7.8 | 以設定隱藏指定工具列按鈕 | ✅ |
+| v8.8.1 | Undo/Redo 納入選取歷史 | ✅ |
+| v8.8.2 | 未命名分頁以內容首行命名 | ✅ |
+| v8.8.6 | 對所有文件套用/解除唯讀 | ✅ |
+| v8.8.6 | Column Editor 輸入欄位支援進位基數 | ✅ |
+| v8.8.6 | Window 對話框可依修改時間排序 | ✅ |
+| v8.8.8 | 分頁標籤長度上限 | ✅ |
+| v8.8.9 | 依長度排序行、Undo/Redo 還原捲動位置 | ✅ |
+| v8.9.2 | Redact Selection | ✅ |
+| v8.9.3 | 可停用選取文字拖放 | ✅ |
+| v8.9.5 | 兩檢視同步縮放 | ✅ |
+| v8.9.7 | 增量搜尋「第 n / 共 m 筆」 | ✅ |
+| v8.9.7 | 列印時 FormFeed 視為分頁符 | ✅ |
+| v8.9.7 | Folder as Workspace 跨 session 記住展開狀態 | ✅ |
+| v8.9.7 | 取色器記住自訂色 | ✅ |
+| — | 語言支援 33 → **128** 種（對齊 `langs.model.xml`） | ✅ |
+| — | Function List 規則 4 → **45** 種語言 | ✅ |
+| — | Multi-Line Tab Bar：**真正的多列換行**（不再是捲動按鈕近似） | ✅ |
+| — | Export as RTF（存檔） | ✅ |
+| — | Window ▸ Windows… 文件管理對話框 | ✅ |
+| — | Check for Updates（查詢並告知，不自我覆寫） | ◐ |
 
 | 狀態 | 說明 |
 |------|------|
-| ✅ 已實作 | 完整對等或以 macOS 原生方式等效達成 |
+| ✅ 已實作 | 完整對等,或以各平台原生方式等效達成 |
 | ◐ 部分 | 近似或略有差異(非缺功能,是實作方式不同) |
-| ✕ 平台限制 / macOS 無法 | Notepad++ 該功能在 macOS 上本質不可行或無原生等效物 |
+| ✕ 平台限制 | 該功能在 macOS 與 Windows 上皆無可行的等效實作 |
 
 **對應選單(13):** File · Edit · Search · View · Encoding · Language · Settings · Tools · Macro · Run ·
 Plugins · Window · **Project**(macpad++ 新增)
 
-**圖例:** ✅ 完整對等　◐ 近似/略有差異　✕ 受 macOS 平台限制
+**圖例:** ✅ 完整對等　◐ 近似/略有差異　✕ 雙平台皆無等效實作
 
 ---
 
@@ -42,7 +77,7 @@ Plugins · Window · **Project**(macpad++ 新增)
 | Session 快照(未存內容跨重啟保留) | ✅ | 複刻 Notepad++「session snapshot」:啟用時關閉不提示存檔,**多個未命名分頁各自的未存內容**與 dirty 已命名檔重開後靜默還原、保持 dirty(`enableSessionSnapshot`,預設開) |
 | 未命名分頁編號 untitled(N) | ✅ | 複刻 Notepad++「new N」:多個未存分頁以 `untitled(1)`/`untitled(2)`… 區分,關閉後號碼回收(取最小未用號) |
 | Print | ✅ | 保留語法高亮;CLI `-quickPrint` 免對話框直印(QsciPrinter) |
-| Export as HTML / RTF | ◐ | Export as HTML(存檔) ✅;RTF 無存檔匯出,但 Edit ▸ Paste as HTML/RTF 可貼到其他應用並保留語法高亮色彩 |
+| Export as HTML / RTF | ✅ | 兩者皆可存檔;另有 Edit ▸ Paste as HTML/RTF 貼到其他應用並保留語法高亮 |
 
 ## 編輯 Edit
 
@@ -54,7 +89,7 @@ Plugins · Window · **Project**(macpad++ 新增)
 | Copy to Clipboard ▸ 路徑/檔名/目錄 | ✅ | |
 | Paste as HTML / Paste as RTF | ✅ | 保留語法高亮色彩貼到其他應用 |
 | Indent / Unindent | ✅ | |
-| Convert Case | ◐ | 大寫/小寫/標題/句首/反轉;無 ranDOm cASE |
+| Convert Case | ✅ | 大寫/小寫/標題/句首/反轉/rAnDoM CaSe |
 | Line Operations | ✅ | 排序/去重/去空行/反轉/搬移/複製/刪除/Join/Split |
 | Comment ▸ Line / Block | ✅ | 依語言註解符號 |
 | Blank Operations | ✅ | Trim Leading/Trailing/Both+EOL / Tab↔Space |
@@ -119,7 +154,7 @@ Plugins · Window · **Project**(macpad++ 新增)
 
 | 功能 | 狀態 | 說明 |
 |------|:----:|------|
-| 內建語法高亮 | ✅ | 35+ 語言,可手動指定;可依偏好停用個別語言 |
+| 內建語法高亮 | ✅ | 128 種語言（33 個 QScintilla 原生 lexer + 95 個以通用 UDL 引擎資料驅動）,可手動指定;可依偏好停用個別語言 |
 | User-Defined Language ▸ Define Your Language | ✅ | 圖形化建立 UDL,Prefix Mode |
 | Import / Export UDL | ✅ | JSON UDL,以及與 Notepad++ `userDefineLang.xml` 相容格式互轉(UdlXmlIo) |
 
@@ -131,7 +166,7 @@ Plugins · Window · **Project**(macpad++ 新增)
 | Style Configurator | ✅ | 逐語言逐 style 改色 + 字型、底線、全域覆寫、主題下拉套用、完整 Global Styles(含 caret line/選取/空白/邊欄/badBrace/foldActive/change history/urlHovered) |
 | 內建主題(Theme) | ✅ | 隨附 17 套具名主題:複刻大廠 IDE(Monokai/Dracula/One Dark/Nord/Solarized 深淺/Gruvbox 深淺/VS Code Dark+·Light/GitHub 深淺/Night Owl/Tomorrow Night/Material Palenight/Cobalt)+ 原創 **Cyberpunk 暗色霓虹**,各帶專屬編輯器底色·選取·邊欄色 + 12 語言逐 style 語法色;啟動時自動植入使用者主題目錄(可自由改/刪/匯入匯出) |
 | Shortcut Mapper | ✅ | 重綁快捷鍵並持久化、衝突偵測 |
-| Check for Updates(自動更新) | ✕ | **平台限制**:依設計不做連網自我更新(`autoUpdater` 偏好僅記錄使用者選擇,不執行實際檢查/下載);macOS 應用分發慣例交由外部管道處理 |
+| Check for Updates(自動更新) | ◐ | 查詢 GitHub Releases、比對版本並引導至下載頁;啟動時自動檢查的偏好真正生效。刻意不做靜默自我覆寫 |
 
 ## 工具 · 巨集 · 執行 Tools · Macro · Run
 
@@ -162,7 +197,7 @@ Plugins · Window · **Project**(macpad++ 新增)
 | Next / Previous Document | ✅ | ⌃Tab / ⌃⇧Tab |
 | 分頁標色 / 唯讀鎖定 | ✅ | 右鍵分頁 |
 | 分頁右鍵選單(Tab Context Menu) | ✅ | Close/Close All but This/Close to Left·Right、Save/Save As/Rename、Reload、垃圾桶、Open Containing Folder、Open in Default App、Copy 路徑/檔名/目錄、標色、唯讀、Move/Clone to Other View |
-| Tab Bar 多列(Multi-Line) | ◐ | **平台限制**:Qt QTabBar 無原生多列換行,best-effort 以捲動按鈕近似(`tabBarMultiLine`) |
+| Tab Bar 多列(Multi-Line) | ✅ | 自寫 `ui/MultiRowTabBar` 接管繪製與命中測試,真正換行(`tabBarMultiLine`) |
 
 ## 專案 Project(macpad++ 新增選單)
 
@@ -202,9 +237,13 @@ C++17 · Qt6(Widgets / PrintSupport / Core5Compat)· QScintilla · CMake ·
 > 下表其餘三項的排除結論不變,但**原因描述已更正**——它們並非 macOS 專屬限制。
 > 逐項認定詳見 `docs/parity-audit.md`「雙平台重新認定」章節。
 
+> **2026-07-30 再更新**：`tabBarMultiLine` 已不再是缺口——那從來不是平台限制，而是
+> 「QTabBar 沒有多列排版開關」。自寫 `ui/MultiRowTabBar` 接管繪製與命中測試後即已實作
+> （見上方本輪清單）。`autoUpdater` 也由「只存偏好」改為真的會查詢並告知。
+
 | 項目 | 分類 | 原因 |
 |------|------|------|
-| Auto Updater(自動檢查更新) | **產品決策** | 依設計不做連網自我更新;偏好僅記錄使用者選擇,不執行實際檢查/下載。**兩平台技術上皆可行**,是刻意不做,非平台限制 |
-| Tab Bar 多列(Multi-Line Tab Bar) | **Qt 工具組限制** | Qt QTabBar 無原生多列換行支援——**Windows 上亦然**,與作業系統無關;已 best-effort 以捲動按鈕近似 |
+| Auto Updater 的**自我下載覆寫** | **產品決策** | 「檢查更新」已實作(查 GitHub Releases、比對版本、引導至下載頁),且啟動時自動檢查的偏好已真正生效。**刻意不做**的是靜默下載並覆寫自身二進位——那需要簽章與更新伺服器基礎建設,且讓一個離線編輯器在使用者未察覺時改寫自身,風險與收益不成比例 |
 | 載入 Notepad++ `.dll` 外掛 | 架構決策 + 平台限制 | Windows 上技術可行但等同重寫 Notepad++ 內部 Win32 訊息介面,且與本專案自建 in-process extension protocol 的架構決策衝突(部分相容比不相容更糟);macOS 則無法載入 PE 二進位 |
 | GDI/DirectWrite 算繪切換 | **Qt 限制(雙平台)** | Qt6 Windows QPA 本就使用 DirectWrite,但未提供 Notepad++ 那種使用者可切換的旋鈕;macOS 用 Core Text。**兩平台都無對應開關可做** |
+| Undo 的選取歷史由 Scintilla 原生提供 | **相依版本限制** | 上游 v8.8.1 用的是 Scintilla 5.4 的 `SCI_SETUNDOSELECTIONHISTORY`;隨附的 QScintilla 2.14.1 綁 Scintilla 5.3,無此訊息。已改以應用層的選取歷史堆疊達成相同的使用者可見行為 |
