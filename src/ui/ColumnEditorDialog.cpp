@@ -46,6 +46,13 @@ ColumnEditorDialog::ColumnEditorDialog(QWidget *parent)
     m_base->addItem(tr("Hex"), 16);
     m_base->addItem(tr("Octal"), 8);
     m_base->addItem(tr("Binary"), 2);
+    // Notepad++ v8.8.6：輸入欄位本身也依所選基數顯示/接受輸入（原本只影響輸出格式），
+    // 例如選 Hex 時可直接鍵入 1A 作為起始值。
+    connect(m_base, &QComboBox::currentIndexChanged, this, [this](int) {
+        const int base = m_base->currentData().toInt();
+        m_start->setDisplayIntegerBase(base);
+        m_increment->setDisplayIntegerBase(base);
+    });
 
     m_width = new QSpinBox(this);
     m_width->setRange(0, 20);

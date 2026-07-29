@@ -115,6 +115,10 @@ private slots:
     void reloadFromDisk();
     void saveAll();
     void saveCopyAs();
+    // 對所有已開啟文件套用/解除唯讀（複刻 Notepad++ v8.8.6）
+    void setAllDocumentsReadOnly(bool readOnly);
+    // 將縮放層級同步到另一個檢視的所有編輯器（複刻 Notepad++ v8.9.5）
+    void syncZoomToOtherViews(macpad::core::EditorWidget *source, int zoom);
     void renameCurrentFile();
     void closeAllTabs();
     void closeAllButCurrent();
@@ -140,6 +144,10 @@ private slots:
     void setDistractionFree(bool on);
     void setPostIt(bool on);
     void showIncrementalSearch();
+    // 更新增量搜尋工具列的「第 n / 共 m 筆」（複刻 Notepad++ v8.9.7）
+    void updateIncrementalSearchCount(const QString &needle);
+    // 列印目前文件（工具列與 File ▸ Print… 共用同一條路徑，含 Print 偏好與 FormFeed 分頁）
+    void printCurrentDocument();
     void viewCurrentFileInBrowser(const QString &appName);
     // 編輯區右鍵選單（複刻 Notepad++ 編輯區右鍵）：由 EditorWidget::contextMenuRequested 觸發，
     // sender() 即被右鍵的編輯器；先將其設為作用中分頁再建構選單，使選單各項作用於正確文件。
@@ -290,6 +298,7 @@ private:
     QString m_lastDir;                   // defaultDirPolicy=RememberLast 用：上次開/存檔對話框目錄
     QToolBar *m_incBar = nullptr;       // 漸進式搜尋工具列
     QLineEdit *m_incSearch = nullptr;
+    QLabel *m_incCount = nullptr;       // 增量搜尋的「第 n / 共 m 筆」標籤
     QList<QDockWidget *> m_dfHidden;    // Distraction Free 時暫時隱藏的面板
     QList<QDockWidget *> m_postItHidden;
     bool m_distractionFree = false;

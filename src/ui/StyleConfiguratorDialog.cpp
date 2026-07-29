@@ -5,6 +5,8 @@
 
 #include <QCheckBox>
 #include <QColorDialog>
+
+#include "ui/ColorPicker.h"
 #include <QComboBox>
 #include <QDialogButtonBox>
 #include <QFontComboBox>
@@ -343,7 +345,7 @@ void StyleConfiguratorDialog::pickForeground()
         if (idx < 0 || idx >= int(std::size(kGlobalFields)))
             return;
         const QString cur = m_cfg.global.*kGlobalFields[idx];
-        const QColor c = QColorDialog::getColor(cur.isEmpty() ? QColor(Qt::black) : QColor(cur),
+        const QColor c = macpad::ui::ColorPicker::getColor(cur.isEmpty() ? QColor(Qt::black) : QColor(cur),
                                                  this, tr("Color"));
         if (!c.isValid())
             return;
@@ -353,7 +355,7 @@ void StyleConfiguratorDialog::pickForeground()
     }
     const int style = m_styles->currentItem()->data(Qt::UserRole).toInt();
     const QColor cur = m_lexer ? m_lexer->color(style) : QColor(Qt::black);
-    const QColor c = QColorDialog::getColor(cur, this, tr("Foreground Color"));
+    const QColor c = macpad::ui::ColorPicker::getColor(cur, this, tr("Foreground Color"));
     if (!c.isValid())
         return;
     currentOverride(true)->fg = c.name();
@@ -366,7 +368,7 @@ void StyleConfiguratorDialog::pickBackground()
         return;
     const int style = m_styles->currentItem()->data(Qt::UserRole).toInt();
     const QColor cur = m_lexer ? m_lexer->paper(style) : QColor(Qt::white);
-    const QColor c = QColorDialog::getColor(cur, this, tr("Background Color"));
+    const QColor c = macpad::ui::ColorPicker::getColor(cur, this, tr("Background Color"));
     if (!c.isValid())
         return;
     currentOverride(true)->bg = c.name();
@@ -431,7 +433,7 @@ void StyleConfiguratorDialog::pickGlobalFg()
 {
     const QColor cur = m_cfg.global.globalFg.isEmpty() ? QColor(Qt::black)
                                                          : QColor(m_cfg.global.globalFg);
-    const QColor c = QColorDialog::getColor(cur, this, tr("Global Foreground Color"));
+    const QColor c = macpad::ui::ColorPicker::getColor(cur, this, tr("Global Foreground Color"));
     if (!c.isValid())
         return;
     m_cfg.global.globalFg = c.name();
@@ -442,7 +444,7 @@ void StyleConfiguratorDialog::pickGlobalBg()
 {
     const QColor cur = m_cfg.global.globalBg.isEmpty() ? QColor(Qt::white)
                                                          : QColor(m_cfg.global.globalBg);
-    const QColor c = QColorDialog::getColor(cur, this, tr("Global Background Color"));
+    const QColor c = macpad::ui::ColorPicker::getColor(cur, this, tr("Global Background Color"));
     if (!c.isValid())
         return;
     m_cfg.global.globalBg = c.name();

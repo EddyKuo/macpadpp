@@ -172,6 +172,8 @@ void MainWindow::applyEditorPrefs(EditorWidget *editor, const macpad::persistenc
     editor->setCaretLineVisible(s.currentLineHighlight);  // 高亮目前所在行
     editor->setVirtualSpace(s.enableVirtualSpace);        // 允許插入點移至行尾之後
     editor->setColumnSelectionToMultiEdit(s.columnSelectionToMultiEdit);  // 欄選轉多游標
+    editor->setUndoSelectionHistory(s.undoSelectionHistory);   // Undo/Redo 納入選取歷史
+    editor->setSelectionDragDropEnabled(s.selectionDragDrop);  // 是否允許拖放選取文字
     applyDelimiters(editor, s);          // delimiterChars → 雙擊選字邊界
     applyPerLangTabWidth(editor, s);     // 依語言覆寫 Tab 寬度（否則沿用上面的全域 tabWidth）
     applyViewPrefs(editor);                            // wrap/whitespace/eol/縮排參考線

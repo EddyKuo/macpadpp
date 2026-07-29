@@ -70,6 +70,12 @@ private:
     QCheckBox *m_enableVirtualSpace = nullptr;
     QCheckBox *m_copyLineWithoutSelection = nullptr;
     QCheckBox *m_columnSelectionToMultiEdit = nullptr;
+    QCheckBox *m_undoSelectionHistory = nullptr;
+    QCheckBox *m_printFormFeedAsPageBreak = nullptr;
+    QCheckBox *m_incrementalSearchCount = nullptr;
+    QCheckBox *m_selectionDragDrop = nullptr;
+    QCheckBox *m_syncZoomBetweenViews = nullptr;
+    QCheckBox *m_openCopyAfterSaveACopy = nullptr;
 
     // New Document
     QComboBox *m_defaultEol = nullptr;

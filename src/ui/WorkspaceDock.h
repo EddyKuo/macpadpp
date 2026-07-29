@@ -34,6 +34,15 @@ public:
     // 傳入空清單表示不過濾（顯示全部）。設定後會重新整理整棵樹。
     void setNameFilters(const QStringList &filters);
 
+    // 目前所有根資料夾（供 session 持久化）
+    QStringList roots() const;
+
+    // === 展開/收合狀態的保存與還原（複刻 Notepad++ v8.9.7）===
+    // 回傳目前所有已展開資料夾的絕對路徑；供 session 持久化。
+    QStringList expandedPaths() const;
+    // 依路徑清單重新展開（會逐層 populate）；不存在的路徑安全忽略。
+    void setExpandedPaths(const QStringList &paths);
+
 signals:
     void fileActivated(const QString &path);
     void findInFolderRequested(const QString &dir);

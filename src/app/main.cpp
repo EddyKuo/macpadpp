@@ -15,6 +15,7 @@
 #include "persistence/SettingsStore.h"
 #include "persistence/ThemeStore.h"
 #include "platform/SingleInstance.h"
+#include "ui/ColorPicker.h"
 
 // 依設定(或系統語系)決定介面語言碼,對應到內建 .qm。
 static QString resolveLanguage(const QString &configured)
@@ -109,6 +110,8 @@ int main(int argc, char *argv[])
     app.setApplicationName("macpad++");
     // 不設 organizationName：讓設定路徑為 ~/Library/Application Support/macpad++/（不重複巢狀）
     app.setApplicationDisplayName("macpad++");
+    // 取色器的自訂色跨 session 保留（複刻 Notepad++ v8.9.7）：啟動時填回 QColorDialog
+    macpad::ui::ColorPicker::restoreCustomColors();
 
     const QStringList rawArgs = app.arguments().mid(1);
     const macpad::features::ParsedArgs parsed = macpad::features::CliArgs::parse(rawArgs);

@@ -27,10 +27,21 @@ public:
     // 內文會與頁首頁尾重疊。
     void formatPage(QPainter &painter, bool drawing, QRect &area, int pagenr) override;
 
+    // 把 FormFeed（\f, U+000C）當成分頁符列印（複刻 Notepad++ v8.9.7）。
+    // QsciPrinter::printRange 對整份文件分頁，遇到 \f 不會換頁；此處改為依 \f 切段，
+    // 共用同一個 QPainter 逐段列印，段與段之間手動 newPage()。
+    // 回傳值語意同 QsciPrinter::printRange（非 0 表示成功）。
+    // 文件中沒有 \f 時等同單段列印，輸出與原本一致。
+    int printWithFormFeeds(QsciScintillaBase *sci);
+
 private:
     QString m_filePath;
     QString m_header;
     QString m_footer;
+    // 逐段列印時的頁碼偏移：printRange 每次呼叫都從第 1 頁起算，
+    // 加上偏移後 $(CURRENT_PAGE) 才是整份文件的連續頁碼。
+    int m_pageOffset = 0;
+    int m_pagesInSegment = 0;   // 本段已輸出的頁數（由 formatPage 更新）
 };
 
 }  // namespace macpad::features

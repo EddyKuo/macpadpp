@@ -19,6 +19,7 @@
 #include "features/export/HtmlExporter.h"
 #include "features/textops/TextOps.h"
 #include "features/mime/MimeTools.h"
+#include "features/print/DocumentPrinter.h"
 #include "features/autocomplete/ApiDatabase.h"
 #include "persistence/ThemeStore.h"
 #include "persistence/PluginStore.h"
@@ -619,6 +620,81 @@ void MainWindow::moveCurrentLines(bool up)
 }
 
 
+// 增量搜尋的「第 n 筆 / 共 m 筆」（複刻 Notepad++ v8.9.7）。
+// 以純文字掃描計數（大小寫不敏感，與 findFirst 的參數一致），不動用 Scintilla 的搜尋狀態，
+// 因此不會干擾目前的選取/游標；偏好關閉時直接清空標籤、不做任何掃描。
+void MainWindow::updateIncrementalSearchCount(const QString &needle)
+{
+    if (!m_incCount)
+        return;
+    if (!macpad::persistence::SettingsStore::load().incrementalSearchCount || needle.isEmpty()) {
+        m_incCount->clear();
+        return;
+    }
+    EditorWidget *e = currentEditor();
+    if (!e) {
+        m_incCount->clear();
+        return;
+    }
+
+    const QString text = e->text();
+    int total = 0;
+    int nth = 0;
+    // 目前選取起點（即剛剛命中的位置）在第幾筆
+    const int caretPos = static_cast<int>(e->SendScintilla(QsciScintilla::SCI_GETSELECTIONSTART));
+    int from = 0;
+    while (true) {
+        const int at = text.indexOf(needle, from, Qt::CaseInsensitive);
+        if (at < 0)
+            break;
+        ++total;
+        // Scintilla 位置以 UTF-8 位元組計，QString 以 UTF-16 計；以位元組長度換算比對點
+        const int bytePos = text.left(at).toUtf8().size();
+        if (bytePos == caretPos)
+            nth = total;
+        from = at + 1;   // 允許重疊匹配，與 Notepad++ 的計數一致
+    }
+
+    if (total == 0)
+        m_incCount->setText(tr("  找不到"));
+    else if (nth > 0)
+        m_incCount->setText(tr("  第 %1 / 共 %2 筆").arg(nth).arg(total));
+    else
+        m_incCount->setText(tr("  共 %1 筆").arg(total));
+}
+
+
+// 列印目前文件（工具列與 File ▸ Print… 共用；先前工具列會套用 Preferences ▸ Print，
+// 選單那條卻是裸的 QsciPrinter，兩者行為不一致——此處統一走同一條路徑）。
+void MainWindow::printCurrentDocument()
+{
+    EditorWidget *e = currentEditor();
+    if (!e)
+        return;
+
+    const auto ps = macpad::persistence::SettingsStore::load();
+    macpad::features::DocumentPrinter printer;
+    printer.setFilePath(e->isUntitled() ? QString() : e->filePath());
+    printer.setHeaderTemplate(ps.printHeader);
+    printer.setFooterTemplate(ps.printFooter);
+    printer.setMagnification(0);
+    // 深色主題直接照畫面配色列印會整頁塗黑，故色彩模式獨立設定（預設黑字白底）
+    e->SendScintilla(QsciScintillaBase::SCI_SETPRINTCOLOURMODE,
+                     static_cast<unsigned long>(qBound(0, ps.printColourMode, 3)));
+    const qreal m = qBound(0, ps.printMarginMm, 50);
+    printer.setPageMargins(QMarginsF(m, m, m, m), QPageLayout::Millimeter);
+
+    QPrintDialog dlg(&printer, this);
+    if (dlg.exec() != QDialog::Accepted)
+        return;
+    // FormFeed 視為分頁符（Notepad++ v8.9.7）；關閉時走原本的整份分頁
+    if (ps.printFormFeedAsPageBreak)
+        printer.printWithFormFeeds(e);
+    else
+        printer.printRange(e);
+}
+
+
 void MainWindow::showIncrementalSearch()
 {
     if (!m_incBar) {
@@ -629,21 +705,29 @@ void MainWindow::showIncrementalSearch()
         m_incSearch->setMaximumWidth(320);
         m_incBar->addWidget(new QLabel(tr("  Find: "), m_incBar));
         m_incBar->addWidget(m_incSearch);
+        // 符合筆數與「第 n 筆」顯示（複刻 Notepad++ v8.9.7 的 Count / nth of count）；
+        // 由偏好 incrementalSearchCount 控制，關閉時不付出全文掃描成本。
+        m_incCount = new QLabel(m_incBar);
+        m_incBar->addWidget(m_incCount);
         auto *closeBtn = m_incBar->addAction(tr("✕"));
         addToolBar(Qt::BottomToolBarArea, m_incBar);
 
         // 邊打邊找：從目前游標位置往後搜尋
         connect(m_incSearch, &QLineEdit::textChanged, this, [this](const QString &q) {
             EditorWidget *e = currentEditor();
-            if (!e || q.isEmpty())
+            if (!e || q.isEmpty()) {
+                m_incCount->clear();
                 return;
+            }
             int line = 0, idx = 0;
             e->getCursorPosition(&line, &idx);
             e->findFirst(q, false, false, false, true, true, line, idx);
+            updateIncrementalSearchCount(q);
         });
         // Enter 找下一個
         connect(m_incSearch, &QLineEdit::returnPressed, this, [this] {
             if (EditorWidget *e = currentEditor()) e->findNext();
+            updateIncrementalSearchCount(m_incSearch->text());
         });
         connect(closeBtn, &QAction::triggered, this, [this] {
             m_incBar->hide();

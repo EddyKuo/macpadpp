@@ -32,6 +32,8 @@
 #include <QPrintDialog>
 #include <QInputDialog>
 #include <QColorDialog>
+
+#include "ui/ColorPicker.h"
 #include <QTabBar>
 #include "ui/DocumentListDock.h"
 #include "ui/Panels.h"
@@ -255,6 +257,9 @@ void MainWindow::wireTabWidget(QTabWidget *w)
 void MainWindow::wireEditorSignals(EditorWidget *editor)
 {
     connect(editor, &EditorWidget::dirtyChanged, this, &MainWindow::updateTabTitle);
+    // 跨檢視同步縮放（Notepad++ v8.9.5）：Ctrl+滾輪或選單縮放皆會發出 zoomChanged
+    connect(editor, &EditorWidget::zoomChanged, this,
+            [this, editor](int z) { syncZoomToOtherViews(editor, z); });
     connect(editor, &EditorWidget::metaChanged, this, &MainWindow::updateStatusBar);
     connect(editor, &EditorWidget::lexerChanged, this, [this, editor] {
         themeEditor(editor);
@@ -495,8 +500,8 @@ QMenu *MainWindow::buildEditorContextMenu(EditorWidget *ed, QWidget *parent)
     auto *menu = new QMenu(parent);
 
     // --- 復原 / 重做 ---
-    menu->addAction(tr("Undo"), this, [ed] { ed->undo(); })->setEnabled(ed->isUndoAvailable());
-    menu->addAction(tr("Redo"), this, [ed] { ed->redo(); })->setEnabled(ed->isRedoAvailable());
+    menu->addAction(tr("Undo"), this, [ed] { ed->undoWithHistory(); })->setEnabled(ed->isUndoAvailable());
+    menu->addAction(tr("Redo"), this, [ed] { ed->redoWithHistory(); })->setEnabled(ed->isRedoAvailable());
     menu->addSeparator();
 
     // --- 剪貼簿基本操作 ---
@@ -643,7 +648,7 @@ QMenu *MainWindow::buildTabContextMenu(QTabWidget *w, int index, QWidget *parent
 
     // --- 外觀/鎖定 ---
     menu->addAction(tr("Set Tab Color…"), this, [this, w, index] {
-        const QColor c = QColorDialog::getColor(Qt::white, this, tr("Tab Color"));
+        const QColor c = macpad::ui::ColorPicker::getColor(Qt::white, this, tr("Tab Color"));
         if (c.isValid())
             w->tabBar()->setTabTextColor(index, c);
     });
@@ -903,6 +908,19 @@ void MainWindow::toggleMonitoring()
         statusBar()->showMessage(tr("監控中（tail -f）：%1").arg(QFileInfo(path).fileName()), 3000);
     }
     updateToolbarState();
+}
+
+
+void MainWindow::syncZoomToOtherViews(EditorWidget *source, int zoom)
+{
+    if (!macpad::persistence::SettingsStore::load().syncZoomBetweenViews)
+        return;
+    forEachEditor([&](EditorWidget *e) {
+        if (e == source)
+            return;
+        if (static_cast<int>(e->SendScintilla(QsciScintillaBase::SCI_GETZOOM)) != zoom)
+            e->zoomTo(zoom);
+    });
 }
 
 

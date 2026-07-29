@@ -7,6 +7,8 @@
 
 #include <QCheckBox>
 #include <QColorDialog>
+
+#include "ui/ColorPicker.h"
 #include <QComboBox>
 #include <QDialogButtonBox>
 #include <QFileDialog>
@@ -173,7 +175,7 @@ void UdlEditorDialog::updateColorButton(QPushButton *btn, const QColor &color)
 void UdlEditorDialog::pickColor(QPushButton *btn, QColor *target)
 {
     const QColor initial = target->isValid() ? *target : Qt::black;
-    const QColor chosen = QColorDialog::getColor(initial, this, tr("Choose Color"));
+    const QColor chosen = macpad::ui::ColorPicker::getColor(initial, this, tr("Choose Color"));
     if (!chosen.isValid())
         return;  // 使用者取消：保持原狀（含未設定）
     *target = chosen;

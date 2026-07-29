@@ -196,37 +196,20 @@ void MainWindow::populateToolbar()
         if (w->count()) closeTab(w->currentIndex());
     });
     add("closeall", tr("Close All"), [this] { closeAllTabs(); });
-    add("print", tr("Print…"), [this] {
-        if (EditorWidget *e = currentEditor()) {
-            // 套用 Preferences ▸ Print 的頁首/頁尾、色彩模式與邊界（真正生效，非死設定）
-            const auto ps = macpad::persistence::SettingsStore::load();
-            macpad::features::DocumentPrinter printer;
-            printer.setFilePath(e->isUntitled() ? QString() : e->filePath());
-            printer.setHeaderTemplate(ps.printHeader);
-            printer.setFooterTemplate(ps.printFooter);
-            printer.setMagnification(0);
-            // 深色主題直接照畫面配色列印會整頁塗黑，故色彩模式獨立設定（預設黑字白底）
-            e->SendScintilla(QsciScintillaBase::SCI_SETPRINTCOLOURMODE,
-                             static_cast<unsigned long>(qBound(0, ps.printColourMode, 3)));
-            const qreal m = qBound(0, ps.printMarginMm, 50);
-            printer.setPageMargins(QMarginsF(m, m, m, m), QPageLayout::Millimeter);
-            QPrintDialog dlg(&printer, this);
-            if (dlg.exec() == QDialog::Accepted) printer.printRange(e);
-        }
-    });
+    add("print", tr("Print…"), [this] { printCurrentDocument(); });
     m_toolbar->addSeparator();
     add("cut", tr("Cut"), [this] { if (auto *e = currentEditor()) e->cut(); });
     add("copy", tr("Copy"), [this] { if (auto *e = currentEditor()) e->copy(); });
     add("paste", tr("Paste"), [this] { if (auto *e = currentEditor()) e->paste(); });
     m_toolbar->addSeparator();
-    add("undo", tr("Undo"), [this] { if (auto *e = currentEditor()) e->undo(); });
-    add("redo", tr("Redo"), [this] { if (auto *e = currentEditor()) e->redo(); });
+    add("undo", tr("Undo"), [this] { if (auto *e = currentEditor()) e->undoWithHistory(); });
+    add("redo", tr("Redo"), [this] { if (auto *e = currentEditor()) e->redoWithHistory(); });
     m_toolbar->addSeparator();
     add("find", tr("Find…"), [this] { showFind(); });
     add("replace", tr("Replace…"), [this] { showReplace(); });
     m_toolbar->addSeparator();
-    add("zoomin", tr("Zoom In"), [this] { if (auto *e = currentEditor()) e->zoomIn(); });
-    add("zoomout", tr("Zoom Out"), [this] { if (auto *e = currentEditor()) e->zoomOut(); });
+    add("zoomin", tr("Zoom In"), [this] { if (auto *e = currentEditor()) e->applyZoomIn(); });
+    add("zoomout", tr("Zoom Out"), [this] { if (auto *e = currentEditor()) e->applyZoomOut(); });
     m_toolbar->addSeparator();
     reuse("syncscrollv", m_syncVAct);
     reuse("syncscrollh", m_syncHAct);
@@ -467,14 +450,8 @@ void MainWindow::createFileMenu(QMenu *fileMenu)
         w->show();
     });
     fileMenu->addSeparator();
-    fileMenu->addAction(tr("Print…"), QKeySequence::Print, this, [this] {
-        EditorWidget *e = currentEditor();
-        if (!e) return;
-        QsciPrinter printer;               // 保留語法高亮列印（FR-036）
-        QPrintDialog dlg(&printer, this);
-        if (dlg.exec() == QDialog::Accepted)
-            printer.printRange(e);
-    });
+    fileMenu->addAction(tr("Print…"), QKeySequence::Print, this,
+                        [this] { printCurrentDocument(); });
     fileMenu->addAction(tr("Export as HTML…"), this, [this] {
         EditorWidget *e = currentEditor();
         if (!e) return;
@@ -509,10 +486,10 @@ void MainWindow::createEditMenu(QMenu *editMenu)
 {
     // Edit 選單（QScintilla 內建 undo/redo/剪貼；多游標為 Cmd+Click，FR-005）
     editMenu->addAction(tr("Undo"), QKeySequence::Undo, this, [this] {
-        if (auto *e = currentEditor()) e->undo();
+        if (auto *e = currentEditor()) e->undoWithHistory();
     });
     editMenu->addAction(tr("Redo"), QKeySequence::Redo, this, [this] {
-        if (auto *e = currentEditor()) e->redo();
+        if (auto *e = currentEditor()) e->redoWithHistory();
     });
     editMenu->addSeparator();
     editMenu->addAction(tr("Cut"), QKeySequence::Cut, this, [this] {
@@ -1118,13 +1095,13 @@ void MainWindow::createViewMenu(QMenu *viewMenu)
 {
     // View 選單：Zoom（FR-023）+ 全螢幕（FR-023）
     viewMenu->addAction(tr("Zoom In"), QKeySequence::ZoomIn, this, [this] {
-        if (auto *ed = currentEditor()) ed->zoomIn();
+        if (auto *ed = currentEditor()) ed->applyZoomIn();
     });
     viewMenu->addAction(tr("Zoom Out"), QKeySequence::ZoomOut, this, [this] {
-        if (auto *ed = currentEditor()) ed->zoomOut();
+        if (auto *ed = currentEditor()) ed->applyZoomOut();
     });
     viewMenu->addAction(tr("Reset Zoom"), QKeySequence(Qt::CTRL | Qt::Key_0), this, [this] {
-        if (auto *ed = currentEditor()) ed->zoomTo(0);
+        if (auto *ed = currentEditor()) ed->applyZoomTo(0);
     });
     if (m_toolbar) {
         QAction *tbAct = m_toolbar->toggleViewAction();
@@ -1560,6 +1537,11 @@ void MainWindow::createEditMenuOps(QMenu *editMenu)
     // 清除後同步解除編輯鎖，使用者才能真正往下編輯並存檔。
     QAction *clearRoAct = editMenu->addAction(tr("Clear Read-Only Flag"), this,
                                              [this] { clearFileReadOnlyFlag(); });
+    // 對所有已開啟文件套用/解除唯讀（複刻 Notepad++ v8.8.6）
+    editMenu->addAction(tr("Set Read-Only for All Documents"), this,
+                        [this] { setAllDocumentsReadOnly(true); });
+    editMenu->addAction(tr("Clear Read-Only for All Documents"), this,
+                        [this] { setAllDocumentsReadOnly(false); });
     // 選單建構時尚無任何分頁，預設停用；currentChanged 會依實際檔案屬性校正。
     clearRoAct->setEnabled(false);
     // 切換分頁時同步唯讀勾選狀態（兩個檢視都要監聽）

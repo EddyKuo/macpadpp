@@ -129,6 +129,16 @@ struct Settings {
     // 未命名分頁以內容首行作為分頁名（Notepad++ v8.8.2）
     bool tabBarUntitledNameFromFirstLine = false;
 
+    // === Editing 行為補完（對齊 Notepad++ v8.8.1 / v8.9.3 / v8.9.5 / v8.7）===
+    bool undoSelectionHistory = false;      // Undo/Redo 納入選取歷史（v8.8.1）
+    bool selectionDragDrop = true;          // 允許拖放選取文字（v8.9.3 可停用）
+    bool syncZoomBetweenViews = false;      // 兩個檢視同步縮放層級（v8.9.5）
+    bool openCopyAfterSaveACopy = false;    // Save a Copy As 後自動開啟複本（v8.7）
+    bool printFormFeedAsPageBreak = false;  // 列印時 FormFeed(\f) 視為分頁符（v8.9.7）
+    bool incrementalSearchCount = false;    // 增量搜尋顯示符合筆數與第幾筆（v8.9.7）
+    // 取色器的 16 格自訂色（"#RRGGBB"），跨 session 保留（v8.9.7）
+    QStringList customColors;
+
     // === Margins / Border / Edge（新增；edgeColumn 沿用既有 Highlighting 欄位）===
     EdgeMode edgeMode = EdgeMode::None;
     FoldMarginStyle foldMarginStyle = FoldMarginStyle::Simple;

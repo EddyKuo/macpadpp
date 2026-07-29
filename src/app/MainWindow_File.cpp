@@ -308,10 +308,36 @@ void MainWindow::saveCopyAs()
     QFile f(path);
     if (f.open(QIODevice::WriteOnly)) {
         f.write(macpad::core::FileEncoding::encode(e->text(), e->encoding()));
+        f.close();
         statusBar()->showMessage(tr("副本已儲存：%1").arg(path), 3000);
+        // Notepad++ v8.7：可選擇存完副本後直接開啟該副本
+        if (macpad::persistence::SettingsStore::load().openCopyAfterSaveACopy)
+            openFile(path);
     } else {
         QMessageBox::warning(this, tr("Save a Copy As"), tr("無法寫入：%1").arg(path));
     }
+}
+
+
+// ===== 對所有文件套用/解除唯讀（複刻 Notepad++ v8.8.6）=====
+// 僅切換 app 內的編輯鎖（與單一分頁的 Read-Only 選單一致），不改動磁碟檔案屬性；
+// 因 -fullReadOnly / 監控而鎖定的分頁不在此解鎖（那是另一套不變式）。
+void MainWindow::setAllDocumentsReadOnly(bool readOnly)
+{
+    int changed = 0;
+    forEachEditor([&](EditorWidget *e) {
+        if (!readOnly && e->isPolicyReadOnly())
+            return;
+        if (e->isReadOnly() == readOnly)
+            return;
+        e->setReadOnly(readOnly);
+        ++changed;
+    });
+    updateTabTitle();
+    updateStatusBar();
+    statusBar()->showMessage(readOnly ? tr("已將 %1 個文件設為唯讀").arg(changed)
+                                      : tr("已解除 %1 個文件的唯讀").arg(changed),
+                             3000);
 }
 
 

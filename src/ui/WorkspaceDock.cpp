@@ -306,6 +306,69 @@ void WorkspaceDock::refreshAll()
     }
 }
 
+QStringList WorkspaceDock::roots() const
+{
+    QStringList out;
+    out.reserve(m_roots.size());
+    for (const QString &r : m_roots)
+        out << r;
+    return out;
+}
+
+
+// === 展開/收合狀態（複刻 Notepad++ v8.9.7「跨 session 記住 Folder as Workspace 的展開狀態」）===
+
+QStringList WorkspaceDock::expandedPaths() const
+{
+    QStringList out;
+    // 以堆疊走訪整棵已建立的樹；未展開過的資料夾只有 placeholder 子節點，不必深入。
+    QVector<QTreeWidgetItem *> stack;
+    for (int i = 0; i < m_tree->topLevelItemCount(); ++i)
+        stack.push_back(m_tree->topLevelItem(i));
+    while (!stack.isEmpty()) {
+        QTreeWidgetItem *item = stack.takeLast();
+        if (!item)
+            continue;
+        if (item->isExpanded()) {
+            const QString p = pathOf(item);
+            if (!p.isEmpty())
+                out << p;
+        }
+        for (int i = 0; i < item->childCount(); ++i)
+            stack.push_back(item->child(i));
+    }
+    out.sort();   // 穩定輸出，避免 session 檔每次存檔都因順序不同而變動
+    return out;
+}
+
+void WorkspaceDock::setExpandedPaths(const QStringList &paths)
+{
+    // 由淺至深逐層展開：展開父節點才會 populate 出子節點，子路徑才找得到。
+    QStringList sorted = paths;
+    std::sort(sorted.begin(), sorted.end(),
+              [](const QString &a, const QString &b) { return a.size() < b.size(); });
+
+    for (const QString &path : sorted) {
+        QVector<QTreeWidgetItem *> stack;
+        for (int i = 0; i < m_tree->topLevelItemCount(); ++i)
+            stack.push_back(m_tree->topLevelItem(i));
+        while (!stack.isEmpty()) {
+            QTreeWidgetItem *item = stack.takeLast();
+            if (!item)
+                continue;
+            if (pathOf(item) == path) {
+                if (isDirItem(item) || !item->parent()) {
+                    onItemExpanded(item);       // 先 populate（否則展開後仍只有 placeholder）
+                    item->setExpanded(true);
+                }
+                break;
+            }
+            for (int i = 0; i < item->childCount(); ++i)
+                stack.push_back(item->child(i));
+        }
+    }
+}
+
 void WorkspaceDock::setNameFilters(const QStringList &filters)
 {
     m_nameFilters = filters;

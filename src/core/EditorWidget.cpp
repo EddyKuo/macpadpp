@@ -157,6 +157,17 @@ EditorWidget::EditorWidget(QWidget *parent)
     connect(this, &QsciScintilla::cursorPositionChanged,
             this, &EditorWidget::onCursorPositionChanged);
 
+    // 選取歷史（Notepad++ v8.8.1）：記錄選取/游標變化，供 Undo 逐步回退；
+    // 文件一旦被修改就重置——選取歷史只在「上次修改之後」有意義。
+    connect(this, &QsciScintilla::selectionChanged, this,
+            [this] { recordSelectionSnapshot(); });
+    connect(this, &QsciScintilla::cursorPositionChanged, this,
+            [this](int, int) { recordSelectionSnapshot(); });
+    connect(this, &QsciScintilla::textChanged, this, [this] {
+        m_selHistory.clear();
+        m_selHistoryPos = 0;
+    });
+
     // 攔截 viewport 事件：Ctrl/⌘+雙擊選整個字（ctrlDoubleClickWholeWord）與拖放開檔。
     // 兩者都必須掛在 viewport 上——QAbstractScrollArea 的事件落點在此，非 widget 本身。
     viewport()->installEventFilter(this);
@@ -1072,6 +1083,136 @@ void EditorWidget::contextMenuEvent(QContextMenuEvent *event)
     event->accept();
     emit contextMenuRequested(event->globalPos());
 }
+
+// === Undo / Redo 強化（複刻 Notepad++ v8.8.9 捲動位置、v8.8.1 選取歷史）===
+
+void EditorWidget::recordSelectionSnapshot()
+{
+    if (!m_undoSelectionHistory || m_restoringSelection)
+        return;
+    SelSnapshot s;
+    if (hasSelectedText())
+        getSelection(&s.aLine, &s.aIdx, &s.cLine, &s.cIdx);
+    else
+        getCursorPosition(&s.cLine, &s.cIdx), s.aLine = s.cLine, s.aIdx = s.cIdx;
+
+    // 與最新一筆相同就不重覆記錄（游標未動的重複訊號很常見）
+    if (m_selHistoryPos > 0) {
+        const SelSnapshot &last = m_selHistory.at(m_selHistoryPos - 1);
+        if (last.aLine == s.aLine && last.aIdx == s.aIdx &&
+            last.cLine == s.cLine && last.cIdx == s.cIdx)
+            return;
+    }
+    m_selHistory.resize(m_selHistoryPos);   // 記錄新選取時丟棄「重做」方向的歷史
+    m_selHistory.push_back(s);
+    // 上限保護：只保留最近 256 筆，避免長時間編輯累積無上限的記憶體
+    constexpr int kMaxSelHistory = 256;
+    if (m_selHistory.size() > kMaxSelHistory)
+        m_selHistory.remove(0, m_selHistory.size() - kMaxSelHistory);
+    m_selHistoryPos = static_cast<int>(m_selHistory.size());
+}
+
+bool EditorWidget::restorePreviousSelection()
+{
+    // 至少要有「目前」與「前一筆」才談得上回退
+    if (!m_undoSelectionHistory || m_selHistoryPos < 2)
+        return false;
+    --m_selHistoryPos;
+    const SelSnapshot &s = m_selHistory.at(m_selHistoryPos - 1);
+    m_restoringSelection = true;
+    if (s.aLine == s.cLine && s.aIdx == s.cIdx)
+        setCursorPosition(s.cLine, s.cIdx);
+    else
+        setSelection(s.aLine, s.aIdx, s.cLine, s.cIdx);
+    m_restoringSelection = false;
+    return true;
+}
+
+void EditorWidget::undoWithHistory()
+{
+    // 選取歷史優先：自上次文件修改以來若只發生過選取變更，Undo 先逐步還原選取
+    if (restorePreviousSelection())
+        return;
+
+    const int first = firstVisibleLine();
+    QsciScintilla::undo();
+    // 還原垂直捲動位置（v8.8.9）：僅在還原後游標仍落在原視野內才回捲，
+    // 否則會看不到剛剛被復原的內容。
+    int line = 0, idx = 0;
+    getCursorPosition(&line, &idx);
+    const int visible = SendScintilla(SCI_LINESONSCREEN);
+    if (line >= first && line < first + visible)
+        setFirstVisibleLine(first);
+
+    m_selHistory.clear();
+    m_selHistoryPos = 0;
+}
+
+void EditorWidget::redoWithHistory()
+{
+    const int first = firstVisibleLine();
+    QsciScintilla::redo();
+    int line = 0, idx = 0;
+    getCursorPosition(&line, &idx);
+    const int visible = SendScintilla(SCI_LINESONSCREEN);
+    if (line >= first && line < first + visible)
+        setFirstVisibleLine(first);
+
+    m_selHistory.clear();
+    m_selHistoryPos = 0;
+}
+
+
+void EditorWidget::applyZoomIn()
+{
+    zoomIn();
+    emit zoomChanged(static_cast<int>(SendScintilla(SCI_GETZOOM)));
+}
+
+void EditorWidget::applyZoomOut()
+{
+    zoomOut();
+    emit zoomChanged(static_cast<int>(SendScintilla(SCI_GETZOOM)));
+}
+
+void EditorWidget::applyZoomTo(int level)
+{
+    zoomTo(level);
+    emit zoomChanged(static_cast<int>(SendScintilla(SCI_GETZOOM)));
+}
+
+
+void EditorWidget::wheelEvent(QWheelEvent *event)
+{
+    // Ctrl+滾輪由 Scintilla 內部處理縮放；此處於事件後比對縮放值，
+    // 有變動才發出 zoomChanged（供跨檢視同步縮放，Notepad++ v8.9.5）。
+    const bool zooming = event->modifiers().testFlag(Qt::ControlModifier);
+    const int before = zooming ? static_cast<int>(SendScintilla(SCI_GETZOOM)) : 0;
+    QsciScintilla::wheelEvent(event);
+    if (!zooming)
+        return;
+    const int after = static_cast<int>(SendScintilla(SCI_GETZOOM));
+    if (after != before)
+        emit zoomChanged(after);
+}
+
+
+void EditorWidget::mousePressEvent(QMouseEvent *event)
+{
+    // 停用拖放選取文字（v8.9.3）：在既有選取範圍內按下左鍵時先取消選取，
+    // 讓這一次按下成為「重新選取」的起點，而不是拖走選取內容。
+    if (!m_selectionDragDrop && event->button() == Qt::LeftButton && hasSelectedText()) {
+        const long pos = SendScintilla(SCI_POSITIONFROMPOINT,
+                                       static_cast<unsigned long>(event->position().x()),
+                                       static_cast<long>(event->position().y()));
+        const long selStart = SendScintilla(SCI_GETSELECTIONSTART);
+        const long selEnd = SendScintilla(SCI_GETSELECTIONEND);
+        if (pos >= selStart && pos < selEnd)
+            SendScintilla(SCI_SETEMPTYSELECTION, static_cast<unsigned long>(pos));
+    }
+    QsciScintilla::mousePressEvent(event);
+}
+
 
 void EditorWidget::keyPressEvent(QKeyEvent *event)
 {

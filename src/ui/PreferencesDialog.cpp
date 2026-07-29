@@ -141,6 +141,19 @@ QWidget *PreferencesDialog::buildEditingPage()
     m_columnSelectionToMultiEdit = new QCheckBox(tr("欄選結束時轉為多游標編輯"), page);
     m_columnSelectionToMultiEdit->setChecked(current.columnSelectionToMultiEdit);
 
+    // 以下對齊 Notepad++ Editing 面板的後續版本新增項
+    m_undoSelectionHistory = new QCheckBox(tr("Undo/Redo 納入選取歷史"), page);
+    m_undoSelectionHistory->setChecked(current.undoSelectionHistory);
+
+    m_selectionDragDrop = new QCheckBox(tr("允許拖放選取的文字"), page);
+    m_selectionDragDrop->setChecked(current.selectionDragDrop);
+
+    m_syncZoomBetweenViews = new QCheckBox(tr("兩個檢視同步縮放層級"), page);
+    m_syncZoomBetweenViews->setChecked(current.syncZoomBetweenViews);
+
+    m_openCopyAfterSaveACopy = new QCheckBox(tr("「另存副本」後自動開啟副本"), page);
+    m_openCopyAfterSaveACopy->setChecked(current.openCopyAfterSaveACopy);
+
     auto *form = new QFormLayout(page);
     form->addRow(m_showLineNumbers);
     form->addRow(m_showIndentGuides);
@@ -151,6 +164,10 @@ QWidget *PreferencesDialog::buildEditingPage()
     form->addRow(m_enableVirtualSpace);
     form->addRow(m_copyLineWithoutSelection);
     form->addRow(m_columnSelectionToMultiEdit);
+    form->addRow(m_undoSelectionHistory);
+    form->addRow(m_selectionDragDrop);
+    form->addRow(m_syncZoomBetweenViews);
+    form->addRow(m_openCopyAfterSaveACopy);
     return page;
 }
 
@@ -185,6 +202,11 @@ QWidget *PreferencesDialog::buildPrintPage()
     form->addRow(tr("頁尾"), m_printFooter);
     form->addRow(tr("色彩模式"), m_printColourMode);
     form->addRow(tr("邊界"), m_printMarginMm);
+
+    // Notepad++ v8.9.7：文件中的 FormFeed（\f）視為分頁符
+    m_printFormFeedAsPageBreak = new QCheckBox(tr("將 FormFeed（\\f）視為分頁符"), page);
+    m_printFormFeedAsPageBreak->setChecked(current.printFormFeedAsPageBreak);
+    form->addRow(m_printFormFeedAsPageBreak);
 
     auto *note = new QLabel(hint, page);
     note->setWordWrap(true);
@@ -316,6 +338,10 @@ QWidget *PreferencesDialog::buildSearchPage()
     m_confirmReplaceAll = new QCheckBox(tr("「全部取代」前顯示確認"), page);
     m_confirmReplaceAll->setChecked(current.confirmReplaceAll);
 
+    // Notepad++ v8.9.7：增量搜尋顯示符合筆數與目前是第幾筆
+    m_incrementalSearchCount = new QCheckBox(tr("增量搜尋顯示「第 n / 共 m 筆」"), page);
+    m_incrementalSearchCount->setChecked(current.incrementalSearchCount);
+
     m_findInSelectionThreshold = new QSpinBox(page);
     m_findInSelectionThreshold->setRange(0, 1000000);
     m_findInSelectionThreshold->setSpecialValueText(tr("關閉"));
@@ -326,6 +352,7 @@ QWidget *PreferencesDialog::buildSearchPage()
     form->addRow(tr("網路搜尋引擎網址"), m_searchEngineUrl);
     form->addRow(m_keepFindDialogOpen);
     form->addRow(m_confirmReplaceAll);
+    form->addRow(m_incrementalSearchCount);
     form->addRow(tr("自動啟用「在選取範圍內尋找」門檻"), m_findInSelectionThreshold);
     return page;
 }
@@ -632,11 +659,17 @@ Settings PreferencesDialog::result() const
     s.enableVirtualSpace = m_enableVirtualSpace->isChecked();
     s.copyLineWithoutSelection = m_copyLineWithoutSelection->isChecked();
     s.columnSelectionToMultiEdit = m_columnSelectionToMultiEdit->isChecked();
+    s.undoSelectionHistory = m_undoSelectionHistory->isChecked();
+    s.selectionDragDrop = m_selectionDragDrop->isChecked();
+    s.syncZoomBetweenViews = m_syncZoomBetweenViews->isChecked();
+    s.openCopyAfterSaveACopy = m_openCopyAfterSaveACopy->isChecked();
 
     s.printHeader = m_printHeader->text();
     s.printFooter = m_printFooter->text();
     s.printColourMode = m_printColourMode->currentIndex();
     s.printMarginMm = m_printMarginMm->value();
+    s.printFormFeedAsPageBreak = m_printFormFeedAsPageBreak->isChecked();
+    s.incrementalSearchCount = m_incrementalSearchCount->isChecked();
     s.defaultEol = Eol(m_defaultEol->currentIndex());
     s.defaultEncoding = Encoding(m_defaultEncoding->currentIndex());
     s.autoDetectFileStatus = m_autoDetectFileStatus->isChecked();

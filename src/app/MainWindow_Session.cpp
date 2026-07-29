@@ -161,6 +161,13 @@ macpad::persistence::SessionState MainWindow::buildCurrentSession() const
             state.tabs.push_back(t);
         }
     }
+
+    // Folder as Workspace：根資料夾與展開中的資料夾（Notepad++ v8.9.7 記住展開狀態）。
+    // 先前工作區完全不持久化，重開後必須手動再加一次資料夾。
+    if (m_workspace) {
+        state.workspaceRoots = m_workspace->roots();
+        state.workspaceExpanded = m_workspace->expandedPaths();
+    }
     return state;
 }
 
@@ -252,6 +259,22 @@ void MainWindow::openSessionState(const macpad::persistence::SessionState &state
         if (restored[ai].second)
             w->setCurrentIndex(w->indexOf(restored[ai].second));
     }
+    // Folder as Workspace 還原：先加回根資料夾，再還原展開狀態（Notepad++ v8.9.7）。
+    // 已不存在的資料夾自動略過，不讓失效路徑塞滿側欄。
+    if (m_workspace && !state.workspaceRoots.isEmpty()) {
+        bool any = false;
+        for (const QString &root : state.workspaceRoots) {
+            if (!QFileInfo(root).isDir())
+                continue;
+            m_workspace->addRoot(root);
+            any = true;
+        }
+        if (any) {
+            m_workspace->setExpandedPaths(state.workspaceExpanded);
+            m_workspace->show();
+        }
+    }
+
     // 提示：哪些內容是從「已刪除的檔案」以未存快照還原（顯示為 untitled，需另存新檔）
     if (!recoveredFromDeleted.isEmpty())
         statusBar()->showMessage(

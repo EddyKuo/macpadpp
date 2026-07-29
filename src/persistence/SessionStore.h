@@ -30,6 +30,10 @@ struct TabState {
 struct SessionState {
     int activeIndex = 0;
     QVector<TabState> tabs;
+    // Folder as Workspace：根資料夾清單，以及展開中的資料夾（Notepad++ v8.9.7
+    // 「跨 session 記住展開/收合狀態」）。空清單代表沒有工作區。
+    QStringList workspaceRoots;
+    QStringList workspaceExpanded;
 };
 
 class SessionStore {
