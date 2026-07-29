@@ -31,6 +31,7 @@ private:
     QWidget *buildGeneralPage();
     QWidget *buildEditingPage();
     QWidget *buildNewDocumentPage();
+    QWidget *buildPrintPage();
     QWidget *buildBackupPage();
     QWidget *buildAutoCompletionPage();
     QWidget *buildPerformancePage();
@@ -72,6 +73,11 @@ private:
 
     // New Document
     QComboBox *m_defaultEol = nullptr;
+    // Print 分頁（複刻 Notepad++ Print 偏好）
+    QLineEdit *m_printHeader = nullptr;
+    QLineEdit *m_printFooter = nullptr;
+    QComboBox *m_printColourMode = nullptr;
+    QSpinBox *m_printMarginMm = nullptr;
     QComboBox *m_defaultEncoding = nullptr;
     QCheckBox *m_autoDetectFileStatus = nullptr;
     QLineEdit *m_sessionFileExt = nullptr;

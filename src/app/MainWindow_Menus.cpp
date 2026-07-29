@@ -19,6 +19,7 @@
 #include "features/export/HtmlExporter.h"
 #include "features/textops/TextOps.h"
 #include "features/mime/MimeTools.h"
+#include "features/print/DocumentPrinter.h"
 #include "features/autocomplete/ApiDatabase.h"
 #include "persistence/ThemeStore.h"
 #include "ui/ThemePickerDialog.h"
@@ -169,7 +170,19 @@ void MainWindow::buildToolbar()
     add("closeall", tr("Close All"), [this] { closeAllTabs(); });
     add("print", tr("Print…"), [this] {
         if (EditorWidget *e = currentEditor()) {
-            QsciPrinter printer; QPrintDialog dlg(&printer, this);
+            // 套用 Preferences ▸ Print 的頁首/頁尾、色彩模式與邊界（真正生效，非死設定）
+            const auto ps = macpad::persistence::SettingsStore::load();
+            macpad::features::DocumentPrinter printer;
+            printer.setFilePath(e->isUntitled() ? QString() : e->filePath());
+            printer.setHeaderTemplate(ps.printHeader);
+            printer.setFooterTemplate(ps.printFooter);
+            printer.setMagnification(0);
+            // 深色主題直接照畫面配色列印會整頁塗黑，故色彩模式獨立設定（預設黑字白底）
+            e->SendScintilla(QsciScintillaBase::SCI_SETPRINTCOLOURMODE,
+                             static_cast<unsigned long>(qBound(0, ps.printColourMode, 3)));
+            const qreal m = qBound(0, ps.printMarginMm, 50);
+            printer.setPageMargins(QMarginsF(m, m, m, m), QPageLayout::Millimeter);
+            QPrintDialog dlg(&printer, this);
             if (dlg.exec() == QDialog::Accepted) printer.printRange(e);
         }
     });

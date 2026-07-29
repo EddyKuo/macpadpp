@@ -178,6 +178,33 @@ private slots:
         const Settings s = SettingsStore::load();
         QCOMPARE(s.tabWidth, 4);  // 損毀 → 全預設，不崩潰
     }
+
+    // Print 偏好需完整 round-trip——這些值有真實 runtime 效果（DocumentPrinter 會讀），
+    // 若存不回來就會變成「改了沒用」的死設定。
+    void printSettingsRoundTrip()
+    {
+        Settings s = SettingsStore::load();
+        s.printHeader = QStringLiteral("$(FILE_NAME) - $(CURRENT_DATE)");
+        s.printFooter = QStringLiteral("Page $(CURRENT_PAGE)");
+        s.printColourMode = 1;
+        s.printMarginMm = 25;
+        QVERIFY(SettingsStore::save(s));
+
+        const Settings r = SettingsStore::load();
+        QCOMPARE(r.printHeader, QStringLiteral("$(FILE_NAME) - $(CURRENT_DATE)"));
+        QCOMPARE(r.printFooter, QStringLiteral("Page $(CURRENT_PAGE)"));
+        QCOMPARE(r.printColourMode, 1);
+        QCOMPARE(r.printMarginMm, 25);
+    }
+
+    // 預設為 BlackOnWhite：深色主題直接照畫面配色列印會整頁塗黑
+    void printDefaultsToBlackOnWhite()
+    {
+        const Settings s;
+        QCOMPARE(s.printColourMode, 2);
+        QVERIFY(s.printHeader.isEmpty());   // 預設不印頁首/頁尾
+        QVERIFY(s.printFooter.isEmpty());
+    }
 };
 
 QTEST_APPLESS_MAIN(TestSettings)

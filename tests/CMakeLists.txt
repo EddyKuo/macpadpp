@@ -36,6 +36,7 @@ set(MACPAD_TESTS
     test_projectstore
     test_pluginstore
     test_shortcutmapper
+    test_printformatter
     test_udlxmlio
     test_functionlistconfig
     test_contextmenu

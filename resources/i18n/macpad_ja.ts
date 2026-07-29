@@ -80,20 +80,20 @@
         <translation>読み取り専用: オフ</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1417"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1430"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="495"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="568"/>
         <source>Read-Only</source>
         <translation>読み取り専用</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="148"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="149"/>
         <source>Main</source>
         <translation>メイン</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="161"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="320"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="162"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="333"/>
         <source>New</source>
         <translation>新規</translation>
     </message>
@@ -102,8 +102,8 @@
         <translation>開く</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="163"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="369"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="164"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="382"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="543"/>
         <source>Save</source>
         <translation>保存</translation>
@@ -117,132 +117,132 @@
         <translation>置換</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="220"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="233"/>
         <source>&amp;File</source>
         <translation>ファイル</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="221"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="234"/>
         <source>&amp;Edit</source>
         <translation>編集</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="222"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="235"/>
         <source>&amp;Search</source>
         <translation>検索</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="223"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="236"/>
         <source>&amp;View</source>
         <translation>表示</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="224"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="237"/>
         <source>&amp;Encoding</source>
         <translation>エンコーディング</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="225"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="238"/>
         <source>&amp;Language</source>
         <translation>言語</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="226"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="239"/>
         <source>&amp;Settings</source>
         <translation>設定</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="227"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="240"/>
         <source>&amp;Tools</source>
         <translation>ツール</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="228"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="241"/>
         <source>&amp;Macro</source>
         <translation>マクロ</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="229"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="242"/>
         <source>&amp;Run</source>
         <translation>実行</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="230"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="243"/>
         <source>&amp;Plugins</source>
         <translation>プラグイン</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="231"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="244"/>
         <source>&amp;Window</source>
         <translation>ウィンドウ</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="162"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="321"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="163"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="334"/>
         <source>Open…</source>
         <translation>開く…</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="322"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="335"/>
         <source>Open Recent</source>
         <translation>最近開いた項目</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="325"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="338"/>
         <source>Sessions</source>
         <translation>セッション</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="326"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="339"/>
         <source>Save Session As…</source>
         <translation>セッションに名前を付けて保存…</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="328"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="341"/>
         <source>Save Session</source>
         <translation>セッションを保存</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="329"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="342"/>
         <source>Session name:</source>
         <translation>セッション名:</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="336"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="349"/>
         <source>Load Session…</source>
         <translation>セッションを読み込み…</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="339"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="343"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="352"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="356"/>
         <source>Load Session</source>
         <translation>セッションを読み込み</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="343"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="356"/>
         <source>Session:</source>
         <translation>セッション:</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="349"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="362"/>
         <source>Open Folder as Workspace…</source>
         <translation>フォルダをワークスペースとして開く…</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="350"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="363"/>
         <source>Open Folder</source>
         <translation>フォルダを開く</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="365"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="555"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="378"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="568"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="484"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="551"/>
         <source>Open Containing Folder</source>
         <translation>含まれるフォルダを開く</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="366"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="379"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="482"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="553"/>
         <source>Open in Default Application</source>
@@ -251,77 +251,77 @@
     <message>
         <location filename="../../src/app/MainWindow_File.cpp" line="326"/>
         <location filename="../../src/app/MainWindow_File.cpp" line="339"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="367"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="380"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="487"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="546"/>
         <source>Reload from Disk</source>
         <translation>ディスクから再読み込み</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="370"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="383"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="544"/>
         <source>Save As…</source>
         <translation>名前を付けて保存…</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="371"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="384"/>
         <source>Save a Copy As…</source>
         <translation>コピーを保存…</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="164"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="372"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="165"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="385"/>
         <source>Save All</source>
         <translation>すべて保存</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="374"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="387"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="489"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="545"/>
         <source>Rename…</source>
         <translation>名前を変更…</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="376"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="389"/>
         <source>New Window</source>
         <translation>新しいウィンドウ</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="170"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="384"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="171"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="397"/>
         <source>Print…</source>
         <translation>印刷…</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="392"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="405"/>
         <source>Export as HTML…</source>
         <translation>HTML としてエクスポート…</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="395"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="408"/>
         <source>Export as HTML</source>
         <translation>HTML としてエクスポート</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="165"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="405"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="166"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="418"/>
         <source>Close Tab</source>
         <translation>タブを閉じる</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="169"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="410"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="170"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="423"/>
         <source>Close All</source>
         <translation>すべて閉じる</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="411"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="424"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="537"/>
         <source>Close All but This</source>
         <translation>このタブ以外を閉じる</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="412"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="425"/>
         <source>Restore Recent Closed File</source>
         <translation>最近閉じたファイルを開く</translation>
     </message>
@@ -329,75 +329,75 @@
         <location filename="../../src/app/MainWindow_File.cpp" line="409"/>
         <location filename="../../src/app/MainWindow_File.cpp" line="413"/>
         <location filename="../../src/app/MainWindow_File.cpp" line="419"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="416"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="429"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="490"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="548"/>
         <source>Move to Recycle Bin</source>
         <translation>ゴミ箱に移動</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="181"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="423"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="194"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="436"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="419"/>
         <source>Undo</source>
         <translation>元に戻す</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="182"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="426"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="195"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="439"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="420"/>
         <source>Redo</source>
         <translation>やり直す</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="177"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="430"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="190"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="443"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="424"/>
         <source>Cut</source>
         <translation>切り取り</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="178"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="440"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="191"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="453"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="425"/>
         <source>Copy</source>
         <translation>コピー</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="179"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="450"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="192"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="463"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="426"/>
         <source>Paste</source>
         <translation>貼り付け</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="453"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="466"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="427"/>
         <source>Delete</source>
         <translation>削除</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="456"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="469"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="429"/>
         <source>Select All</source>
         <translation>すべて選択</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="184"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="461"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1486"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="197"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="474"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1499"/>
         <source>Find…</source>
         <translation>検索…</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="185"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="462"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1511"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="198"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="475"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1524"/>
         <source>Replace…</source>
         <translation>置換…</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="464"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="477"/>
         <source>Go to Line…</source>
         <translation>行へ移動…</translation>
     </message>
@@ -410,53 +410,53 @@
         <translation>行:</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="466"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1517"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="479"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1530"/>
         <source>Go to Matching Brace</source>
         <translation>対応する括弧へ移動</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="470"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="483"/>
         <source>Find in Files…</source>
         <translation>ファイル内を検索…</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="592"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="605"/>
         <source>Encoding</source>
         <translation>エンコーディング</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="615"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="625"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="628"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="638"/>
         <source>Character sets</source>
         <translation>文字セット</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="661"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="674"/>
         <source>End of Line</source>
         <translation>改行コード</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="491"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1531"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="504"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1544"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="469"/>
         <source>Toggle Bookmark</source>
         <translation>ブックマークの切り替え</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="494"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1533"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="507"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1546"/>
         <source>Next Bookmark</source>
         <translation>次のブックマーク</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="497"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1535"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="510"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1548"/>
         <source>Previous Bookmark</source>
         <translation>前のブックマーク</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="684"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="697"/>
         <source>Plugins Admin…</source>
         <translation>プラグイン管理…</translation>
     </message>
@@ -466,122 +466,122 @@
         <translation>プラグイン管理</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="700"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="713"/>
         <source>%1 of selection/document</source>
         <translation>選択/文書の %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="715"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="728"/>
         <source>Style Configurator…</source>
         <translation>スタイル設定…</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="747"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="760"/>
         <source>Shortcut Mapper…</source>
         <translation>ショートカット設定…</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="761"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="777"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="774"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="790"/>
         <source>Interface Language</source>
         <translation>インターフェース言語</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="772"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="785"/>
         <source>System Default</source>
         <translation>システム既定</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="778"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="791"/>
         <source>Language changed. Restart macpad++ to apply.</source>
         <translation>言語を変更しました。macpad++ を再起動すると適用されます。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="266"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="279"/>
         <source>Preferences…</source>
         <translation>環境設定…</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="290"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="293"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="303"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="306"/>
         <source>About macpad++</source>
         <translation>macpad++ について</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="296"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="309"/>
         <source>Quit macpad++</source>
         <translation>macpad++ を終了</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="792"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="805"/>
         <source>Set Language</source>
         <translation>言語を設定</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="807"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="820"/>
         <source>User-Defined Language</source>
         <translation>ユーザー定義言語</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="808"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="821"/>
         <source>Define Your Language…</source>
         <translation>言語を定義…</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="818"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="831"/>
         <source>Import UDL…</source>
         <translation>UDL をインポート…</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="819"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="831"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="832"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="844"/>
         <source>Import UDL</source>
         <translation>UDL をインポート</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="857"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="870"/>
         <source>Run…</source>
         <translation>実行…</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="884"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="897"/>
         <source>Save Current Command…</source>
         <translation>現在のコマンドを保存…</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="886"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="891"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="899"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="904"/>
         <source>Save Command</source>
         <translation>コマンドを保存</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="892"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="966"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="905"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="979"/>
         <source>Name:</source>
         <translation>名前:</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="923"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="936"/>
         <source>Saved Commands</source>
         <translation>保存済みコマンド</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="946"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="959"/>
         <source>Start Recording</source>
         <translation>記録を開始</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="948"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="961"/>
         <source>Stop Recording</source>
         <translation>記録を停止</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="950"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="963"/>
         <source>Playback</source>
         <translation>再生</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="958"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="971"/>
         <source>Run a Macro Multiple Times…</source>
         <translation>マクロを複数回実行…</translation>
     </message>
@@ -595,521 +595,521 @@
         <translation>回数:</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="960"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="973"/>
         <source>Save Current Recorded Macro…</source>
         <translation>記録したマクロを保存…</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="966"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="979"/>
         <source>Save Macro</source>
         <translation>マクロを保存</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="977"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="990"/>
         <source>Saved Macros</source>
         <translation>保存済みマクロ</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="187"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1004"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="200"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1017"/>
         <source>Zoom In</source>
         <translation>拡大</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="188"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1007"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="201"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1020"/>
         <source>Zoom Out</source>
         <translation>縮小</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1010"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1023"/>
         <source>Reset Zoom</source>
         <translation>ズームをリセット</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1015"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1028"/>
         <source>Show Toolbar</source>
         <translation>ツールバーを表示</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="191"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1019"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="204"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1032"/>
         <source>Word Wrap</source>
         <translation>折り返し</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1026"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1039"/>
         <source>Show Whitespace</source>
         <translation>空白を表示</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1033"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1046"/>
         <source>Show End of Line</source>
         <translation>改行を表示</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1040"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1053"/>
         <source>Show Indent Guide</source>
         <translation>インデントガイドを表示</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1047"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1060"/>
         <source>Show Wrap Symbol</source>
         <translation>折り返し記号を表示</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="194"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1053"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="207"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1066"/>
         <source>Show All Characters</source>
         <translation>すべての文字を表示</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="357"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="370"/>
         <source>Add Folder to Workspace…</source>
         <translation>フォルダをワークスペースに追加…</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="358"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="371"/>
         <source>Add Folder to Workspace</source>
         <translation>フォルダをワークスペースに追加</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="396"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="409"/>
         <source>HTML (*.html)</source>
         <translation>HTML (*.html)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="486"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="499"/>
         <source>Find in Projects…</source>
         <translation>プロジェクト内を検索…</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="603"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="616"/>
         <source>UTF-8</source>
         <translation>UTF-8</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="604"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="617"/>
         <source>UTF-8 with BOM</source>
         <translation>UTF-8（BOM 付き）</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="605"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="618"/>
         <source>UTF-16 LE</source>
         <translation>UTF-16 LE</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="606"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="619"/>
         <source>UTF-16 BE</source>
         <translation>UTF-16 BE</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="607"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="620"/>
         <source>ANSI (Latin-1)</source>
         <translation>ANSI (Latin-1)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="635"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="653"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="648"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="666"/>
         <source>Reinterpret as</source>
         <translation>次として再解釈</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="643"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="656"/>
         <source>Reinterpret as UTF-8</source>
         <translation>UTF-8 として再解釈</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="644"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="657"/>
         <source>Reinterpret as UTF-16 LE</source>
         <translation>UTF-16 LE として再解釈</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="645"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="658"/>
         <source>Reinterpret as UTF-16 BE</source>
         <translation>UTF-16 BE として再解釈</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="657"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="670"/>
         <source>已重新解讀</source>
         <translation>再解釈しました</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="670"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="683"/>
         <source>Unix (LF)</source>
         <translation>Unix (LF)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="671"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="684"/>
         <source>Windows (CRLF)</source>
         <translation>Windows (CRLF)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="672"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="685"/>
         <source>Classic Mac (CR)</source>
         <translation>クラシック Mac (CR)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="503"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="516"/>
         <source>Change History</source>
         <translation>変更履歴</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="504"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="517"/>
         <source>Enable Change History</source>
         <translation>変更履歴を有効にする</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="509"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="522"/>
         <source>Next Change</source>
         <translation>次の変更</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="512"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="525"/>
         <source>Previous Change</source>
         <translation>前の変更</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="517"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="530"/>
         <source>Virtual Space</source>
         <translation>仮想スペース</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="524"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="537"/>
         <source>Multi-Select</source>
         <translation>複数選択</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="525"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="538"/>
         <source>Select Next Occurrence</source>
         <translation>次の出現箇所を選択</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="528"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="541"/>
         <source>Skip and Select Next</source>
         <translation>スキップして次を選択</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="531"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="544"/>
         <source>Undo Last Selection</source>
         <translation>直前の選択を元に戻す</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="536"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="549"/>
         <source>Select All Occurrences</source>
         <translation>すべての出現箇所を選択</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="537"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="550"/>
         <source>Match Case</source>
         <translation>大文字と小文字を区別</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="540"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="553"/>
         <source>Ignore Case</source>
         <translation>大文字と小文字を区別しない</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="543"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="556"/>
         <source>Match Case + Whole Word</source>
         <translation>大文字/小文字と単語単位を区別</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="546"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="559"/>
         <source>Ignore Case + Whole Word</source>
         <translation>大文字/小文字を区別しない＋単語単位</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="551"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="564"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="473"/>
         <source>On Selection</source>
         <translation>選択範囲内</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="553"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="566"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="475"/>
         <source>Open Selected File</source>
         <translation>選択したファイルを開く</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="564"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="577"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="477"/>
         <source>Search on Internet</source>
         <translation>インターネットで検索</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="568"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="581"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="445"/>
         <source>Paste Special</source>
         <translation>特殊貼り付け</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="569"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="582"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="447"/>
         <source>Paste as Plain Text</source>
         <translation>プレーンテキストとして貼り付け</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="578"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="591"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="454"/>
         <source>Paste HTML Content</source>
         <translation>HTML コンテンツを貼り付け</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="581"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="594"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="456"/>
         <source>Paste RTF Content</source>
         <translation>RTF コンテンツを貼り付け</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="726"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="745"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="739"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="758"/>
         <source>主題已套用：%1</source>
         <translation>テーマを適用しました：%1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="734"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="747"/>
         <source>Select Theme…</source>
         <translation>テーマを選択…</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="285"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="298"/>
         <source>偏好設定已儲存</source>
         <translation>環境設定を保存しました</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="820"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="833"/>
         <source>JSON (*.json)</source>
         <translation>JSON (*.json)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="835"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="848"/>
         <source>Import Notepad++ UDL (XML)…</source>
         <translation>Notepad++ UDL (XML) のインポート…</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="836"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="847"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="849"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="860"/>
         <source>Import Notepad++ UDL</source>
         <translation>Notepad++ UDL のインポート</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="837"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="850"/>
         <source>XML (*.xml)</source>
         <translation>XML (*.xml)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="841"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="854"/>
         <source>已匯入 Notepad++ UDL（開啟對應副檔名檔案即套用）</source>
         <translation>Notepad++ UDL をインポートしました（対応する拡張子のファイルを開くと適用されます）</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="848"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="861"/>
         <source>XML 檔案無效或無法解析</source>
         <translation>XML ファイルが無効か解析できません</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="897"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="910"/>
         <source>Shortcut (選填)</source>
         <translation>ショートカット（任意）</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="899"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="912"/>
         <source>為此指令指定快捷鍵（可留空）:</source>
         <translation>このコマンドにショートカットキーを指定（空欄可）:</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="957"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="970"/>
         <source>Macro Manager…</source>
         <translation>マクロマネージャー…</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1061"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1074"/>
         <source>Smart Highlighting</source>
         <translation>スマートハイライト</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1069"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1082"/>
         <source>Fold</source>
         <translation>折りたたみ</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1070"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1083"/>
         <source>Fold All</source>
         <translation>すべて折りたたむ</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1072"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1085"/>
         <source>Unfold All</source>
         <translation>すべて展開</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1074"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1087"/>
         <source>Collapse Current</source>
         <translation>現在のブロックを折りたたむ</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1076"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1089"/>
         <source>Expand Current</source>
         <translation>現在のブロックを展開</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1080"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1093"/>
         <source>Fold Level %1</source>
         <translation>レベル %1 まで折りたたむ</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1084"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1097"/>
         <source>Tab</source>
         <translation>タブ</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1085"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1098"/>
         <source>Next Tab</source>
         <translation>次のタブ</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1087"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1100"/>
         <source>Previous Tab</source>
         <translation>前のタブ</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1089"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1102"/>
         <source>First Tab</source>
         <translation>最初のタブ</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1093"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1106"/>
         <source>Last Tab</source>
         <translation>最後のタブ</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1098"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1111"/>
         <source>Move Tab Forward</source>
         <translation>タブを前へ移動</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1099"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1112"/>
         <source>Move Tab Backward</source>
         <translation>タブを後へ移動</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1102"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1115"/>
         <source>Always on Top</source>
         <translation>常に最前面</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1105"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1118"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="797"/>
         <source>Monitoring (tail -f)</source>
         <translation>監視 (tail -f)</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1108"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1444"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1121"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1457"/>
         <source>Character Panel</source>
         <translation>文字パネル</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1112"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1125"/>
         <source>Document Summary…</source>
         <translation>ドキュメント概要…</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1121"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1134"/>
         <source>Document Summary</source>
         <translation>ドキュメント概要</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1127"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1140"/>
         <source>Move/Clone Current Document</source>
         <translation>現在のドキュメントを移動/複製</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1128"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1141"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="580"/>
         <source>Move to Other View</source>
         <translation>他のビューに移動</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1129"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1142"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="581"/>
         <source>Clone to Other View</source>
         <translation>別のビューに複製</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1131"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1144"/>
         <source>Toggle Split</source>
         <translation>分割の切り替え</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1134"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1147"/>
         <source>Rotate Split Orientation</source>
         <translation>分割方向を回転</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1140"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1153"/>
         <source>Synchronize Vertical Scrolling</source>
         <translation>垂直スクロールを同期</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1145"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1158"/>
         <source>Synchronize Horizontal Scrolling</source>
         <translation>水平スクロールを同期</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1152"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1165"/>
         <source>Document List</source>
         <translation>ドキュメント一覧</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1157"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1170"/>
         <source>Project Panel</source>
         <translation>プロジェクトパネル</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1175"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1188"/>
         <source>Toggle Full Screen</source>
         <translation>フルスクリーン切り替え</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1184"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1197"/>
         <source>Distraction Free Mode</source>
         <translation>集中モード</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1187"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1200"/>
         <source>Post-It Mode</source>
         <translation>付箋モード</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1192"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1205"/>
         <source>View Current File In</source>
         <translation>現在のファイルを開く</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1193"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1206"/>
         <source>Default Browser</source>
         <translation>既定のブラウザ</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1195"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1208"/>
         <source>Safari</source>
         <translation>Safari</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1197"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1210"/>
         <source>Google Chrome</source>
         <translation>Google Chrome</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1199"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1212"/>
         <source>Firefox</source>
         <translation>Firefox</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow_Actions.cpp" line="625"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1512"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1525"/>
         <source>Incremental Search</source>
         <translation>インクリメンタル検索</translation>
     </message>
@@ -1124,12 +1124,12 @@
         <translation>✕</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1650"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1663"/>
         <source>Next Document</source>
         <translation>次のドキュメント</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1652"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1665"/>
         <source>Previous Document</source>
         <translation>前のドキュメント</translation>
     </message>
@@ -1200,8 +1200,8 @@
     </message>
     <message>
         <location filename="../../src/app/MainWindow_Actions.cpp" line="464"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1559"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1593"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1572"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1606"/>
         <source>Find what:</source>
         <translation>検索する文字列:</translation>
     </message>
@@ -1216,438 +1216,438 @@
         <translation>文字オフセット</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1209"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1222"/>
         <source>Convert Case</source>
         <translation>大文字/小文字変換</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1210"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1223"/>
         <source>UPPERCASE</source>
         <translation>大文字</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1212"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1225"/>
         <source>lowercase</source>
         <translation>小文字</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1214"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1227"/>
         <source>Title Case</source>
         <translation>タイトルケース</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1215"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1228"/>
         <source>Sentence case</source>
         <translation>文頭を大文字</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1217"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1230"/>
         <source>Proper Case (blend)</source>
         <translation>タイトルケース（混合）</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1219"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1232"/>
         <source>Sentence case (blend)</source>
         <translation>センテンスケース（混合）</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1221"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1234"/>
         <source>iNVERT cASE</source>
         <translation>大文字小文字反転</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1222"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1235"/>
         <source>rAnDoM CaSe</source>
         <translation>ランダムケース</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1226"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1239"/>
         <source>Line Operations</source>
         <translation>行操作</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1227"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1240"/>
         <source>Sort Ascending</source>
         <translation>昇順ソート</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1229"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1242"/>
         <source>Sort Descending</source>
         <translation>降順ソート</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1231"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1244"/>
         <source>Sort Numeric</source>
         <translation>数値ソート</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1233"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1246"/>
         <source>Sort Lines by Length (Ascending)</source>
         <translation>行を長さで並べ替え（昇順）</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1235"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1248"/>
         <source>Sort Lines by Length (Descending)</source>
         <translation>行を長さで並べ替え（降順）</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1237"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1250"/>
         <source>Sort Lines as Decimals</source>
         <translation>行を数値として並べ替え</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1239"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1252"/>
         <source>Sort Lines (Locale)</source>
         <translation>行を並べ替え（ロケール）</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1241"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1254"/>
         <source>Shuffle Lines</source>
         <translation>行をシャッフル</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1243"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1256"/>
         <source>Remove Duplicate Lines</source>
         <translation>重複行を削除</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1245"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1258"/>
         <source>Remove Consecutive Duplicate Lines</source>
         <translation>連続する重複行を削除</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1247"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1260"/>
         <source>Remove Empty Lines</source>
         <translation>空行を削除</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1249"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1262"/>
         <source>Remove Empty Lines (Containing Blank Chars)</source>
         <translation>空行を削除（空白文字を含む）</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1251"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1264"/>
         <source>Reverse Line Order</source>
         <translation>行順を逆に</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1253"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1266"/>
         <source>Duplicate Lines</source>
         <translation>行を複製</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1255"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1268"/>
         <source>Join Lines</source>
         <translation>行を結合</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1257"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1270"/>
         <source>Split Lines</source>
         <translation>行を分割</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1260"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1273"/>
         <source>Duplicate Current Line</source>
         <translation>現在の行を複製</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1264"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1277"/>
         <source>Delete Current Line</source>
         <translation>現在の行を削除</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1270"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1283"/>
         <source>Move Lines Up</source>
         <translation>行を上へ</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1272"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1285"/>
         <source>Move Lines Down</source>
         <translation>行を下へ</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1276"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1289"/>
         <source>Blank Operations</source>
         <translation>空白操作</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1277"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1290"/>
         <source>Trim Trailing Whitespace</source>
         <translation>行末の空白を削除</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1279"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1292"/>
         <source>Trim Leading Whitespace</source>
         <translation>行頭の空白を削除</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1281"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1294"/>
         <source>TAB to Space</source>
         <translation>タブをスペースに</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1283"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1296"/>
         <source>Space to TAB</source>
         <translation>スペースをタブに</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1285"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1298"/>
         <source>Trim Leading and Trailing Space</source>
         <translation>先頭と末尾の空白をトリム</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1287"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1300"/>
         <source>EOL to Space</source>
         <translation>EOL をスペースに変換</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1289"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1302"/>
         <source>Trim Both and EOL to Space</source>
         <translation>前後の空白と改行をスペースにトリム</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1291"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1304"/>
         <source>Leading Spaces to TAB</source>
         <translation>先頭のスペースを TAB に変換</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1297"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1310"/>
         <source>Toggle Line Comment</source>
         <translation>行コメント切り替え</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1307"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1320"/>
         <source>Column Editor…</source>
         <translation>矩形編集…</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1346"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1368"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1359"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1381"/>
         <source>Insert Date/Time</source>
         <translation>日付/時刻を挿入</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1347"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1360"/>
         <source>Date Time (Short Format)</source>
         <translation>日時（短い形式）</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1350"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1363"/>
         <source>Date Time (Long Format)</source>
         <translation>日時（長い形式）</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1353"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1366"/>
         <source>Date Time (Preference Format)</source>
         <translation>日時（環境設定の形式）</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1363"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1376"/>
         <source>Date Time (Custom…)</source>
         <translation>日時（カスタム…）</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1369"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1382"/>
         <source>格式字串（如 yyyy-MM-dd HH:mm:ss）:</source>
         <translation>書式文字列（例：yyyy-MM-dd HH:mm:ss）:</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1378"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1391"/>
         <source>Indent</source>
         <translation>インデント</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1379"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1392"/>
         <source>Increase Line Indent</source>
         <translation>インデントを増やす</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1381"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1394"/>
         <source>Decrease Line Indent</source>
         <translation>インデントを減らす</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1385"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1398"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="440"/>
         <source>Copy to Clipboard</source>
         <translation>クリップボードにコピー</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1386"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1399"/>
         <source>Current Full File Path</source>
         <translation>現在のフルパス</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1390"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1403"/>
         <source>Current Filename</source>
         <translation>現在のファイル名</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1394"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1407"/>
         <source>Current Directory Path</source>
         <translation>現在のディレクトリパス</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1400"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1413"/>
         <source>Block Comment / Uncomment</source>
         <translation>ブロックコメント/解除</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1405"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1418"/>
         <source>Word Completion</source>
         <translation>単語補完</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1411"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1424"/>
         <source>Show Call Tip</source>
         <translation>コールチップを表示</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1451"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1464"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="433"/>
         <source>Selection</source>
         <translation>選択範囲</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1452"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1465"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="434"/>
         <source>Begin Select</source>
         <translation>選択を開始</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1454"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1467"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="435"/>
         <source>End Select</source>
         <translation>選択の終了</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1456"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1469"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="436"/>
         <source>Begin Column Select</source>
         <translation>列選択を開始</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1458"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1471"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="437"/>
         <source>End Column Select</source>
         <translation>列選択の終了</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1461"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1474"/>
         <source>Redact Selection</source>
         <translation>選択範囲を編集（マスク）</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1465"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1478"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="461"/>
         <source>Style Token</source>
         <translation>スタイルトークン</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1467"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1480"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="463"/>
         <source>Style Token Color %1</source>
         <translation>スタイルトークンの色 %1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1470"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1483"/>
         <location filename="../../src/app/MainWindow_View.cpp" line="466"/>
         <source>Clear Styled Tokens</source>
         <translation>スタイル済みトークンをクリア</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1475"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1488"/>
         <source>MIME Tools</source>
         <translation>MIME ツール</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1476"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1489"/>
         <source>Base64 Encode</source>
         <translation>Base64 エンコード</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1477"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1490"/>
         <source>Base64 Decode</source>
         <translation>Base64 デコード</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1478"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1491"/>
         <source>URL Encode</source>
         <translation>URL エンコード</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1479"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1492"/>
         <source>URL Decode</source>
         <translation>URL デコード</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1487"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1500"/>
         <source>Find Next</source>
         <translation>次を検索</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1489"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1502"/>
         <source>Find Previous</source>
         <translation>前を検索</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1491"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1504"/>
         <source>Select and Find Next</source>
         <translation>選択して次を検索</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1493"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1506"/>
         <source>Select and Find Previous</source>
         <translation>選択して前を検索</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow_Actions.cpp" line="487"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1515"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1528"/>
         <source>Go to…</source>
         <translation>移動…</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1519"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1532"/>
         <source>Select All Between Matching Braces</source>
         <translation>対応する括弧の間を選択</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1523"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1536"/>
         <source>Mark All Occurrences of Selection</source>
         <translation>選択箇所をすべてマーク</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1526"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1539"/>
         <source>Clear All Marks</source>
         <translation>すべてのマークをクリア</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1530"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1543"/>
         <source>Bookmark</source>
         <translation>ブックマーク</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1538"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1551"/>
         <source>Clear All Bookmarks</source>
         <translation>すべてのブックマークをクリア</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1540"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1553"/>
         <source>Copy Bookmarked Lines</source>
         <translation>ブックマーク行をコピー</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1544"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1557"/>
         <source>Remove Bookmarked Lines</source>
         <translation>ブックマーク行を削除</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1546"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1559"/>
         <source>Remove Non-Bookmarked Lines</source>
         <translation>非ブックマーク行を削除</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1548"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1561"/>
         <source>Inverse Bookmark</source>
         <translation>ブックマークを反転</translation>
     </message>
@@ -1720,22 +1720,22 @@
         <translation>    選択 : %1 | %2</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="333"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="346"/>
         <source>Session「%1」已儲存</source>
         <translation>セッション「%1」を保存しました</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="339"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="352"/>
         <source>尚無已儲存的 session</source>
         <translation>保存済みのセッションはありません</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="401"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="414"/>
         <source>已匯出 HTML</source>
         <translation>HTML をエクスポートしました</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="629"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="642"/>
         <source>已以 %1 重新解讀</source>
         <translation>%1 として再解釈しました</translation>
     </message>
@@ -1744,7 +1744,7 @@
         <translation>（読み込まれた拡張はありません）</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="730"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="743"/>
         <source>樣式已更新</source>
         <translation>スタイルを更新しました</translation>
     </message>
@@ -1753,43 +1753,43 @@
         <translation>環境設定を保存しました（一部は再起動後に反映）</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="811"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="824"/>
         <source>UDL 已建立（開啟對應副檔名檔案即套用）</source>
         <translation>UDL を作成しました（対応する拡張子のファイルで適用）</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="824"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="837"/>
         <source>UDL 已匯入（開啟對應副檔名檔案即套用）</source>
         <translation>UDL をインポートしました</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="831"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="844"/>
         <source>UDL 檔案無效</source>
         <translation>UDL ファイルが無効です</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="921"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="934"/>
         <source>命令已儲存：%1</source>
         <translation>コマンドを保存しました：%1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="929"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="942"/>
         <source>(無已儲存命令)</source>
         <translation>(保存済みコマンドなし)</translation>
     </message>
     <message>
         <location filename="../../src/app/MainWindow_Actions.cpp" line="160"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="962"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="975"/>
         <source>尚無已錄製的巨集</source>
         <translation>記録されたマクロがありません</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="975"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="988"/>
         <source>巨集已儲存：%1</source>
         <translation>マクロを保存しました：%1</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="984"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="997"/>
         <source>(無已儲存巨集)</source>
         <translation>(保存済みマクロなし)</translation>
     </message>
@@ -1819,58 +1819,58 @@
         <translation>ファイルが変更されました</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1497"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1510"/>
         <source>Find (Volatile) Next</source>
         <translation>（一時）次を検索</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1504"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1517"/>
         <source>Find (Volatile) Previous</source>
         <translation>（一時）前を検索</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1550"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1563"/>
         <source>Cut Bookmarked Lines</source>
         <translation>ブックマーク行を切り取り</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1552"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1565"/>
         <source>Paste to (Replace) Bookmarked Lines</source>
         <translation>ブックマーク行に貼り付け（置換）</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1556"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1569"/>
         <source>Replace All in All Opened Documents…</source>
         <translation>開いているすべてのドキュメントですべて置換…</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1558"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1563"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1571"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1576"/>
         <source>Replace All in All Opened Documents</source>
         <translation>開いているすべてのドキュメントですべて置換</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1564"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1577"/>
         <source>Replace with:</source>
         <translation>置換後の文字列:</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1584"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1597"/>
         <source>已在所有開啟文件中取代 %1 處</source>
         <translation>開いているすべてのドキュメントで %1 件を置換しました</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1590"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1603"/>
         <source>Find All in Opened Documents…</source>
         <translation>開いているドキュメント内をすべて検索…</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1592"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1605"/>
         <source>Find All in Opened Documents</source>
         <translation>開いているドキュメント内をすべて検索</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1638"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1651"/>
         <source>找到 %1 處符合</source>
         <translation>%1 件の一致が見つかりました</translation>
     </message>
@@ -1967,7 +1967,7 @@
     </message>
     <message>
         <location filename="../../src/app/MainWindow_File.cpp" line="502"/>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1425"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1438"/>
         <source>Clear Read-Only Flag</source>
         <translation>読み取り専用属性を解除</translation>
     </message>
@@ -2019,7 +2019,7 @@
         <translation>「%1」に未保存の変更があります。再読み込みすると破棄されます。よろしいですか？</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="1122"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="1135"/>
         <source>字元數：%1
 單字數：%2
 行數：%3
@@ -2040,14 +2040,14 @@ macpad++ は組み込みの extension protocol でプラグインを代替しま
 注：Notepad++ の .dll プラグインは Windows 専用で、macOS では読み込めません。</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="294"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="307"/>
         <source>macpad++ — Notepad++ 對等的原生 macOS 編輯器
 Qt6 + QScintilla</source>
         <translation>macpad++ — Notepad++ 相当のネイティブ macOS エディタ
 Qt6 + QScintilla</translation>
     </message>
     <message>
-        <location filename="../../src/app/MainWindow_Menus.cpp" line="887"/>
+        <location filename="../../src/app/MainWindow_Menus.cpp" line="900"/>
         <source>Command (可用 $(FULL_CURRENT_PATH) 等變數):</source>
         <translation>コマンド ($(FULL_CURRENT_PATH) 等の変数が使えます):</translation>
     </message>
@@ -2856,666 +2856,731 @@ Qt6 + QScintilla</translation>
 <context>
     <name>macpad::ui::PreferencesDialog</name>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="29"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="30"/>
         <source>Preferences</source>
         <translation>環境設定</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="32"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="33"/>
         <source>General</source>
         <translation>一般</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="33"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="34"/>
         <source>Editing</source>
         <translation>編集</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="34"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="35"/>
         <source>New Document</source>
         <translation>新規ドキュメント</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="35"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="36"/>
+        <source>Print</source>
+        <translation>印刷</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="37"/>
         <source>Backup</source>
         <translation>バックアップ</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="36"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="38"/>
         <source>Auto-Completion</source>
         <translation>自動補完</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="37"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="39"/>
         <source>Performance</source>
         <translation>パフォーマンス</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="38"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="40"/>
         <source>Search</source>
         <translation>検索</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="39"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="41"/>
         <source>Highlighting</source>
         <translation>ハイライト</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="40"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="42"/>
         <source>Dark Mode</source>
         <translation>ダークモード</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="41"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="43"/>
         <source>Toolbar</source>
         <translation>ツールバー</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="42"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="44"/>
         <source>Tab Bar</source>
         <translation>タブバー</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="43"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="45"/>
         <source>Margins/Border/Edge</source>
         <translation>マージン/境界線/エッジ</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="44"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="46"/>
         <source>Default Directory</source>
         <translation>既定のディレクトリ</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="45"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="47"/>
         <source>Recent Files History</source>
         <translation>最近使用したファイルの履歴</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="46"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="48"/>
         <source>Language</source>
         <translation>言語</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="47"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="49"/>
         <source>Multi-Instance &amp; Date</source>
         <translation>複数インスタンスと日付</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="48"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="50"/>
         <source>Delimiter</source>
         <translation>区切り文字</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="49"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="51"/>
         <source>MISC</source>
         <translation>その他</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="78"/>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="334"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="80"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="374"/>
         <source>Follow System</source>
         <translation>システムに従う</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="78"/>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="334"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="80"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="374"/>
         <source>Light</source>
         <translation>ライト</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="78"/>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="334"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="80"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="374"/>
         <source>Dark</source>
         <translation>ダーク</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="85"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="87"/>
         <source>啟動時還原上次 session</source>
         <translation>起動時に前回のセッションを復元</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="88"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="90"/>
         <source>啟用自動儲存</source>
         <translation>自動保存を有効化</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="93"/>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="204"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="95"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="244"/>
         <source> 秒</source>
         <translation> 秒</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="96"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="98"/>
         <source>單一執行個體模式</source>
         <translation>シングルインスタンスモード</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="100"/>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="353"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="102"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="393"/>
         <source>主題</source>
         <translation>テーマ</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="101"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="103"/>
         <source>Tab 寬度</source>
         <translation>タブ幅</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="104"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="106"/>
         <source>自動儲存間隔</source>
         <translation>自動保存の間隔</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="114"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="116"/>
         <source>顯示行號</source>
         <translation>行番号を表示</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="117"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="119"/>
         <source>顯示縮排參考線</source>
         <translation>インデントガイドを表示</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="120"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="122"/>
         <source>自動換行</source>
         <translation>折り返し</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="123"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="125"/>
         <source>顯示空白字元</source>
         <translation>空白文字を表示</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="130"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="132"/>
         <source>高亮目前所在行</source>
         <translation>現在の行をハイライト</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="133"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="135"/>
         <source>允許插入點移至行尾之後（虛擬空白）</source>
         <translation>カーソルを行末より先に移動可能にする（仮想スペース）</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="136"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="138"/>
         <source>無選取時複製/剪下整行</source>
         <translation>未選択時は行全体をコピー/切り取り</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="139"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="141"/>
         <source>欄選結束時轉為多游標編輯</source>
         <translation>矩形選択終了時にマルチカーソル編集へ切り替え</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="147"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="149"/>
         <source>插入點寬度</source>
         <translation>カーソル幅</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="161"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="165"/>
+        <source>可用變數：$(FULL_CURRENT_PATH) $(FILE_NAME) $(NAME_PART) $(EXT_PART) $(CURRENT_DIRECTORY) $(CURRENT_DATE) $(CURRENT_TIME) $(CURRENT_PAGE)</source>
+        <translation>使用可能な変数：$(FULL_CURRENT_PATH) $(FILE_NAME) $(NAME_PART) $(EXT_PART) $(CURRENT_DIRECTORY) $(CURRENT_DATE) $(CURRENT_TIME) $(CURRENT_PAGE)</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="170"/>
+        <source>留空 = 不列印頁首</source>
+        <translation>空欄 = ヘッダーを印刷しない</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="171"/>
+        <source>留空 = 不列印頁尾</source>
+        <translation>空欄 = フッターを印刷しない</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="175"/>
+        <source>Same as screen</source>
+        <translation>画面と同じ</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="175"/>
+        <source>Invert light</source>
+        <translation>明色を反転</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="176"/>
+        <source>Black on white</source>
+        <translation>白地に黒</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="176"/>
+        <source>Colour on white</source>
+        <translation>白地にカラー</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="181"/>
+        <source> mm</source>
+        <translation> mm</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="184"/>
+        <source>頁首</source>
+        <translation>ヘッダー</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="185"/>
+        <source>頁尾</source>
+        <translation>フッター</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="186"/>
+        <source>色彩模式</source>
+        <translation>カラーモード</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="187"/>
+        <source>邊界</source>
+        <translation>余白</translation>
+    </message>
+    <message>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="201"/>
         <source>Unix (LF)</source>
         <translation>Unix (LF)</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="161"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="201"/>
         <source>Windows (CR LF)</source>
         <translation>Windows (CR LF)</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="161"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="201"/>
         <source>Old Mac (CR)</source>
         <translation>Old Mac (CR)</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="166"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="206"/>
         <source>UTF-8</source>
         <translation>UTF-8</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="166"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="206"/>
         <source>UTF-8 BOM</source>
         <translation>UTF-8 BOM</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="166"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="206"/>
         <source>UTF-16 LE</source>
         <translation>UTF-16 LE</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="166"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="206"/>
         <source>UTF-16 BE</source>
         <translation>UTF-16 BE</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="166"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="206"/>
         <source>ANSI (Latin-1)</source>
         <translation>ANSI (Latin-1)</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="169"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="209"/>
         <source>偵測檔案於外部被異動/刪除</source>
         <translation>ファイルが外部で変更/削除されたことを検出</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="177"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="217"/>
         <source>預設換行字元</source>
         <translation>デフォルトの改行文字</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="178"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="218"/>
         <source>預設編碼</source>
         <translation>デフォルトのエンコーディング</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="180"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="220"/>
         <source>Session 檔案副檔名</source>
         <translation>セッションファイルの拡張子</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="190"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="230"/>
         <source>不備份</source>
         <translation>バックアップしない</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="190"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="230"/>
         <source>簡易備份</source>
         <translation>簡易バックアップ</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="190"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="230"/>
         <source>詳細備份</source>
         <translation>詳細バックアップ</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="196"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="236"/>
         <source>失去焦點時自動儲存</source>
         <translation>フォーカスを失った時に自動保存</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="199"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="239"/>
         <source>啟用當機還原快照</source>
         <translation>クラッシュ復元スナップショットを有効化</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="208"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="248"/>
         <source>備份模式</source>
         <translation>バックアップモード</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="209"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="249"/>
         <source>備份目錄</source>
         <translation>バックアップフォルダ</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="212"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="252"/>
         <source>快照間隔</source>
         <translation>スナップショット間隔</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="221"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="261"/>
         <source>自動插入配對符號（括號/引號）</source>
         <translation>対になる記号を自動挿入（括弧/引用符）</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="224"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="264"/>
         <source>文字自動完成</source>
         <translation>テキスト自動補完</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="231"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="271"/>
         <source>顯示函式提示</source>
         <translation>関数ヒントを表示</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="237"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="277"/>
         <source>觸發字元數</source>
         <translation>トリガー文字数</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="249"/>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="254"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="289"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="294"/>
         <source> MB</source>
         <translation> MB</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="258"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="298"/>
         <source>大型檔案門檻</source>
         <translation>大容量ファイルのしきい値</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="259"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="299"/>
         <source>超過此大小停用自動完成</source>
         <translation>このサイズを超えたら自動補完を無効化</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="273"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="313"/>
         <source>搜尋後保持「尋找」對話框開啟</source>
         <translation>検索後も「検索」ダイアログを開いたままにする</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="276"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="316"/>
         <source>「全部取代」前顯示確認</source>
         <translation>「すべて置換」前に確認を表示</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="281"/>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="306"/>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="451"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="321"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="346"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="491"/>
         <source>關閉</source>
         <translation>閉じる</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="282"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="322"/>
         <source> 字元</source>
         <translation> 文字</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="286"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="326"/>
         <source>網路搜尋引擎網址</source>
         <translation>Web 検索エンジンの URL</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="289"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="329"/>
         <source>自動啟用「在選取範圍內尋找」門檻</source>
         <translation>「選択範囲内を検索」の自動有効化しきい値</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="298"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="338"/>
         <source>智慧高亮（自動標示與選取字詞相同的字串）</source>
         <translation>スマートハイライト（選択した単語と同じ文字列を自動的にハイライト）</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="301"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="341"/>
         <source>標示相符的 HTML/XML 標籤</source>
         <translation>一致する HTML/XML タグをハイライト</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="309"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="349"/>
         <source>啟用多重邊界線</source>
         <translation>複数のガイド線を有効化</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="312"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="352"/>
         <source>換行處顯示折行符號</source>
         <translation>折り返し位置に改行記号を表示</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="315"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="355"/>
         <source>顯示換行字元</source>
         <translation>改行文字を表示</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="321"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="361"/>
         <source>垂直邊界線欄位</source>
         <translation>垂直ガイド線の列位置</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="337"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="377"/>
         <source>顯示工具列</source>
         <translation>ツールバーを表示</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="340"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="380"/>
         <source>顯示狀態列</source>
         <translation>ステータスバーを表示</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="343"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="383"/>
         <source>顯示分頁列</source>
         <translation>タブバーを表示</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="348"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="388"/>
         <source> ms</source>
         <translation> ms</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="349"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="389"/>
         <source>不閃爍</source>
         <translation>点滅しない</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="357"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="397"/>
         <source>插入點閃爍週期</source>
         <translation>カーソル点滅周期</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="369"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="409"/>
         <source>小</source>
         <translation>小</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="369"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="409"/>
         <source>標準</source>
         <translation>標準</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="369"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="409"/>
         <source>大</source>
         <translation>大</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="373"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="413"/>
         <source>圖示大小</source>
         <translation>アイコンサイズ</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="382"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="422"/>
         <source>多行顯示分頁（放不下時換行）</source>
         <translation>タブを複数行表示（収まらない場合は折り返し）</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="385"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="425"/>
         <source>分頁列垂直排列</source>
         <translation>タブバーを縦に並べる</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="388"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="428"/>
         <source>分頁上顯示關閉按鈕</source>
         <translation>タブに閉じるボタンを表示</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="391"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="431"/>
         <source>雙擊分頁關閉</source>
         <translation>タブをダブルクリックで閉じる</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="408"/>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="412"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="448"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="452"/>
         <source>不顯示</source>
         <translation>表示しない</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="408"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="448"/>
         <source>垂直線</source>
         <translation>縦線</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="408"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="448"/>
         <source>背景變色</source>
         <translation>背景色の変更</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="412"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="452"/>
         <source>簡易</source>
         <translation>簡易</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="412"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="452"/>
         <source>箭頭</source>
         <translation>矢印</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="412"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="452"/>
         <source>圓形</source>
         <translation>丸形</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="412"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="452"/>
         <source>方框</source>
         <translation>枠</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="415"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="455"/>
         <source>顯示行號邊界</source>
         <translation>行番号境界を表示</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="419"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="459"/>
         <source>邊界線模式</source>
         <translation>境界線モード</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="420"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="460"/>
         <source>摺疊邊界樣式</source>
         <translation>折りたたみ境界のスタイル</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="431"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="471"/>
         <source>跟隨目前文件所在目錄</source>
         <translation>現在のドキュメントのディレクトリに従う</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="431"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="471"/>
         <source>記住上次使用的目錄</source>
         <translation>最後に使用したディレクトリを記憶</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="431"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="471"/>
         <source>固定目錄</source>
         <translation>固定フォルダ</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="436"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="476"/>
         <source>固定目錄路徑（policy 為「固定目錄」時使用）</source>
         <translation>固定フォルダのパス（policy が「固定フォルダ」の場合に使用）</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="439"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="479"/>
         <source>開啟/儲存預設目錄</source>
         <translation>開く/保存のデフォルトディレクトリ</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="440"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="480"/>
         <source>固定目錄路徑</source>
         <translation>固定フォルダのパス</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="454"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="494"/>
         <source>顯示完整路徑</source>
         <translation>フルパスを表示</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="457"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="497"/>
         <source>收於子選單（而非直接列於 File 選單）</source>
         <translation>サブメニューに格納（File メニューに直接表示しない）</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="461"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="501"/>
         <source>最多記錄筆數</source>
         <translation>最大記録件数</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="474"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="514"/>
         <source>逗號分隔，例如：Python, JSON</source>
         <translation>カンマ区切り、例：Python, JSON</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="483"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="523"/>
         <source>語言=寬度，逗號分隔，例如：Python=2, C++=4</source>
         <translation>言語=幅、カンマ区切り、例：Python=2, C++=4</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="486"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="526"/>
         <source>停用的語言</source>
         <translation>無効化された言語</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="487"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="527"/>
         <source>各語言 Tab 寬度覆寫</source>
         <translation>言語別 Tab 幅の上書き</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="498"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="538"/>
         <source>單一執行個體</source>
         <translation>シングルインスタンス</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="498"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="538"/>
         <source>Session 期間內共用</source>
         <translation>Session 期間中に共有</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="498"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="538"/>
         <source>永遠開啟新執行個體</source>
         <translation>常に新しいインスタンスを開く</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="507"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="547"/>
         <source>自訂格式（選填）</source>
         <translation>カスタム書式（任意）</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="510"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="550"/>
         <source>多重執行個體模式</source>
         <translation>マルチインスタンスモード</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="511"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="551"/>
         <source>日期/時間插入格式</source>
         <translation>日付/時刻の挿入形式</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="512"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="552"/>
         <source>自訂格式</source>
         <translation>カスタム書式</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="524"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="564"/>
         <source>Ctrl+雙擊選取整個字</source>
         <translation>Ctrl+ダブルクリックで単語全体を選択</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="528"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="568"/>
         <source>雙擊選字邊界字元</source>
         <translation>ダブルクリックで単語選択する境界文字</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="538"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="578"/>
         <source>啟用文件切換器（Ctrl+Tab 清單）</source>
         <translation>ドキュメントスイッチャーを有効化（Ctrl+Tab リスト）</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="541"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="581"/>
         <source>切換時預覽文件內容</source>
         <translation>切り替え時にドキュメント内容をプレビュー</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="545"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="585"/>
         <source>停用</source>
         <translation>無効</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="545"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="585"/>
         <source>啟用（提示）</source>
         <translation>有効（確認あり）</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="545"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="585"/>
         <source>啟用（靜默更新）</source>
         <translation>有効（サイレント更新）</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="548"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="588"/>
         <source>啟動時檢查更新</source>
         <translation>起動時に更新を確認</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="551"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="591"/>
         <source>動作提示音</source>
         <translation>操作音</translation>
     </message>
     <message>
-        <location filename="../../src/ui/PreferencesDialog.cpp" line="557"/>
+        <location filename="../../src/ui/PreferencesDialog.cpp" line="597"/>
         <source>檔案外部變更偵測</source>
         <translation>ファイルの外部変更検出</translation>
     </message>

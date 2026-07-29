@@ -4,6 +4,7 @@
 #include <QComboBox>
 #include <QDialogButtonBox>
 #include <QFormLayout>
+#include <QLabel>
 #include <QLineEdit>
 #include <QSpinBox>
 #include <QTabWidget>
@@ -32,6 +33,7 @@ PreferencesDialog::PreferencesDialog(const Settings &current, QWidget *parent)
     m_tabs->addTab(buildGeneralPage(), tr("General"));
     m_tabs->addTab(buildEditingPage(), tr("Editing"));
     m_tabs->addTab(buildNewDocumentPage(), tr("New Document"));
+    m_tabs->addTab(buildPrintPage(), tr("Print"));
     m_tabs->addTab(buildBackupPage(), tr("Backup"));
     m_tabs->addTab(buildAutoCompletionPage(), tr("Auto-Completion"));
     m_tabs->addTab(buildPerformancePage(), tr("Performance"));
@@ -149,6 +151,44 @@ QWidget *PreferencesDialog::buildEditingPage()
     form->addRow(m_enableVirtualSpace);
     form->addRow(m_copyLineWithoutSelection);
     form->addRow(m_columnSelectionToMultiEdit);
+    return page;
+}
+
+QWidget *PreferencesDialog::buildPrintPage()
+{
+    const Settings &current = m_original;
+    auto *page = new QWidget(this);
+    auto *form = new QFormLayout(page);
+
+    m_printHeader = new QLineEdit(current.printHeader, page);
+    m_printFooter = new QLineEdit(current.printFooter, page);
+    const QString hint = tr("可用變數：$(FULL_CURRENT_PATH) $(FILE_NAME) $(NAME_PART) "
+                            "$(EXT_PART) $(CURRENT_DIRECTORY) $(CURRENT_DATE) "
+                            "$(CURRENT_TIME) $(CURRENT_PAGE)");
+    m_printHeader->setToolTip(hint);
+    m_printFooter->setToolTip(hint);
+    m_printHeader->setPlaceholderText(tr("留空 = 不列印頁首"));
+    m_printFooter->setPlaceholderText(tr("留空 = 不列印頁尾"));
+
+    m_printColourMode = new QComboBox(page);
+    // 順序須對應 Scintilla SC_PRINT_*：0=NORMAL 1=INVERTLIGHT 2=BLACKONWHITE 3=COLOURONWHITE
+    m_printColourMode->addItems({tr("Same as screen"), tr("Invert light"),
+                                 tr("Black on white"), tr("Colour on white")});
+    m_printColourMode->setCurrentIndex(qBound(0, current.printColourMode, 3));
+
+    m_printMarginMm = new QSpinBox(page);
+    m_printMarginMm->setRange(0, 50);
+    m_printMarginMm->setSuffix(tr(" mm"));
+    m_printMarginMm->setValue(qBound(0, current.printMarginMm, 50));
+
+    form->addRow(tr("頁首"), m_printHeader);
+    form->addRow(tr("頁尾"), m_printFooter);
+    form->addRow(tr("色彩模式"), m_printColourMode);
+    form->addRow(tr("邊界"), m_printMarginMm);
+
+    auto *note = new QLabel(hint, page);
+    note->setWordWrap(true);
+    form->addRow(note);
     return page;
 }
 
@@ -580,6 +620,10 @@ Settings PreferencesDialog::result() const
     s.copyLineWithoutSelection = m_copyLineWithoutSelection->isChecked();
     s.columnSelectionToMultiEdit = m_columnSelectionToMultiEdit->isChecked();
 
+    s.printHeader = m_printHeader->text();
+    s.printFooter = m_printFooter->text();
+    s.printColourMode = m_printColourMode->currentIndex();
+    s.printMarginMm = m_printMarginMm->value();
     s.defaultEol = Eol(m_defaultEol->currentIndex());
     s.defaultEncoding = Encoding(m_defaultEncoding->currentIndex());
     s.autoDetectFileStatus = m_autoDetectFileStatus->isChecked();

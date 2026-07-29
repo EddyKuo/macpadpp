@@ -41,6 +41,8 @@ set(MACPAD_LIB_SOURCES
     features/findall/FindAllDock.cpp
     features/findall/FindAllDock.h
     features/mime/MimeTools.cpp
+    features/print/PrintFormatter.cpp
+    features/print/DocumentPrinter.cpp
     features/mime/MimeTools.h
     features/udl/UdlDefinition.cpp
     features/udl/UdlDefinition.h

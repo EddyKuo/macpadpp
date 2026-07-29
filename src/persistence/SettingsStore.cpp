@@ -251,6 +251,10 @@ Settings SettingsStore::load()
         o.value(QStringLiteral("column_selection_to_multi_edit")).toBool(s.columnSelectionToMultiEdit);
 
     // New Document
+    s.printHeader = o.value(QStringLiteral("print_header")).toString(s.printHeader);
+    s.printFooter = o.value(QStringLiteral("print_footer")).toString(s.printFooter);
+    s.printColourMode = o.value(QStringLiteral("print_colour_mode")).toInt(s.printColourMode);
+    s.printMarginMm = o.value(QStringLiteral("print_margin_mm")).toInt(s.printMarginMm);
     s.defaultEol = eolFromString(o.value(QStringLiteral("default_eol")).toString(eolToString(s.defaultEol)));
     s.defaultEncoding = encodingFromString(
         o.value(QStringLiteral("default_encoding")).toString(encodingToString(s.defaultEncoding)));
@@ -385,6 +389,10 @@ bool SettingsStore::save(const Settings &s)
     o.insert(QStringLiteral("column_selection_to_multi_edit"), s.columnSelectionToMultiEdit);
 
     // New Document
+    o.insert(QStringLiteral("print_header"), s.printHeader);
+    o.insert(QStringLiteral("print_footer"), s.printFooter);
+    o.insert(QStringLiteral("print_colour_mode"), s.printColourMode);
+    o.insert(QStringLiteral("print_margin_mm"), s.printMarginMm);
     o.insert(QStringLiteral("default_eol"), eolToString(s.defaultEol));
     o.insert(QStringLiteral("default_encoding"), encodingToString(s.defaultEncoding));
     o.insert(QStringLiteral("auto_detect_file_status"), s.autoDetectFileStatus);

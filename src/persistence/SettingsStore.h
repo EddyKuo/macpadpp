@@ -56,6 +56,16 @@ struct Settings {
     bool copyLineWithoutSelection = true;  // 無選取時複製/剪下整行（Notepad++ 慣例）
     bool columnSelectionToMultiEdit = false;  // 欄選（矩形選取）結束時轉為每行一個多游標
 
+    // === Print（複刻 Notepad++ Print 偏好）===
+    // 頁首/頁尾樣板支援 $(FILE_NAME) $(CURRENT_PAGE) 等變數，見 features/print/PrintFormatter。
+    // 空字串 = 不印該區塊。
+    QString printHeader;
+    QString printFooter;
+    // 列印色彩模式：對應 Scintilla SC_PRINT_*。預設 BlackOnWhite——深色主題直接列印
+    // 會把整頁塗黑，既耗墨又難讀，故列印預設不沿用畫面配色。
+    int printColourMode = 2;   // 0=Normal 1=InvertLight 2=BlackOnWhite 3=ColourOnWhite
+    int printMarginMm = 10;    // 四邊邊界（公釐）
+
     // === New Document（FR-053）===
     // 新文件預設換行字元依平台而異，與各平台的 Notepad++／原生慣例一致：
     // Windows 版 Notepad++ 新檔為 CRLF，macOS/Unix 慣例為 LF。使用者仍可於
