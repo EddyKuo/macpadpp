@@ -243,6 +243,7 @@ void MainWindow::wireTabWidget(QTabWidget *w)
             updateStatusBar();
             refreshDocList();
             refreshPanels();
+            updateToolbarState();   // Monitoring 是逐檔狀態，切分頁必須跟著更新勾選
             if (m_findDialog)
                 m_findDialog->setEditor(currentEditor());
         }
@@ -639,6 +640,9 @@ void MainWindow::updateSecondViewVisibility()
     m_tabs2->setVisible(hasTabs);
     if (!hasTabs && m_activeTabs == m_tabs2)
         setActiveTabWidget(m_tabs);
+    // 同步捲動只在雙檢視下有意義；這裡是第二檢視顯示狀態的唯一出入口，
+    // 把工具列按鈕的啟用狀態掛在此處，就不會有漏掉的路徑。
+    updateToolbarState();
 }
 
 
@@ -795,6 +799,9 @@ void MainWindow::toggleMonitoring()
     EditorWidget *e = currentEditor();
     if (!e || e->isUntitled()) {
         QMessageBox::information(this, tr("Monitoring (tail -f)"), tr("此分頁尚未存成檔案。"));
+        // 動作是可勾選的，Qt 已在 triggered 之前改過勾選狀態；這裡沒真的開始監控，
+        // 必須把它撥回去，否則按鈕會顯示「監控中」而實際什麼都沒發生。
+        updateToolbarState();
         return;
     }
     const QString path = e->filePath();
@@ -810,6 +817,7 @@ void MainWindow::toggleMonitoring()
         e->ensureLineVisible(e->lines() - 1);
         statusBar()->showMessage(tr("監控中（tail -f）：%1").arg(QFileInfo(path).fileName()), 3000);
     }
+    updateToolbarState();
 }
 
 

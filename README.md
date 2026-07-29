@@ -9,7 +9,7 @@
 [![Platform: Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D6?logo=windows&logoColor=white)](#下載安裝發佈版)
 [![C++17](https://img.shields.io/badge/C%2B%2B-17-00599C?logo=cplusplus&logoColor=white)](CMakeLists.txt)
 [![Qt6](https://img.shields.io/badge/Qt-6-41CD52?logo=qt&logoColor=white)](https://www.qt.io/)
-[![Tests](https://img.shields.io/badge/tests-41%20passing-brightgreen)](tests/)
+[![Tests](https://img.shields.io/badge/tests-42%20passing-brightgreen)](tests/)
 [![Coverage](https://img.shields.io/badge/coverage-90%25-brightgreen)](docs/design.md)
 
 **Notepad++ 對等的原生跨平台(macOS / Windows)文字/程式碼編輯器。** 以 C++17 + Qt6 + QScintilla
@@ -63,7 +63,9 @@
 - **原生系統整合(macOS / Windows)** — 跟隨系統深/淺色、單一實例(可設定 multi-instance 模式)、
   命令列 `file:line` 跳轉、18+ CLI 旗標、平台慣例快捷鍵(⌘/Ctrl);**在檔案管理器顯示 / 開啟終端機**
   (macOS Finder·Terminal、Windows Explorer·Windows Terminal);macOS 選單列原生整合
-  (Preferences/About/Quit 自動歸入應用程式選單);**Notepad++ 風格圖示工具列**(採 [Phosphor Icons](https://phosphoricons.com/),MIT;隨主題自動變色)。
+  (Preferences/About/Quit 自動歸入應用程式選單);**與 Notepad++ 1:1 對齊的圖示工具列**
+  (32 個按鈕、8 條分隔線,順序完全比照上游 `toolBarIcons[]`;造型採 [Phosphor Icons](https://phosphoricons.com/),
+  MIT;隨主題自動變色。Notepad++ 自身的圖示為 GPLv3,無法在 MIT 專案中沿用)。
 - **完整 Preferences** — 涵蓋 New Document / Editing / Print / Tab Bar / Toolbar / Margins·Border·Edge /
   Default Directory / Recent Files / 逐語言啟停與縮排 / MISC 等全部分類,每一項設定皆接上真實 runtime
   行為(無「存而未用」的死偏好)。列印支援頁首/頁尾變數($(FILE_NAME) $(CURRENT_PAGE) 等)、
@@ -144,7 +146,7 @@ build\src\macpad++.exe path\to\file.cpp:12
 
 ## 測試與效能基準
 
-41 個 QtTest 套件（兩平台皆全綠）。
+42 個 QtTest 套件（兩平台皆全綠）。
 
 **macOS**：
 ```bash
@@ -170,6 +172,8 @@ ctest --test-dir build --output-on-failure
   但工具列上是一片空白且毫無錯誤訊息。
 - CI 的 **icons** job 在圖示相關檔案一有變動就自動跑(不編譯,約一分鐘),檢查資源完整性、
   合成圖示能否由腳本重現,以及 `.icns`/`.ico` 是否落後於母版。
+- `test_toolbar` 把「工具列順序」本身寫成測試:32 個按鈕與 8 條分隔線的位置逐項比對上游
+  `toolBarIcons[]`,任何插入/刪除/搬動都會被擋下,不必等使用者發現不一樣。
 - `.icns`/`.ico` 由 `scripts/icons/build_app_icons.sh` 從 `macpad-1024.png` 重建;
   `saveall` 由 `scripts/icons/compose_stack.py` 以布林運算從 `save` 合成。
 - 缺少 `.icns`/`.rc`/`.ico` 時 CMake 直接 `FATAL_ERROR`——否則會靜靜產出沒有圖示的 app。

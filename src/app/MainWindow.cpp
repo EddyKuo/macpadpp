@@ -246,10 +246,13 @@ MainWindow::MainWindow(QWidget *parent, bool restoreSessionOnLaunch)
     connect(m_projectPanel, &macpad::ui::ProjectPanelDock::openFileRequested,
             this, &MainWindow::openFile);
 
-    // Notepad++ 風格的圖示工具列——於 createMenus 前建立，讓 View 選單可加入其開關
+    // 工具列本體須在 createMenus 之前存在（View 選單要加入 "Show Toolbar" 開關），
+    // 但按鈕要在之後才填——它們直接沿用選單建立的 QAction，共用同一個物件。
     buildToolbar();
 
     createMenus();
+
+    populateToolbar();
 
     // 依偏好套用視窗層級外觀（工具列/狀態列/分頁列可見性與圖示大小、分頁關閉鈕等）
     applyWindowPrefs(macpad::persistence::SettingsStore::load());

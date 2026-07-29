@@ -187,8 +187,10 @@ private:
     void showFindInProjects();                 // Search ▸ Find in Projects…
     void gotoLineOrOffset();                   // Go to…（行 / 字元位移雙模式）
     QString startDirForDialog() const;         // 依 defaultDirPolicy 決定開/存檔對話框起始目錄
-    void buildToolbar();                       // Notepad++ 風格的圖示工具列
+    void buildToolbar();                       // 只建立工具列本體（View 選單需先有它）
+    void populateToolbar();                    // 填入按鈕；須在 createMenus 之後
     void retintToolbar();                      // 依主題重新上色圖示
+    void updateToolbarState();                 // 依目前狀態啟用/停用按鈕（如同步捲動需雙檢視）
     void createSearchMenu(QMenu *searchMenu);  // Notepad++ Search 選單（填入預建的選單）
     void createEditMenuOps(QMenu *editMenu);   // Notepad++ 對等文字操作
     void applyTextOp(const std::function<QString(const QString &)> &op);
@@ -291,4 +293,14 @@ private:
     QAction *m_wsAct = nullptr;
     QAction *m_eolAct = nullptr;
     QAction *m_smartHighlightAct = nullptr;  // View ▸ Smart Highlighting（新分頁依此套用）
+    // 以下同樣由選單建立、工具列直接沿用同一個 QAction——共用物件是兩處狀態不會走鐘的
+    // 唯一可靠作法（各建一份再互相同步，遲早會有某條路徑漏掉）。
+    QAction *m_allCharsAct = nullptr;   // Show All Characters（可勾選；連動 ws + eol）
+    QAction *m_igAct = nullptr;         // Show Indent Guide
+    QAction *m_syncVAct = nullptr;      // Synchronize Vertical Scrolling
+    QAction *m_syncHAct = nullptr;      // Synchronize Horizontal Scrolling
+    QAction *m_monitorAct = nullptr;    // Monitoring (tail -f)
+    QAction *m_udlAct = nullptr;        // Define your language…（UDL 編輯器）
+    QAction *m_macroRunMultiAct = nullptr;
+    QAction *m_macroSaveAct = nullptr;
 };

@@ -38,6 +38,7 @@ set(MACPAD_TESTS
     test_shortcutmapper
     test_printformatter
     test_icons
+    test_toolbar
     test_udlxmlio
     test_functionlistconfig
     test_contextmenu

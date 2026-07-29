@@ -67,6 +67,7 @@
 #include <QLineEdit>
 #include <QRegularExpression>
 #include <QToolBar>
+#include <QToolButton>
 #include <QIcon>
 #include <QPainter>
 #include <QPalette>
@@ -153,12 +154,37 @@ void MainWindow::buildToolbar()
     m_toolbar->setMovable(false);
     m_toolbar->setIconSize(QSize(18, 18));
     m_toolbar->setToolButtonStyle(Qt::ToolButtonIconOnly);  // 只顯示圖示,文字作為 tooltip
+}
 
-    // (圖示名, 顯示/提示文字, 觸發)。以分隔線分組,對齊 Notepad++ 工具列。
+
+// 按鈕組成與順序 1:1 對齊 Notepad++ 上游的 toolBarIcons[]（Notepad_plus.cpp）：
+// 32 個按鈕、8 條分隔線，位置完全相同。可勾選的按鈕（同步捲動、自動換行、顯示所有字元、
+// 縮排參考線、UDL、各停靠面板、監看）與上游一致。
+//
+// 圖示造型不可能一併複刻：Notepad++ 全庫為 GPLv3 且圖示資產無單獨授權切割，
+// 搬過來會讓本專案（MIT）被迫轉授權。故沿用 Phosphor（MIT）並挑選語意等價的造型。
+//
+// 須在 createMenus() 之後呼叫：工具列直接沿用選單建立的 QAction，兩處狀態才不會走鐘。
+void MainWindow::populateToolbar()
+{
+    // 新建按鈕（無對應選單動作者用此）：(圖示名, 提示文字, 觸發)
     auto add = [this](const char *icon, const QString &tip, auto slot) {
         QAction *a = m_toolbar->addAction(tip);   // 文字→tooltip
         a->setToolTip(tip);
+        a->setObjectName(QString::fromLatin1(icon));   // 穩定識別碼，供順序測試比對
         connect(a, &QAction::triggered, this, slot);
+        m_tbIcons.append({a, QString::fromLatin1(icon)});
+        return a;
+    };
+    // 沿用選單既有動作：同一個 QAction 同時出現在選單與工具列。
+    // setIconVisibleInMenu(false) 讓選單外觀維持原樣——圖示是為工具列加的，
+    // 不該順帶改變選單的視覺（macOS 選單本來就不放圖示）。
+    auto reuse = [this](const char *icon, QAction *a) {
+        if (!a)
+            return;
+        a->setIconVisibleInMenu(false);
+        a->setObjectName(QString::fromLatin1(icon));   // 穩定識別碼，供順序測試比對
+        m_toolbar->addAction(a);
         m_tbIcons.append({a, QString::fromLatin1(icon)});
     };
     add("new", tr("New"), [this] { newFile(); });
@@ -202,18 +228,63 @@ void MainWindow::buildToolbar()
     add("zoomin", tr("Zoom In"), [this] { if (auto *e = currentEditor()) e->zoomIn(); });
     add("zoomout", tr("Zoom Out"), [this] { if (auto *e = currentEditor()) e->zoomOut(); });
     m_toolbar->addSeparator();
-    // 透過 View 選單同名的可勾選 QAction 切換，避免工具列與選單狀態不同步
-    add("wordwrap", tr("Word Wrap"), [this] {
-        if (m_wrapAct) m_wrapAct->toggle();
-    });
-    add("showall", tr("Show All Characters"), [this] {
-        // 一鍵開/關空白＋EOL 顯示；setChecked 會觸發各自的 toggled 更新狀態與畫面
-        const bool on = !(m_showWhitespace && m_showEol);
-        if (m_wsAct) m_wsAct->setChecked(on);
-        if (m_eolAct) m_eolAct->setChecked(on);
-    });
+    reuse("syncscrollv", m_syncVAct);
+    reuse("syncscrollh", m_syncHAct);
+    m_toolbar->addSeparator();
+    reuse("wordwrap", m_wrapAct);
+    reuse("showall", m_allCharsAct);
+    // 上游只有這一顆是 BTNS_DROPDOWN：按鈕本體切換全部，右側箭頭展開個別項目
+    // （NppBigSwitch.cpp 的 TBN_DROPDOWN 分支）。MenuButtonPopup 正是同樣的行為：
+    // 主體可直接按，箭頭另外展開，不會互相搶點擊。
+    if (m_allCharsAct) {
+        if (auto *btn = qobject_cast<QToolButton *>(
+                m_toolbar->widgetForAction(m_allCharsAct))) {
+            QMenu *menu = new QMenu(btn);
+            menu->addAction(m_wsAct);    // Show Space and Tab
+            menu->addAction(m_eolAct);   // Show End of Line
+            menu->addSeparator();        // 上游在主開關前也有一條分隔線
+            menu->addAction(m_allCharsAct);
+            btn->setMenu(menu);
+            btn->setPopupMode(QToolButton::MenuButtonPopup);
+        }
+    }
+    reuse("indentguide", m_igAct);
+    m_toolbar->addSeparator();
+    reuse("udl", m_udlAct);
+    // 停靠面板的開關直接用 toggleViewAction()：面板被使用者關掉時按鈕會自動取消勾選，
+    // 不需要另外接訊號維護（自建按鈕就得自己處理，而那正是狀態走鐘的來源）。
+    if (m_docMap)       reuse("docmap",      m_docMap->toggleViewAction());
+    if (m_docList)      reuse("doclist",     m_docList->toggleViewAction());
+    if (m_funcList)     reuse("funclist",    m_funcList->toggleViewAction());
+    if (m_projectPanel) reuse("filebrowser", m_projectPanel->toggleViewAction());
+    m_toolbar->addSeparator();
+    reuse("monitoring", m_monitorAct);
+    m_toolbar->addSeparator();
+    reuse("macrorecord",   m_recordAction);
+    reuse("macrostop",     m_stopAction);
+    reuse("macroplay",     m_playAction);
+    reuse("macrorunmulti", m_macroRunMultiAct);
+    reuse("macrosave",     m_macroSaveAct);
 
-    retintToolbar();   // 依目前主題上色
+    retintToolbar();     // 依目前主題上色
+    updateToolbarState();
+}
+
+
+// 同步捲動需要兩個檢視同時存在；只有單一檢視時上游是把按鈕變灰而非隱藏。
+void MainWindow::updateToolbarState()
+{
+    const bool dual = m_tabs2 && m_tabs2->isVisible();
+    if (m_syncVAct) m_syncVAct->setEnabled(dual);
+    if (m_syncHAct) m_syncHAct->setEnabled(dual);
+
+    // Monitoring 是「目前這個檔案是否在監控中」，不是全域開關——切分頁必須跟著變。
+    if (m_monitorAct) {
+        const EditorWidget *e = currentEditor();
+        const bool on = e && !e->isUntitled() && m_monitored.contains(e->filePath());
+        const QSignalBlocker block(m_monitorAct);
+        m_monitorAct->setChecked(on);
+    }
 }
 
 
@@ -820,7 +891,7 @@ void MainWindow::createLanguageMenu(QMenu *langMenu)
 
     // User-Defined Language ▸ Define your language（圖形化建立 UDL）
     QMenu *udlMenu = langMenu->addMenu(tr("User-Defined Language"));
-    udlMenu->addAction(tr("Define Your Language…"), this, [this] {
+    m_udlAct = udlMenu->addAction(tr("Define Your Language…"), this, [this] {
         macpad::ui::UdlEditorDialog dlg(&m_udl, this);
         if (dlg.exec() == QDialog::Accepted) {
             statusBar()->showMessage(tr("UDL 已建立（開啟對應副檔名檔案即套用）"), 4000);
@@ -970,9 +1041,9 @@ void MainWindow::createMacroMenu(QMenu *macroMenu)
     macroMenu->addSeparator();
     // Macro Manager（複刻 Notepad++ Modify Shortcut / Delete Macro）
     macroMenu->addAction(tr("Macro Manager…"), this, [this] { openMacroManager(); });
-    macroMenu->addAction(tr("Run a Macro Multiple Times…"), this,
-                         [this] { runMacroMultipleTimes(); });
-    macroMenu->addAction(tr("Save Current Recorded Macro…"), this, [this] {
+    m_macroRunMultiAct = macroMenu->addAction(tr("Run a Macro Multiple Times…"), this,
+                                              [this] { runMacroMultipleTimes(); });
+    m_macroSaveAct = macroMenu->addAction(tr("Save Current Recorded Macro…"), this, [this] {
         if (m_savedMacro.isEmpty()) {
             statusBar()->showMessage(tr("尚無已錄製的巨集"), 2000);
             return;
@@ -1053,6 +1124,7 @@ void MainWindow::createViewMenu(QMenu *viewMenu)
         forEachEditor([this](EditorWidget *e) { applyViewPrefs(e); });
     });
     QAction *igAct = viewMenu->addAction(tr("Show Indent Guide"));
+    m_igAct = igAct;   // 工具列沿用同一個動作
     igAct->setCheckable(true);
     igAct->setChecked(true);
     connect(igAct, &QAction::toggled, this, [this](bool on) {
@@ -1065,11 +1137,25 @@ void MainWindow::createViewMenu(QMenu *viewMenu)
         m_showWrapSymbol = on;
         forEachEditor([this](EditorWidget *e) { applyViewPrefs(e); });
     });
-    viewMenu->addAction(tr("Show All Characters"), this, [wsAct, eolAct] {
-        // 一鍵開啟空白＋EOL 顯示
-        wsAct->setChecked(true);
-        eolAct->setChecked(true);
+    // Show All Characters 在上游是可勾選按鈕（非一次性動作），故此處同樣做成 toggle。
+    QAction *allCharsAct = viewMenu->addAction(tr("Show All Characters"));
+    m_allCharsAct = allCharsAct;
+    allCharsAct->setCheckable(true);
+    connect(allCharsAct, &QAction::toggled, this, [wsAct, eolAct](bool on) {
+        wsAct->setChecked(on);
+        eolAct->setChecked(on);
     });
+    // 反向同步：使用者單獨切換 Show Whitespace 或 Show End of Line 時，這個按鈕必須
+    // 反映「是否兩者都開」。少了這段，工具列會停在與實際畫面不符的勾選狀態。
+    // 阻斷訊號避免與上面的 toggled 互相觸發。
+    auto syncAllChars = [this, wsAct, eolAct] {
+        if (!m_allCharsAct)
+            return;
+        const QSignalBlocker block(m_allCharsAct);
+        m_allCharsAct->setChecked(wsAct->isChecked() && eolAct->isChecked());
+    };
+    connect(wsAct, &QAction::toggled, this, syncAllChars);
+    connect(eolAct, &QAction::toggled, this, syncAllChars);
 
     // Smart Highlighting（游標所在字詞自動標記全部出現處）——套用到所有開啟編輯器；
     // 新分頁於 addEditorTab 依此動作的勾選狀態同步。
@@ -1117,7 +1203,10 @@ void MainWindow::createViewMenu(QMenu *viewMenu)
     QAction *aotAct = viewMenu->addAction(tr("Always on Top"));
     aotAct->setCheckable(true);
     connect(aotAct, &QAction::toggled, this, &MainWindow::toggleAlwaysOnTop);
-    viewMenu->addAction(tr("Monitoring (tail -f)"), this, [this] { toggleMonitoring(); });
+    // Monitoring 在上游是可勾選狀態按鈕；勾選與否由 toggleMonitoring 依實際監控結果回填
+    m_monitorAct = viewMenu->addAction(tr("Monitoring (tail -f)"));
+    m_monitorAct->setCheckable(true);
+    connect(m_monitorAct, &QAction::triggered, this, [this] { toggleMonitoring(); });
     if (m_charPanel) {
         QAction *cpAct = m_charPanel->toggleViewAction();
         cpAct->setText(tr("Character Panel"));
@@ -1153,11 +1242,13 @@ void MainWindow::createViewMenu(QMenu *viewMenu)
                 m_viewSplit->orientation() == Qt::Horizontal ? Qt::Vertical : Qt::Horizontal);
     });
     QAction *syncVAct = viewMenu->addAction(tr("Synchronize Vertical Scrolling"));
+    m_syncVAct = syncVAct;
     syncVAct->setCheckable(true);
     connect(syncVAct, &QAction::toggled, this, [this](bool on) {
         if (EditorPane *p = currentPane()) p->setSyncVerticalScroll(on);
     });
     QAction *syncHAct = viewMenu->addAction(tr("Synchronize Horizontal Scrolling"));
+    m_syncHAct = syncHAct;
     syncHAct->setCheckable(true);
     connect(syncHAct, &QAction::toggled, this, [this](bool on) {
         if (EditorPane *p = currentPane()) p->setSyncHorizontalScroll(on);

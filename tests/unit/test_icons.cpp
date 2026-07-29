@@ -88,14 +88,23 @@ private slots:
     // 工具列用到的每一個圖示都必須存在、可解析、且算繪出可見內容
     void everyToolbarIconRenders()
     {
+        // 與 Notepad++ 上游 toolBarIcons[] 對應的 32 個按鈕（順序本身由 test_toolbar 把關）
         const QStringList names = {
             QStringLiteral("new"), QStringLiteral("open"), QStringLiteral("save"),
             QStringLiteral("saveall"), QStringLiteral("close"), QStringLiteral("closeall"),
             QStringLiteral("print"), QStringLiteral("cut"), QStringLiteral("copy"),
             QStringLiteral("paste"), QStringLiteral("undo"), QStringLiteral("redo"),
             QStringLiteral("find"), QStringLiteral("replace"), QStringLiteral("zoomin"),
-            QStringLiteral("zoomout"), QStringLiteral("wordwrap"), QStringLiteral("showall"),
+            QStringLiteral("zoomout"), QStringLiteral("syncscrollv"),
+            QStringLiteral("syncscrollh"), QStringLiteral("wordwrap"),
+            QStringLiteral("showall"), QStringLiteral("indentguide"), QStringLiteral("udl"),
+            QStringLiteral("docmap"), QStringLiteral("doclist"), QStringLiteral("funclist"),
+            QStringLiteral("filebrowser"), QStringLiteral("monitoring"),
+            QStringLiteral("macrorecord"), QStringLiteral("macrostop"),
+            QStringLiteral("macroplay"), QStringLiteral("macrorunmulti"),
+            QStringLiteral("macrosave"),
         };
+        QCOMPARE(names.size(), 32);
 
         for (const QString &n : names) {
             const QString path = QStringLiteral(":/icons/%1.svg").arg(n);

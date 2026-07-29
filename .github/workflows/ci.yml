@@ -36,7 +36,10 @@ jobs:
         run: |
           missing=0
           for n in new open save saveall close closeall print cut copy paste \
-                   undo redo find replace zoomin zoomout wordwrap showall; do
+                   undo redo find replace zoomin zoomout syncscrollv syncscrollh \
+                   wordwrap showall indentguide udl docmap doclist funclist \
+                   filebrowser monitoring macrorecord macrostop macroplay \
+                   macrorunmulti macrosave; do
             f="resources/icons/$n.svg"
             if [ ! -s "$f" ]; then echo "缺少或空白：$f"; missing=1; continue; fi
             # QSvgRenderer 不解析 currentColor：這種檔案打包得起來，但畫出來是全空

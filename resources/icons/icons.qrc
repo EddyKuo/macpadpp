@@ -17,7 +17,21 @@
     <file>replace.svg</file>
     <file>zoomin.svg</file>
     <file>zoomout.svg</file>
+    <file>syncscrollv.svg</file>
+    <file>syncscrollh.svg</file>
     <file>wordwrap.svg</file>
     <file>showall.svg</file>
+    <file>indentguide.svg</file>
+    <file>udl.svg</file>
+    <file>docmap.svg</file>
+    <file>doclist.svg</file>
+    <file>funclist.svg</file>
+    <file>filebrowser.svg</file>
+    <file>monitoring.svg</file>
+    <file>macrorecord.svg</file>
+    <file>macrostop.svg</file>
+    <file>macroplay.svg</file>
+    <file>macrorunmulti.svg</file>
+    <file>macrosave.svg</file>
   </qresource>
 </RCC>
