@@ -161,6 +161,19 @@ ctest --test-dir build --output-on-failure
 核心邏輯以 clang source-based coverage 量測,**功能範圍行覆蓋率 90.0%**(排除純 UI 的
 視窗/對話框/停靠面板)。實測效能:開 100 MB ≈ 120 ms;10 MB 正則取代 15 萬處 ≈ 52 ms。
 
+### 圖示資產
+
+圖示的故障方式是「建置全綠但畫面上什麼都沒有」,所以另外設了關卡:
+
+- `test_icons`(隨 CTest 跑)確認每個工具列圖示算繪得出非空白內容。Qt 的 `QSvgRenderer`
+  **不解析 `currentColor`**,而多數圖示庫預設就是用它——這種檔案編譯得過、打包得起來,
+  但工具列上是一片空白且毫無錯誤訊息。
+- CI 的 **icons** job 在圖示相關檔案一有變動就自動跑(不編譯,約一分鐘),檢查資源完整性、
+  合成圖示能否由腳本重現,以及 `.icns`/`.ico` 是否落後於母版。
+- `.icns`/`.ico` 由 `scripts/icons/build_app_icons.sh` 從 `macpad-1024.png` 重建;
+  `saveall` 由 `scripts/icons/compose_stack.py` 以布林運算從 `save` 合成。
+- 缺少 `.icns`/`.rc`/`.ico` 時 CMake 直接 `FATAL_ERROR`——否則會靜靜產出沒有圖示的 app。
+
 更多細節見 **[`BUILD.md`](BUILD.md)**。
 
 ---

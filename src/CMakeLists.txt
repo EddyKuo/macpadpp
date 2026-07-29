@@ -166,6 +166,11 @@ endif()
 if(APPLE)
     # App icon：把 .icns 放進 bundle 的 Resources/，並在 Info.plist 指定 CFBundleIconFile
     set(MACPAD_ICNS "${CMAKE_SOURCE_DIR}/resources/icon/macpad.icns")
+    # 缺圖示就直接失敗：少了它 bundle 仍會建置成功，只是在 Finder/Dock 顯示
+    # 通用的空白文件圖示——是那種一路帶進 Release 才被發現的沉默故障。
+    if(NOT EXISTS "${MACPAD_ICNS}")
+        message(FATAL_ERROR "找不到 ${MACPAD_ICNS}；請執行 scripts/icons/build_app_icons.sh")
+    endif()
     add_executable(macpad++ MACOSX_BUNDLE app/main.cpp ${MACPAD_ICNS})
     # 讓 .icns 在建置時被複製到 macpad++.app/Contents/Resources/
     set_source_files_properties(${MACPAD_ICNS} PROPERTIES
@@ -179,11 +184,15 @@ if(APPLE)
 elseif(WIN32)
     # WIN32：GUI 子系統（啟動不彈 console 視窗）；.rc 嵌入應用程式圖示。
     set(MACPAD_RC "${CMAKE_SOURCE_DIR}/resources/icon/macpad.rc")
-    if(EXISTS "${MACPAD_RC}")
-        add_executable(macpad++ WIN32 app/main.cpp ${MACPAD_RC})
-    else()
-        add_executable(macpad++ WIN32 app/main.cpp)
-    endif()
+    set(MACPAD_ICO "${CMAKE_SOURCE_DIR}/resources/icon/macpad.ico")
+    # 原本缺 .rc 時會靜靜地建置出「沒有圖示」的 exe。改為直接失敗——
+    # 檔案總管與工作列顯示通用圖示，通常要到使用者手上才會有人發現。
+    foreach(f "${MACPAD_RC}" "${MACPAD_ICO}")
+        if(NOT EXISTS "${f}")
+            message(FATAL_ERROR "找不到 ${f}；請執行 scripts/icons/build_app_icons.sh")
+        endif()
+    endforeach()
+    add_executable(macpad++ WIN32 app/main.cpp ${MACPAD_RC})
 else()
     add_executable(macpad++ app/main.cpp)
 endif()

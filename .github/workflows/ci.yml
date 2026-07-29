@@ -1,15 +1,85 @@
 name: CI
 
-# 僅「手動」執行：不會在每次 push / PR 時自動跑，避免消耗執行器時間與通知。
+# 建置與測試僅「手動」執行：不會在每次 push / PR 時自動跑，避免消耗執行器時間與通知。
 # 要跑時到 GitHub「Actions ▸ CI ▸ Run workflow」按鈕手動觸發（或 gh workflow run ci.yml）。
+#
+# 例外是 icons 這個 job：圖示相關檔案一有變動就自動檢查。它跑在 ubuntu 且不編譯，
+# 成本約一分鐘，但擋掉的是「建置全綠、卻做出沒有圖示的 app」這種要等到使用者
+# 手上才會被發現的沉默故障。兩個重量級建置 job 仍維持手動（見其 if 條件）。
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - 'resources/icon/**'
+      - 'resources/icons/**'
+      - 'scripts/icons/**'
+      - '.github/workflows/ci.yml'
 
 jobs:
+  icons:
+    name: Icons（圖示資產檢查）
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安裝檢查工具
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq imagemagick
+          # 版本釘死：合成圖示是幾何運算，換版本可能改變輸出的小數位而造成假失敗
+          pip install --quiet skia-pathops==0.9.2 fonttools==4.63.0
+
+      # 工具列圖示的「是否算繪得出來」由 test_icons 在兩個平台的 CTest 中把關；
+      # 這裡管的是資源本身的完整性與衍生檔是否過期。
+      - name: 工具列圖示必須齊全且不含 currentColor
+        run: |
+          missing=0
+          for n in new open save saveall close closeall print cut copy paste \
+                   undo redo find replace zoomin zoomout wordwrap showall; do
+            f="resources/icons/$n.svg"
+            if [ ! -s "$f" ]; then echo "缺少或空白：$f"; missing=1; continue; fi
+            # QSvgRenderer 不解析 currentColor：這種檔案打包得起來，但畫出來是全空
+            if grep -q currentColor "$f"; then echo "$f 含 currentColor"; missing=1; fi
+            python3 -c "import xml.dom.minidom,sys; xml.dom.minidom.parse(sys.argv[1])" "$f" \
+              || { echo "$f 不是合法 XML"; missing=1; }
+          done
+          [ "$missing" -eq 0 ] || exit 1
+
+      # saveall 由 save 位移疊放合成。若有人直接手改 SVG，就會與生成腳本脫節、
+      # 下次重新產生時默默把修改蓋掉。這裡確認committed 的檔案確實出自腳本。
+      - name: 合成圖示可由腳本重現
+        run: |
+          python3 scripts/icons/compose_stack.py \
+            resources/icons/save.svg resources/icons/saveall.svg 0.72 4 64 24
+          git diff --exit-code -- resources/icons/saveall.svg \
+            || { echo "saveall.svg 與 compose_stack.py 的輸出不一致"; exit 1; }
+
+      # .icns/.ico 是由 macpad-1024.png 產生後 commit 進來的二進位檔，沒有任何
+      # 建置步驟會重新產生它們——母版改了而衍生檔沒更新，是不會有人注意到的。
+      - name: 應用程式圖示未過期
+        run: |
+          grep -v '^#' resources/icon/SOURCE.sha256 > /tmp/icon.sums
+          (cd resources/icon && sha256sum -c /tmp/icon.sums) \
+            || { echo "母版已變更但衍生圖示未重建；請執行 scripts/icons/build_app_icons.sh"; exit 1; }
+
+      - name: 應用程式圖示資產完整
+        run: |
+          for f in resources/icon/macpad.icns resources/icon/macpad.ico \
+                   resources/icon/macpad.rc resources/icon/macpad-1024.png; do
+            [ -s "$f" ] || { echo "缺少或空白：$f"; exit 1; }
+          done
+          # .ico 必須同時含最小與最大尺寸：缺 16 則工作列糊，缺 256 則「特大圖示」糊
+          sizes=$(identify resources/icon/macpad.ico | awk '{print $3}')
+          echo "$sizes" | grep -qx '16x16'   || { echo ".ico 缺 16x16";   exit 1; }
+          echo "$sizes" | grep -qx '256x256' || { echo ".ico 缺 256x256"; exit 1; }
+
   build-test:
     name: Build & Test (macOS arm64)
     runs-on: macos-14
     timeout-minutes: 45
+    # 圖示檔案的 push 只跑上面的 icons job，不動用昂貴的建置執行器
+    if: github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v4
 
@@ -25,10 +95,22 @@ jobs:
       - name: 測試（CTest）
         run: ctest --test-dir build --output-on-failure
 
+      # 建置成功不代表 app 真的有圖示：Info.plist 指到不存在的檔案時，
+      # Finder 與 Dock 只會顯示通用圖示，建置與測試全程不會有任何抱怨。
+      - name: 驗證 .app 真的帶著圖示
+        run: |
+          APP=build/src/macpad++.app
+          ICNS="$APP/Contents/Resources/macpad.icns"
+          [ -s "$ICNS" ] || { echo "bundle 內找不到 $ICNS"; exit 1; }
+          NAME=$(plutil -extract CFBundleIconFile raw "$APP/Contents/Info.plist")
+          [ "$NAME" = "macpad.icns" ] || { echo "CFBundleIconFile 為 '$NAME'，與實際檔名不符"; exit 1; }
+          echo "bundle 圖示正常：$NAME（$(wc -c < "$ICNS") bytes）"
+
   build-test-windows:
     name: Build & Test (Windows x64)
     runs-on: windows-latest
     timeout-minutes: 60
+    if: github.event_name == 'workflow_dispatch'
     env:
       QT_VERSION: 6.8.1
       QSCI_VERSION: 2.14.1
@@ -99,6 +181,18 @@ jobs:
         run: |
           set "PATH=%QT_ROOT_DIR%\bin;%QT_ROOT_DIR%\lib;%PATH%"
           ctest --test-dir build --output-on-failure
+
+      # src/CMakeLists.txt 已保證缺 .rc/.ico 時直接 FATAL_ERROR，這裡再確認資源
+      # 真的被 rc.exe 編譯進去——設定成功不等於資源有進到 exe。
+      - name: 驗證 exe 嵌入了圖示資源
+        shell: pwsh
+        run: |
+          $res = Get-ChildItem build -Recurse -Include '*.res','macpad.rc.obj' -ErrorAction SilentlyContinue
+          if (-not $res) { throw "建置產物中找不到編譯後的資源檔，exe 可能沒有圖示" }
+          $res | ForEach-Object { Write-Host "資源檔：$($_.FullName) ($($_.Length) bytes)" }
+          if (($res | Measure-Object -Property Length -Sum).Sum -lt 1000) {
+            throw "資源檔過小，圖示可能未被嵌入"
+          }
 
       # Windows 上測試程序若異常終止，被緩衝的 stdout 會整批遺失——CTest 的
       # --output-on-failure 便什麼都印不出來（只看得到「Failed」三個字）。
