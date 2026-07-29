@@ -877,15 +877,43 @@ void MainWindow::createLanguageMenu(QMenu *langMenu)
     // 偏好 disabledLanguages 中的語言（以顯示名或內部鍵比對）不列入（Notepad++ Language 選單隱藏對等）
     QMenu *setLangMenu = langMenu->addMenu(tr("Set Language"));
     const QStringList disabledLangs = macpad::persistence::SettingsStore::load().disabledLanguages;
+
+    // 語言數已達百餘種，平鋪會超出螢幕高度。複刻 Notepad++ 做法：依首字母分群，
+    // 同一首字母有多個語言時收成子選單（如「A ▸ Ada / ASP / Assembly…」），
+    // 只有單一語言的首字母則直接列在上層。Plain Text 恆置頂、不參與分群。
+    QVector<macpad::core::LanguageEntry> visible;
     for (const auto &lang : macpad::core::LexerFactory::languages()) {
         if (disabledLangs.contains(lang.key, Qt::CaseInsensitive)
             || disabledLangs.contains(lang.displayName, Qt::CaseInsensitive))
             continue;
+        visible.push_back(lang);
+    }
+
+    auto addLangAction = [this](QMenu *menu, const macpad::core::LanguageEntry &lang) {
         const QString key = lang.key;
-        setLangMenu->addAction(lang.displayName, this, [this, key] {
+        menu->addAction(lang.displayName, this, [this, key] {
             if (EditorWidget *e = currentEditor())
                 e->setLanguageLexer(macpad::core::LexerFactory::createForLanguage(key, e));
         });
+    };
+
+    QMap<QChar, QVector<macpad::core::LanguageEntry>> byLetter;   // QMap：鍵已排序
+    for (const auto &lang : visible) {
+        if (lang.key.isEmpty()) {           // Plain Text 置頂
+            addLangAction(setLangMenu, lang);
+            setLangMenu->addSeparator();
+            continue;
+        }
+        byLetter[lang.displayName.at(0).toUpper()].push_back(lang);
+    }
+    for (auto it = byLetter.constBegin(); it != byLetter.constEnd(); ++it) {
+        if (it.value().size() == 1) {
+            addLangAction(setLangMenu, it.value().first());
+            continue;
+        }
+        QMenu *sub = setLangMenu->addMenu(QString(it.key()));
+        for (const auto &lang : it.value())
+            addLangAction(sub, lang);
     }
     langMenu->addSeparator();
 

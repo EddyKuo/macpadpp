@@ -50,6 +50,8 @@ set(MACPAD_LIB_SOURCES
     features/udl/UdlLexer.h
     features/udl/UdlManager.cpp
     features/udl/UdlManager.h
+    features/langs/BuiltinLanguages.cpp
+    features/langs/BuiltinLanguages.h
     features/export/HtmlExporter.cpp
     features/export/HtmlExporter.h
     features/textops/TextOps.cpp

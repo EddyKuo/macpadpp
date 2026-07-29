@@ -30,7 +30,11 @@ public:
     static QsciLexer *createForLanguage(const QString &key, QObject *parent);
 
     // 支援的語言清單（供選單），依顯示名排序。
+    // 含「原生 QScintilla lexer」與「內建語言表（通用 UDL 引擎）」兩部分。
     static QVector<LanguageEntry> languages();
+
+    // 僅由原生 QScintilla lexer 支援的語言（languages() 的子集；供測試與診斷）。
+    static QVector<LanguageEntry> nativeLanguages();
 };
 
 }  // namespace macpad::core

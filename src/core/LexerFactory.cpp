@@ -1,7 +1,12 @@
 #include "core/LexerFactory.h"
 
+#include <algorithm>
+
 #include <QFileInfo>
 #include <QHash>
+
+#include "features/langs/BuiltinLanguages.h"
+#include "features/udl/UdlLexer.h"
 
 #include <Qsci/qscilexerbash.h>
 #include <Qsci/qscilexerbatch.h>
@@ -112,13 +117,24 @@ static QsciLexer *lexerForLang(const QString &lang, QObject *parent)
     if (lang == "idl") return new QsciLexerIDL(parent);
     if (lang == "makefile") return new QsciLexerMakefile(parent);
     if (lang == "matlab") return new QsciLexerMatlab(parent);
+
+    // QScintilla 沒有原生 lexer 的語言：改由內建語言表 + 通用 UDL 引擎著色，
+    // 讓 Language 選單能對齊 Notepad++ 的語言清單（Go / Rust / Swift / PowerShell…）。
+    const auto def = macpad::features::BuiltinLanguages::definitionFor(lang);
+    if (def.isValid())
+        return new macpad::features::UdlLexer(def, parent);
+
     return nullptr;
 }
 
 QsciLexer *LexerFactory::createForExtension(const QString &suffix, QObject *parent)
 {
     const QString s = suffix.startsWith('.') ? suffix.mid(1) : suffix;
-    return lexerForLang(langKey(s), parent);
+    const QString native = langKey(s);
+    if (!native.isEmpty())
+        return lexerForLang(native, parent);
+    // 原生對照表未涵蓋 → 查內建語言表（Go/Rust/Swift/…）
+    return lexerForLang(macpad::features::BuiltinLanguages::keyForSuffix(s), parent);
 }
 
 QsciLexer *LexerFactory::createForFileName(const QString &fileName, QObject *parent)
@@ -140,6 +156,23 @@ QsciLexer *LexerFactory::createForLanguage(const QString &key, QObject *parent)
 }
 
 QVector<LanguageEntry> LexerFactory::languages()
+{
+    // 原生 QScintilla lexer 覆蓋的語言 + 內建語言表（通用 UDL 引擎）合併後依顯示名排序，
+    // 使 Language 選單涵蓋範圍對齊 Notepad++。
+    static const QVector<LanguageEntry> merged = [] {
+        QVector<LanguageEntry> v = nativeLanguages();
+        for (const auto &e : macpad::features::BuiltinLanguages::entries())
+            v.push_back({e.display, e.key});
+        // 「Plain Text」恆置頂，其餘依顯示名不分大小寫排序
+        std::sort(v.begin() + 1, v.end(), [](const LanguageEntry &a, const LanguageEntry &b) {
+            return a.displayName.compare(b.displayName, Qt::CaseInsensitive) < 0;
+        });
+        return v;
+    }();
+    return merged;
+}
+
+QVector<LanguageEntry> LexerFactory::nativeLanguages()
 {
     return {
         {QStringLiteral("Plain Text"), QString()},

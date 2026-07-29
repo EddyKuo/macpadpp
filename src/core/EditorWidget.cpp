@@ -1344,10 +1344,24 @@ void EditorWidget::applyApiCompletions(const QStringList &entries)
         m_apis = nullptr;
     }
 
+    // ApiDatabase 未收錄該語言時，退回 lexer 自身的關鍵字表（QScintilla 原生 lexer 皆有提供），
+    // 讓 Java / C# / Ruby / Perl / Lua… 等語言也具備關鍵字自動完成，而非只有文件內字詞。
+    QStringList effective = entries;
+    if (effective.isEmpty()) {
+        for (int set = 1; set <= 9; ++set) {
+            const char *kws = lex->keywords(set);
+            if (!kws)
+                continue;
+            effective << QString::fromLatin1(kws).split(QLatin1Char(' '), Qt::SkipEmptyParts);
+        }
+        effective.removeDuplicates();
+        effective.sort(Qt::CaseInsensitive);
+    }
+
     auto *apis = new QsciAPIs(lex);  // 建構時 parent 為 lex
     // 改由 EditorWidget 持有：與 lexer 生命週期解耦，換 lexer/刪舊 lexer 時 m_apis 不會被連帶刪除而懸空。
     apis->setParent(this);
-    for (const QString &entry : entries)
+    for (const QString &entry : effective)
         apis->add(entry);
     apis->prepare();       // 於背景 thread 進行；銷毀時由 dtor 負責收斂，避免 SIGBUS
     lex->setAPIs(apis);

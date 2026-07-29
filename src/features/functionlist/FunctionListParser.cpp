@@ -1,7 +1,9 @@
 #include "features/functionlist/FunctionListParser.h"
 
 #include "features/functionlist/FunctionListConfig.h"
+#include "features/langs/BuiltinLanguages.h"
 
+#include <QHash>
 #include <QRegularExpression>
 
 namespace macpad::features {
@@ -14,15 +16,65 @@ QString FunctionListParser::languageForSuffix(const QString &suffix)
         return overridden;
 
     const QString s = suffix.toLower();
-    if (s == "py" || s == "pyw") return QStringLiteral("python");
-    if (s == "c" || s == "h" || s == "cpp" || s == "cc" || s == "cxx" ||
-        s == "hpp" || s == "hxx" || s == "m" || s == "mm")
-        return QStringLiteral("cpp");
-    if (s == "js" || s == "mjs" || s == "ts" || s == "jsx")
-        return QStringLiteral("javascript");
-    if (s == "java")
-        return QStringLiteral("java");
-    return QString();
+
+    // 副檔名 → Function List 語言鍵。鍵名與 FunctionListConfig::builtinRule 一致，
+    // 涵蓋範圍對齊 Notepad++ functionList.xml；使用者仍可用 overrideMap.json 覆寫。
+    static const QHash<QString, QString> kMap = {
+        {"py", "python"}, {"pyw", "python"},
+        {"c", "cpp"}, {"h", "cpp"}, {"cpp", "cpp"}, {"cc", "cpp"}, {"cxx", "cpp"},
+        {"hpp", "cpp"}, {"hxx", "cpp"}, {"hh", "cpp"}, {"m", "cpp"}, {"mm", "cpp"}, {"ino", "cpp"},
+        {"js", "javascript"}, {"mjs", "javascript"}, {"cjs", "javascript"},
+        {"ts", "javascript"}, {"tsx", "javascript"}, {"jsx", "javascript"},
+        {"java", "java"},
+        {"cs", "csharp"},
+        {"php", "php"}, {"php3", "php"}, {"php4", "php"}, {"php5", "php"}, {"phtml", "php"},
+        {"pl", "perl"}, {"pm", "perl"}, {"plx", "perl"},
+        {"rb", "ruby"}, {"rbw", "ruby"}, {"gemspec", "ruby"}, {"rake", "ruby"},
+        {"go", "go"},
+        {"rs", "rust"},
+        {"swift", "swift"},
+        {"kt", "kotlin"}, {"kts", "kotlin"},
+        {"scala", "scala"}, {"sc", "scala"},
+        {"dart", "dart"},
+        {"groovy", "groovy"}, {"gvy", "groovy"}, {"gradle", "groovy"},
+        {"ps1", "powershell"}, {"psm1", "powershell"}, {"psd1", "powershell"},
+        {"r", "r"},
+        {"lua", "lua"},
+        {"sh", "bash"}, {"bash", "bash"}, {"zsh", "bash"}, {"ksh", "bash"},
+        {"bat", "batch"}, {"cmd", "batch"},
+        {"sql", "sql"}, {"pls", "sql"}, {"plsql", "sql"},
+        {"css", "css"}, {"scss", "css"}, {"less", "css"}, {"sass", "css"},
+        {"vb", "vb"}, {"vbs", "vb"}, {"bas", "vb"}, {"frm", "vb"}, {"cls", "vb"},
+        {"pas", "pascal"}, {"pp", "pascal"}, {"dpr", "pascal"},
+        {"f", "fortran"}, {"for", "fortran"}, {"f90", "fortran"}, {"f95", "fortran"},
+        {"hs", "haskell"}, {"lhs", "haskell"},
+        {"mat", "matlab"},
+        {"tcl", "tcl"},
+        {"nim", "nim"}, {"nims", "nim"},
+        {"d", "d"},
+        {"tex", "tex"}, {"sty", "tex"}, {"cls_tex", "tex"},
+        {"asm", "asm"}, {"s", "asm"}, {"nasm", "asm"},
+        {"ini", "properties"}, {"cfg", "properties"}, {"conf", "properties"},
+        {"properties", "properties"},
+        {"toml", "toml"},
+        {"md", "markdown"}, {"markdown", "markdown"},
+        {"au3", "autoit"},
+        {"nsi", "nsis"}, {"nsh", "nsis"},
+        {"iss", "inno"},
+        {"v", "verilog"}, {"sv", "verilog"},
+        {"vhd", "vhdl"}, {"vhdl", "vhdl"},
+        {"erl", "erlang"}, {"hrl", "erlang"},
+        {"coffee", "coffeescript"},
+        {"sas", "sas"},
+        {"cmake", "cmake"},
+        {"mk", "makefile"},
+    };
+    const QString mapped = kMap.value(s);
+    if (!mapped.isEmpty())
+        return mapped;
+
+    // 最後退回內建語言表的語言鍵（該語言若無解析規則，parse() 會回傳空清單）
+    return BuiltinLanguages::keyForSuffix(s);
 }
 
 QVector<Symbol> FunctionListParser::parse(const QString &content, const QString &language)
