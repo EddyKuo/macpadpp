@@ -16,7 +16,11 @@ QString PrintFormatter::expand(const QString &tmpl, const PrintContext &ctx)
 
     const QHash<QString, QString> vars = {
         {QStringLiteral("FULL_CURRENT_PATH"), ctx.filePath},
-        {QStringLiteral("CURRENT_DIRECTORY"), named ? info.absolutePath() : QString()},
+        // 用 path() 而非 absolutePath()：後者會把路徑對「目前工作目錄」解析，在 Windows 上
+        // 會把 /home/x 這種無磁碟代號的路徑補成 D:/home/x。$(CURRENT_DIRECTORY) 的語意是
+        // 「這個檔案所在的目錄」，不該牽扯 CWD；編輯器存的本來就是絕對路徑（loadFile/saveFile
+        // 皆以 absoluteFilePath() 正規化），故 path() 即為正解且跨平台行為一致。
+        {QStringLiteral("CURRENT_DIRECTORY"), named ? info.path() : QString()},
         {QStringLiteral("FILE_NAME"),         named ? info.fileName() : QString()},
         {QStringLiteral("NAME_PART"),         named ? info.completeBaseName() : QString()},
         {QStringLiteral("EXT_PART"),          named ? info.suffix() : QString()},

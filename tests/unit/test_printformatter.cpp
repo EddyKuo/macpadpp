@@ -23,6 +23,8 @@ private slots:
                  QStringLiteral("report.final"));
         QCOMPARE(PrintFormatter::expand(QStringLiteral("$(EXT_PART)"), ctx),
                  QStringLiteral("txt"));
+        // 目錄取的是「路徑本身的目錄部分」，不對目前工作目錄解析——否則 Windows 上
+        // 這種無磁碟代號的路徑會被補成 D:/home/eddy/docs（此測試曾在 Windows CI 抓到）。
         QCOMPARE(PrintFormatter::expand(QStringLiteral("$(CURRENT_DIRECTORY)"), ctx),
                  QStringLiteral("/home/eddy/docs"));
     }
