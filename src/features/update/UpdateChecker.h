@@ -9,6 +9,7 @@
 // 資料來源為 GitHub Releases API；僅在使用者主動點選或明確開啟偏好時才連線，
 // 其餘時候本程式完全不連網。
 
+#include <QJsonArray>
 #include <QObject>
 #include <QString>
 
@@ -29,11 +30,19 @@ public:
     // 完成後發出 finished()；失敗（無網路/逾時/格式錯誤）也會發出，errorText 非空。
     void check(const QString &currentVersion);
 
+    // 從 Releases JSON 的 assets 陣列挑出符合目前平台的安裝檔。
+    // Windows 取 *-x64.zip、macOS 取 *.dmg；找不到時回傳空字串（呼叫端退回 release 頁面）。
+    // 純函式，與網路無關，可單元測試。
+    static QString pickAssetForPlatform(const QJsonArray &assets, QString *sizeOut = nullptr);
+
 signals:
     // hasUpdate：latestVersion 是否比 currentVersion 新
     // downloadUrl：release 頁面網址（供使用者自行下載）
+    // assetUrl：符合目前平台的安裝檔直接下載網址（可能為空，代表該版沒有對應平台的檔案）
+    // assetSize：該檔案位元組數（字串形式，0 = 未知）
     void finished(bool hasUpdate, const QString &latestVersion,
-                  const QString &downloadUrl, const QString &errorText);
+                  const QString &downloadUrl, const QString &errorText,
+                  const QString &assetUrl = QString(), const QString &assetSize = QString());
 
 private:
     QNetworkAccessManager *m_net = nullptr;

@@ -48,16 +48,24 @@ private:
         QList<QByteArray> operators;   // 依長度遞減，確保最長匹配優先
     };
 
+    // 巢狀遞迴深度上限。UDL 允許區塊巢狀包含自己（例如可巢狀的區塊註解），
+    // 若不設限，一份含大量未閉合開頭標記的文件會讓每個開頭標記各佔一層 C++ 堆疊，
+    // 且 styleText() 每次按鍵都從頭重掃 —— 正常編輯就足以爆堆疊。
+    // 超過上限即退回逐位元組上色（畫面仍正確，只是不再往下辨識巢狀內容）。
+    static constexpr int kMaxNestDepth = 64;
+    // 可被 nesting 遮罩指涉的分隔符組數上限（上游格式為 8 組）。超出者不參與巢狀判定。
+    static constexpr int kMaxNestableDelimiters = 8;
+
     // 在 utf8[i] 處嘗試辨識一個 token 並上色，回傳消耗的位元組數（至少 1）。
     // mask 為 UdlNest 位元遮罩，決定此處允許辨識哪些類別——巢狀區塊內部即以較窄的
     // mask 遞迴呼叫本函式，未獲允許的類別會退回以 fallbackStyle 逐位元組上色。
     int scanToken(const QByteArray &utf8, int i, int end, const ScanTables &t,
-                  int mask, int fallbackStyle);
+                  int mask, int fallbackStyle, int depth);
     // 掃描一段有明確結束標記的區塊（註解／分隔符／字串）：開頭與結尾標記以 bodyStyle 上色，
     // 中間內容依 nesting 遞迴。回傳消耗的位元組數。
     int scanRegion(const QByteArray &utf8, int i, int end, const ScanTables &t,
                    const QByteArray &openTok, const QByteArray &closeTok,
-                   const QByteArray &escapeTok, int nesting, int bodyStyle);
+                   const QByteArray &escapeTok, int nesting, int bodyStyle, int depth);
 
     // 第 groupIdx（0-based，最多 8）組關鍵字對應的樣式編號
     static int styleForKeywordGroup(int groupIdx);

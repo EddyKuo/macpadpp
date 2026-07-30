@@ -124,19 +124,21 @@ constexpr int kMaxDelimiterSets = 8;
 // ---- Nesting 位元對映 ----
 // Notepad++ 的 nesting 遮罩（SCE_USER_MASK_NESTING_*）與本專案 UdlNest 的位元配置不同，
 // 匯入/匯出時必須逐位轉換，否則巢狀設定會對應到錯誤的類別。
-// Notepad++ 位元配置（見上游 Scintilla 的 SciLexer.h）：
-constexpr int kNppNestDelimiter1 = 0x00001;   // DELIMITER1..8 = bit 0..7
-constexpr int kNppNestComment    = 0x00100;   // 256
-constexpr int kNppNestCommentLine= 0x00200;   // 512
-constexpr int kNppNestKeyword1   = 0x00400;   // KEYWORD1..8 = 1024 << 0..7
-constexpr int kNppNestOperators1 = 0x40000;   // 262144
-constexpr int kNppNestOperators2 = 0x80000;   // 524288
-constexpr int kNppNestNumbers    = 0x100000;  // 1048576
+// Notepad++ 位元配置（值取自上游 lexilla/include/SciLexer.h 的 SCE_USER_MASK_NESTING_*）。
+// 注意 0x40000/0x80000/0x100000 是 FOLDERS_IN_CODE2 的 open/middle/close，不是運算子/數字——
+// 兩者只差幾個位元，寫錯不會有任何錯誤訊息，只會靜默對應到別的功能。
+constexpr int kNppNestDelimiter1 = 0x0000001;   // DELIMITER1..8 = bit 0..7
+constexpr int kNppNestComment    = 0x0000100;   // 256
+constexpr int kNppNestCommentLine= 0x0000200;   // 512
+constexpr int kNppNestKeyword1   = 0x0000400;   // KEYWORD1..8 = 1024 << 0..7
+constexpr int kNppNestOperators1 = 0x1000000;   // 16777216
+constexpr int kNppNestOperators2 = 0x2000000;   // 33554432
+constexpr int kNppNestNumbers    = 0x4000000;   // 67108864
 
 // Notepad++ 的 UDL 樣式編號（SCE_USER_STYLE_*），用於認出哪個 WordsStyle 帶的是哪個區塊的 nesting
 constexpr int kNppStyleComment     = 1;
 constexpr int kNppStyleCommentLine = 2;
-constexpr int kNppStyleDelimiter1  = 21;   // DELIMITER1..8 = 21..28
+constexpr int kNppStyleDelimiter1  = 16;   // DELIMITER1..8 = 16..23（24 為 IDENTIFIER）
 
 int nppNestingToInternal(int npp)
 {

@@ -211,6 +211,59 @@ private slots:
         QCOMPARE(styleAt(text.size() - 1), int(UdlLexer::Comment));
     }
 
+    // 可巢狀包含自己的區塊（UDL 合法用法）不得無限遞迴。
+    // styleText() 每次按鍵都從頭重掃，若無深度上限，一段尚未打完的巢狀註解就足以爆堆疊。
+    void nestingSelfReferentialDoesNotOverflowStack()
+    {
+        QsciScintilla editor;
+        UdlDefinition d = makeDef(true);
+        d.blockCommentNesting = UdlNest::Comment;   // 區塊註解內允許再出現區塊註解
+        UdlLexer *lexer = new UdlLexer(d, &editor);
+        editor.setLexer(lexer);
+
+        // 大量未閉合的開頭標記：每一個在無防護的實作中都會多佔一層 C++ 堆疊
+        QString text;
+        for (int i = 0; i < 5000; ++i)
+            text += QStringLiteral("/*");
+        editor.setText(text);
+
+        lexer->styleText(0, text.toUtf8().size());   // 不得崩潰
+        QCOMPARE(editor.SendScintilla(QsciScintillaBase::SCI_GETSTYLEAT, 0),
+                 int(UdlLexer::Comment));
+    }
+
+    // 跳脫字元與結尾標記相同（如 SQL 以 '' 跳脫單引號）時，結尾判定必須優先，
+    // 否則區塊永遠關不掉、整份文件都會被當成區塊內容。
+    void delimiterEscapeEqualToCloseStillTerminates()
+    {
+        QsciScintilla editor;
+        UdlDefinition d = makeDef(true);
+        d.lineComment.clear();
+        d.blockCommentStart.clear();
+        d.blockCommentEnd.clear();
+        UdlDelimiter del;
+        del.open = QStringLiteral("'");
+        del.escape = QStringLiteral("'");
+        del.close = QStringLiteral("'");
+        d.delimiters.push_back(del);
+        UdlLexer *lexer = new UdlLexer(d, &editor);
+        editor.setLexer(lexer);
+
+        const QString text = QStringLiteral("'it''s' tail");
+        editor.setText(text);
+        lexer->styleText(0, text.toUtf8().size());
+
+        auto styleAt = [&](int pos) -> int {
+            return editor.SendScintilla(QsciScintillaBase::SCI_GETSTYLEAT, pos);
+        };
+        QCOMPARE(styleAt(0), int(UdlLexer::Delimiter));                  // 開頭引號
+        QCOMPARE(styleAt(text.indexOf(QStringLiteral("it"))), int(UdlLexer::Delimiter));
+        // 結尾之後的 " tail" 必須回到區塊外（先前會被整段吃掉）
+        const int tail = text.indexOf(QStringLiteral("tail"));
+        QVERIFY(tail > 0);
+        QVERIFY(styleAt(tail) != int(UdlLexer::Delimiter));
+    }
+
     void styleTextCaseInsensitiveKeywordMatching()
     {
         QsciScintilla editor;

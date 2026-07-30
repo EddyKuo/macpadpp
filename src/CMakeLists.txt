@@ -56,6 +56,8 @@ set(MACPAD_LIB_SOURCES
     features/langs/BuiltinLanguages.h
     features/update/UpdateChecker.cpp
     features/update/UpdateChecker.h
+    features/update/UpdateDownloader.cpp
+    features/update/UpdateDownloader.h
     ui/MultiRowTabBar.cpp
     ui/MultiRowTabBar.h
     ui/ColorPicker.cpp

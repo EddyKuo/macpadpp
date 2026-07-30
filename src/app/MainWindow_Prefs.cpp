@@ -10,6 +10,12 @@
 #include "ui/EditorPane.h"
 #include "ui/MultiRowTabBar.h"
 #include "features/update/UpdateChecker.h"
+#include "features/update/UpdateDownloader.h"
+#include "platform/DesktopIntegration.h"
+
+#include <QLocale>
+#include <QProgressDialog>
+#include <QPushButton>
 #include "extension/ExtensionRegistry.h"
 #include "extension/builtin/WordCountExtension.h"
 #include "extension/builtin/MarkdownPreviewExtension.h"
@@ -305,13 +311,16 @@ void MainWindow::setFullReadOnly(bool on)
 // 檢查更新（複刻 Notepad++ 的 Check for Updates / auto-updater）。
 // silent=true 為啟動時的自動檢查：只在「真的有新版」時才打擾使用者，失敗完全靜默
 // （沒網路是常態，不該每次開檔都跳錯誤）。
-// 刻意不做自我下載覆寫——詳見 features/update/UpdateChecker.h 的說明。
+// 有新版時提供「直接下載」：抓取符合本平台的發佈檔並驗證完整性，完成後在檔案管理器
+// 中顯示（最後的安裝/解壓由使用者執行——發佈物是免安裝 zip / DMG 而非安裝程式，
+// 且未經簽章，不由程式自行替換執行中的二進位）。
 void MainWindow::checkForUpdates(bool silent)
 {
     auto *checker = new macpad::features::UpdateChecker(this);
     connect(checker, &macpad::features::UpdateChecker::finished, this,
             [this, checker, silent](bool hasUpdate, const QString &latest,
-                                    const QString &url, const QString &err) {
+                                    const QString &url, const QString &err,
+                                    const QString &assetUrl, const QString &assetSize) {
         checker->deleteLater();
 
         if (!err.isEmpty()) {
@@ -328,15 +337,95 @@ void MainWindow::checkForUpdates(bool silent)
             return;
         }
 
-        const auto btn = QMessageBox::question(
-            this, tr("Check for Updates"),
-            tr("有新版本可用：%1（目前為 %2）。\n要開啟下載頁面嗎？")
-                .arg(latest, QString::fromLatin1(MACPAD_VERSION)),
-            QMessageBox::Yes | QMessageBox::No, QMessageBox::Yes);
-        if (btn == QMessageBox::Yes && !url.isEmpty())
-            QDesktopServices::openUrl(QUrl(url));
+        // 該版沒有本平台的發佈檔時，只能導向 release 頁面（不臆測要下載哪個檔）
+        if (assetUrl.isEmpty()) {
+            const auto btn = QMessageBox::question(
+                this, tr("Check for Updates"),
+                tr("有新版本可用：%1（目前為 %2）。\n要開啟下載頁面嗎？")
+                    .arg(latest, QString::fromLatin1(MACPAD_VERSION)),
+                QMessageBox::Yes | QMessageBox::No, QMessageBox::Yes);
+            if (btn == QMessageBox::Yes && !url.isEmpty())
+                QDesktopServices::openUrl(QUrl(url));
+            return;
+        }
+
+        const qint64 bytes = assetSize.toLongLong();
+        const QString sizeText = bytes > 0
+            ? tr("（約 %1）").arg(QLocale().formattedDataSize(bytes)) : QString();
+        QMessageBox box(this);
+        box.setWindowTitle(tr("Check for Updates"));
+        box.setText(tr("有新版本可用：%1（目前為 %2）。")
+                        .arg(latest, QString::fromLatin1(MACPAD_VERSION)));
+        box.setInformativeText(tr("可直接下載安裝檔%1，或改為開啟下載頁面。")
+                                   .arg(sizeText));
+        QPushButton *dl = box.addButton(tr("下載"), QMessageBox::AcceptRole);
+        QPushButton *page = box.addButton(tr("開啟頁面"), QMessageBox::ActionRole);
+        box.addButton(QMessageBox::Cancel);
+        box.setDefaultButton(dl);
+        box.exec();
+
+        if (box.clickedButton() == page) {
+            if (!url.isEmpty())
+                QDesktopServices::openUrl(QUrl(url));
+            return;
+        }
+        if (box.clickedButton() != dl)
+            return;
+
+        downloadUpdate(assetUrl, bytes);
     });
     checker->check(QString::fromLatin1(MACPAD_VERSION));
+}
+
+
+// 下載新版安裝檔並顯示進度；完成後在檔案管理器中顯示，由使用者執行安裝/解壓。
+// 不自行替換執行中的二進位：發佈物為未簽章的免安裝 zip / DMG，程式自我覆寫的
+// 風險（供應鏈一旦被汙染即直接落地）與收益不成比例。
+void MainWindow::downloadUpdate(const QString &assetUrl, qint64 expectedBytes)
+{
+    auto *dl = new macpad::features::UpdateDownloader(this);
+    auto *progress = new QProgressDialog(tr("正在下載新版本…"), tr("取消"), 0, 100, this);
+    progress->setWindowModality(Qt::WindowModal);
+    progress->setMinimumDuration(0);
+    progress->setAutoClose(false);
+    progress->setAutoReset(false);
+
+    connect(dl, &macpad::features::UpdateDownloader::progress, progress,
+            [progress](qint64 received, qint64 total) {
+        if (total > 0) {
+            progress->setMaximum(100);
+            progress->setValue(static_cast<int>(received * 100 / total));
+            progress->setLabelText(
+                tr("正在下載新版本…\n%1 / %2")
+                    .arg(QLocale().formattedDataSize(received),
+                         QLocale().formattedDataSize(total)));
+        } else {
+            progress->setMaximum(0);   // 總量未知 → 不定量進度條
+        }
+    });
+    connect(progress, &QProgressDialog::canceled, dl,
+            &macpad::features::UpdateDownloader::cancel);
+
+    connect(dl, &macpad::features::UpdateDownloader::finished, this,
+            [this, dl, progress](bool ok, const QString &path, const QString &error) {
+        progress->close();
+        progress->deleteLater();
+        dl->deleteLater();
+
+        if (!ok) {
+            // 使用者主動取消不算錯誤，不再彈窗打擾
+            if (error != tr("已取消"))
+                QMessageBox::warning(this, tr("Check for Updates"),
+                                     tr("下載失敗：%1").arg(error));
+            return;
+        }
+        QMessageBox::information(
+            this, tr("Check for Updates"),
+            tr("已下載至：\n%1\n\n關閉 macpad++ 後再安裝/解壓縮以完成更新。").arg(path));
+        macpad::platform::revealInFileManager(path);
+    });
+
+    dl->start(assetUrl, expectedBytes);
 }
 
 

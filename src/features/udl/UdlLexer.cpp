@@ -93,24 +93,44 @@ QColor UdlLexer::defaultColor(int style) const
 // 否則整段以 bodyStyle 上色——與加入 nesting 之前的行為完全相同。
 int UdlLexer::scanRegion(const QByteArray &utf8, int i, int end, const ScanTables &t,
                          const QByteArray &openTok, const QByteArray &closeTok,
-                         const QByteArray &escapeTok, int nesting, int bodyStyle)
+                         const QByteArray &escapeTok, int nesting, int bodyStyle, int depth)
 {
     const int startPos = i;
-    setStyling(openTok.size(), bodyStyle);
-    int j = i + openTok.size();
+    setStyling(static_cast<int>(openTok.size()), bodyStyle);
+    int j = i + static_cast<int>(openTok.size());
+
+    // 未設結尾標記（如只填了 blockCommentStart）：只標開頭標記本身即結束。
+    // 這是加入 nesting 之前的既有行為；若改為「一路吃到檔尾」，設定不全的 UDL
+    // 會讓整份文件突然變成註解色。
+    if (closeTok.isEmpty())
+        return j - startPos;
 
     while (j < utf8.size()) {
-        // 跳脫字元優先：\" 之類不得被誤判為結尾
-        if (!escapeTok.isEmpty() && utf8.mid(j, escapeTok.size()) == escapeTok) {
-            const int skip = qMin(escapeTok.size() + 1, utf8.size() - j);
+        // 結尾標記優先於跳脫字元：兩者相同時（如 SQL 以 '' 跳脫單引號，
+        // open/close/escape 皆為 '），若先比對跳脫就永遠關不掉，整份文件會被吃光。
+        if (!closeTok.isEmpty() && utf8.mid(j, closeTok.size()) == closeTok) {
+            // 跳脫序列「escape + close」才是內文（如 \" 或 ''）；否則就是真的結尾
+            const bool escaped = !escapeTok.isEmpty() && escapeTok == closeTok
+                && utf8.mid(j + closeTok.size(), closeTok.size()) == closeTok;
+            if (!escaped)
+                break;
+            const int skip = static_cast<int>(qMin<qsizetype>(closeTok.size() * 2,
+                                                              utf8.size() - j));
             setStyling(skip, bodyStyle);
             j += skip;
             continue;
         }
-        if (!closeTok.isEmpty() && utf8.mid(j, closeTok.size()) == closeTok)
-            break;
-        if (nesting != 0) {
-            j += scanToken(utf8, j, end, t, nesting, bodyStyle);
+        // 跳脫字元（與結尾標記不同時）：\" 之類不得被誤判為結尾
+        if (!escapeTok.isEmpty() && escapeTok != closeTok
+            && utf8.mid(j, escapeTok.size()) == escapeTok) {
+            const int skip = static_cast<int>(qMin<qsizetype>(escapeTok.size() + 1,
+                                                              utf8.size() - j));
+            setStyling(skip, bodyStyle);
+            j += skip;
+            continue;
+        }
+        if (nesting != 0 && depth < kMaxNestDepth) {
+            j += scanToken(utf8, j, end, t, nesting, bodyStyle, depth + 1);
         } else {
             setStyling(1, bodyStyle);
             ++j;
@@ -119,7 +139,7 @@ int UdlLexer::scanRegion(const QByteArray &utf8, int i, int end, const ScanTable
 
     // 結尾標記；未閉合時（掃到檔尾）就只到檔尾為止
     if (j < utf8.size() && !closeTok.isEmpty() && utf8.mid(j, closeTok.size()) == closeTok) {
-        const int n = qMin(closeTok.size(), utf8.size() - j);
+        const int n = static_cast<int>(qMin<qsizetype>(closeTok.size(), utf8.size() - j));
         setStyling(n, bodyStyle);
         j += n;
     }
@@ -128,7 +148,7 @@ int UdlLexer::scanRegion(const QByteArray &utf8, int i, int end, const ScanTable
 
 
 int UdlLexer::scanToken(const QByteArray &utf8, int i, int end, const ScanTables &t,
-                        int mask, int fallbackStyle)
+                        int mask, int fallbackStyle, int depth)
 {
     auto isWordChar = [](char c) {
         return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
@@ -140,11 +160,11 @@ int UdlLexer::scanToken(const QByteArray &utf8, int i, int end, const ScanTables
     if ((mask & UdlNest::LineComment) && !t.lineComment.isEmpty()
         && utf8.mid(i, t.lineComment.size()) == t.lineComment) {
         const int nest = m_def.lineCommentNesting;
-        setStyling(t.lineComment.size(), Comment);
-        int j = i + t.lineComment.size();
+        setStyling(static_cast<int>(t.lineComment.size()), Comment);
+        int j = i + static_cast<int>(t.lineComment.size());
         while (j < utf8.size() && utf8.at(j) != '\n') {
-            if (nest != 0) {
-                j += scanToken(utf8, j, end, t, nest, Comment);
+            if (nest != 0 && depth < kMaxNestDepth) {
+                j += scanToken(utf8, j, end, t, nest, Comment, depth + 1);
             } else {
                 setStyling(1, Comment);
                 ++j;
@@ -156,22 +176,25 @@ int UdlLexer::scanToken(const QByteArray &utf8, int i, int end, const ScanTables
     if ((mask & UdlNest::Comment) && !t.blockOpen.isEmpty()
         && utf8.mid(i, t.blockOpen.size()) == t.blockOpen) {
         return scanRegion(utf8, i, end, t, t.blockOpen, t.blockClose, QByteArray(),
-                          m_def.blockCommentNesting, Comment);
+                          m_def.blockCommentNesting, Comment, depth);
     }
-    // 自訂分隔符區塊（FR-059）；逐組檢查 nesting 遮罩是否允許該組
+    // 自訂分隔符區塊（FR-059）；逐組檢查 nesting 遮罩是否允許該組。
+    // 超過 8 組的分隔符沒有對應的 nesting 位元（上游格式硬上限為 8），
+    // 一律視為不允許巢狀，而非別名到第 8 組（IL-1：不臆測）。
     for (int d = 0; d < t.delims.size(); ++d) {
-        if (!(mask & UdlNest::delimiterBit(qMin(d, 7))))
+        if (d >= kMaxNestableDelimiters || !(mask & UdlNest::delimiterBit(d)))
             continue;
         const auto &dl = t.delims.at(d);
         if (utf8.mid(i, dl.open.size()) != dl.open)
             continue;
-        return scanRegion(utf8, i, end, t, dl.open, dl.close, dl.escape, dl.nesting, Delimiter);
+        return scanRegion(utf8, i, end, t, dl.open, dl.close, dl.escape, dl.nesting,
+                          Delimiter, depth);
     }
     // 內建引號字串
     if ((mask & UdlNest::String) && (c == '"' || c == '\'')) {
         const QByteArray q(1, c);
         return scanRegion(utf8, i, end, t, q, q, QByteArrayLiteral("\\"),
-                          m_def.stringNesting, String);
+                          m_def.stringNesting, String, depth);
     }
     // 數字
     if ((mask & UdlNest::Number) && c >= '0' && c <= '9') {
@@ -272,7 +295,7 @@ void UdlLexer::styleText(int start, int end)
 
     // 頂層：所有類別皆可辨識；區塊內部由 scanRegion 依各自的 nesting 遮罩遞迴。
     while (i < end && i < utf8.size())
-        i += scanToken(utf8, i, end, tables, UdlNest::All, Default);
+        i += scanToken(utf8, i, end, tables, UdlNest::All, Default, 0);
 
     applyFolding(text);
 }

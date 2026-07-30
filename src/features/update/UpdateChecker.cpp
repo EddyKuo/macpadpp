@@ -49,6 +49,38 @@ int compareVersions(const QString &a, const QString &b)
     return 0;
 }
 
+QString UpdateChecker::pickAssetForPlatform(const QJsonArray &assets, QString *sizeOut)
+{
+    if (sizeOut)
+        sizeOut->clear();
+    // 各平台的發佈檔命名（見 scripts/package_*.{sh,ps1} 與 release.yml）：
+    //   Windows：macpad++-<ver>-x64.zip
+    //   macOS：  macpad++-<ver>-arm64.dmg
+    // 比對副檔名而非完整檔名，避免版本號/架構後綴改動就失效。
+#if defined(Q_OS_WIN)
+    const QString wanted = QStringLiteral(".zip");
+#elif defined(Q_OS_MACOS)
+    const QString wanted = QStringLiteral(".dmg");
+#else
+    const QString wanted = QStringLiteral(".tar.gz");
+#endif
+
+    for (const QJsonValue &v : assets) {
+        const QJsonObject o = v.toObject();
+        const QString name = o.value(QStringLiteral("name")).toString();
+        if (!name.endsWith(wanted, Qt::CaseInsensitive))
+            continue;
+        const QString url = o.value(QStringLiteral("browser_download_url")).toString();
+        if (url.isEmpty())
+            continue;
+        if (sizeOut)
+            *sizeOut = QString::number(
+                static_cast<qint64>(o.value(QStringLiteral("size")).toDouble()));
+        return url;
+    }
+    return QString();   // 該版沒有本平台的檔案：呼叫端退回 release 頁面，不臆測
+}
+
 UpdateChecker::UpdateChecker(QObject *parent)
     : QObject(parent), m_net(new QNetworkAccessManager(this))
 {
@@ -86,7 +118,11 @@ void UpdateChecker::check(const QString &currentVersion)
             emit finished(false, QString(), QString(), tr("回應中沒有版本資訊"));
             return;
         }
-        emit finished(compareVersions(currentVersion, tag) < 0, tag, url, QString());
+        QString assetSize;
+        const QString assetUrl =
+            pickAssetForPlatform(obj.value(QStringLiteral("assets")).toArray(), &assetSize);
+        emit finished(compareVersions(currentVersion, tag) < 0, tag, url, QString(),
+                      assetUrl, assetSize);
     });
 }
 

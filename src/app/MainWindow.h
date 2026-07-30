@@ -79,6 +79,8 @@ public:
     bool enableSystemTray();
     // 檢查更新（複刻 Notepad++）：silent=true 為啟動時自動檢查，失敗與「已是最新」皆不打擾
     void checkForUpdates(bool silent);
+    // 下載新版安裝檔（帶進度與取消）；完成後於檔案管理器顯示，安裝由使用者執行
+    void downloadUpdate(const QString &assetUrl, qint64 expectedBytes);
 
 public slots:
     // 開啟指定檔案（已開啟則聚焦既有分頁——FR-001 邊界）
