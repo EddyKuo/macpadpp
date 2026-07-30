@@ -46,7 +46,20 @@ changelog 與 `langs.model.xml`，把 v8.7 → v8.9.7 之間新增的功能全�
 | — | Multi-Line Tab Bar：**真正的多列換行**（不再是捲動按鈕近似） | ✅ |
 | — | Export as RTF（存檔） | ✅ |
 | — | Window ▸ Windows… 文件管理對話框 | ✅ |
-| — | Check for Updates（查詢並告知，不自我覆寫） | ◐ |
+| — | Check for Updates，含下載與完整性檢查 | ✅ |
+
+### 追加一輪（2026-07-30 稍晚）
+
+逐行檢視程式碼後，找出幾項仍未完成或「靜默無效」的項目，現已全數補完：
+
+| 項目 | 原本 | 現在 |
+|------|------|------|
+| `-quickPrint` | 裸的 `QsciPrinter`，完全忽略 Preferences ▸ Print | 與 File ▸ Print… 共用 `DocumentPrinter`，頁首頁尾/邊界/色彩模式/FormFeed 分頁全部生效 |
+| `$(NB_PAGES)` | 恆為空字串 | 以試排求出真實總頁數，且僅在樣板真的引用該變數時才試排 |
+| `-notepadStyleCmdline` | 解析後被忽略 | 完整 notepad.exe 語意：自第一個檔名 token 起停止旗標解析、整段為單一檔名、不拆 `path:line`，檔案不存在時詢問是否建立 |
+| UDL nesting | 完全未實作 | 區塊可宣告內部仍辨識哪些類別，並與 Notepad++ 的 `nesting` XML 屬性互轉 |
+| Call tip | 僅掃描當前文件 | 載入 Notepad++ 相容 API 檔（`apis/<lang>.xml`），跨檔案的簽名叫得出來，多載以 `▲ n of m ▼` 切換 |
+| 自動更新 | 僅查詢並導向頁面 | 直接下載本平台發佈檔，含進度、取消與位元組數完整性檢查 |
 
 | 狀態 | 說明 |
 |------|------|
@@ -96,7 +109,7 @@ Plugins · Window · **Project**（macpad++ 新增）
 | Comment ▸ Line / Block | ✅ | 依語言註解符號 |
 | Blank Operations | ✅ | Trim Leading/Trailing/Both+EOL / Tab↔Space |
 | Auto-Completion（字詞補全） | ✅ | ⌘Space 自動觸發 + ⌃Space/⌃⏎ 手動觸發；原生 lexer 語言退回關鍵字表 |
-| Function Parameter Hint（Call tip） | ◐ | 取文件內函式定義行（非 API 資料庫）；⌃⇧Space 手動呼叫 |
+| Function Parameter Hint（Call tip） | ✅ | Notepad++ 相容 API 檔（設定目錄下 `apis/<lang>.xml`，`KeyWord`/`Overload`/`Param` 結構相同，可直接沿用上游既有檔案），其次退回內建表、再退回當前文件的函式定義行；多載以 `▲ n of m ▼` 切換；⌃⇧Space 手動呼叫 |
 | Column Editor / Column Mode | ✅ | 插入遞增數列、重複次數、Text 模式、可選進位基數；可轉 Multi-Edit（欄選→多重游標） |
 | Character Panel | ✅ | 6 欄（ASCII/HTML Name/Dec/Hex…），雙擊插入、依編碼碼頁 |
 | Clipboard History | ✅ | |
@@ -159,7 +172,8 @@ Plugins · Window · **Project**（macpad++ 新增）
 |------|:----:|------|
 | 內建語法高亮 | ✅ | 128 種語言（33 個 QScintilla 原生 lexer + 95 個以通用 UDL 引擎資料驅動），可手動指定，選單依首字母分群；可依偏好停用個別語言 |
 | User-Defined Language ▸ Define Your Language | ✅ | 圖形化建立 UDL，Prefix Mode |
-| Import / Export UDL | ✅ | JSON UDL，以及與 Notepad++ `userDefineLang.xml` 相容格式互轉（UdlXmlIo） |
+| Import / Export UDL | ✅ | JSON UDL，以及與 Notepad++ `userDefineLang.xml` 相容格式互轉（UdlXmlIo），含各樣式的 `nesting` 屬性 |
+| UDL nesting（巢狀） | ✅ | 註解、字串與分隔符區塊可宣告內部仍辨識哪些類別（關鍵字/數字/運算子/其他分隔符），等同上游的 nesting 勾選框；於 UDL 編輯器以可讀名稱編輯 |
 
 ## 設定 Settings
 
@@ -169,7 +183,7 @@ Plugins · Window · **Project**（macpad++ 新增）
 | Style Configurator | ✅ | 逐語言逐 style 改色 + 字型、底線、全域覆寫、主題下拉套用、完整 Global Styles（含 caret line/選取/空白/邊欄/badBrace/foldActive/change history/urlHovered） |
 | 內建主題（Theme） | ✅ | 隨附 17 套具名主題：複刻大廠 IDE（Monokai/Dracula/One Dark/Nord/Solarized 深淺/Gruvbox 深淺/VS Code Dark+·Light/GitHub 深淺/Night Owl/Tomorrow Night/Material Palenight/Cobalt）+ 原創 **Cyberpunk 暗色霓虹**，各帶專屬編輯器底色·選取·邊欄色 + 12 語言逐 style 語法色；啟動時自動植入使用者主題目錄（可自由改/刪/匯入匯出） |
 | Shortcut Mapper | ✅ | 重綁快捷鍵並持久化、衝突偵測 |
-| Check for Updates（自動更新） | ◐ | 查詢 GitHub Releases、比對版本並引導至下載頁；啟動時自動檢查的偏好真正生效。刻意不做靜默自我覆寫 |
+| Check for Updates（自動更新） | ✅ | 查詢 GitHub Releases、比對版本，並直接下載本平台的發佈檔（含進度、取消與位元組數完整性檢查）；啟動時自動檢查的偏好真正生效。最後的安裝步驟交由使用者執行——見誠實清單 |
 
 ## 工具 · 巨集 · 執行 Tools · Macro · Run
 
@@ -249,7 +263,7 @@ C++17 · Qt6（Widgets / PrintSupport / Core5Compat）· QScintilla · CMake ·
 
 | 項目 | 分類 | 原因 |
 |------|------|------|
-| Auto Updater 的**自我下載覆寫** | **產品決策** | 「檢查更新」已實作（查 GitHub Releases、比對版本、引導至下載頁），且啟動時自動檢查的偏好已真正生效。**刻意不做**的是靜默下載並覆寫自身二進位——那需要簽章與更新伺服器基礎建設，且讓一個離線編輯器在使用者未察覺時改寫自身，風險與收益不成比例 |
+| Auto Updater 的**最後自我替換步驟** | **產品決策** | 檢查、比對、下載對應平台的發佈檔、顯示進度、驗證完整性皆已實作。仍刻意不做的是「把下載回來的封存解壓覆蓋執行中的自己」：發佈物是**未簽章**的免安裝 zip / DMG 而非安裝程式，自我替換會讓發佈流程一旦被汙染就直接在每台使用者機器上執行程式碼。下載完成後落在下載資料夾並於檔案管理器顯示，最後一步由使用者執行 |
 | 載入 Notepad++ `.dll` 外掛 | 架構決策 + 平台限制 | Windows 上技術可行但等同重寫 Notepad++ 內部 Win32 訊息介面，且與本專案自建 in-process extension protocol 的架構決策衝突（部分相容比不相容更糟）；macOS 則無法載入 PE 二進位 |
 | GDI/DirectWrite 算繪切換 | **Qt 限制（雙平台）** | Qt6 Windows QPA 本就使用 DirectWrite，但未提供 Notepad++ 那種使用者可切換的旋鈕；macOS 用 Core Text。**兩平台都無對應開關可做** |
 | Undo 的選取歷史由 Scintilla 原生提供 | **相依版本限制** | 上游 v8.8.1 用的是 Scintilla 5.4 的 `SCI_SETUNDOSELECTIONHISTORY`；隨附的 QScintilla 2.14.1 綁 Scintilla 5.3，無此訊息。已改以應用層的選取歷史堆疊達成相同的使用者可見行為 |

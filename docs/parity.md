@@ -48,7 +48,20 @@ extension protocol).
 | — | Multi-Line Tab Bar: **genuine multi-row wrapping** (no longer a scroll-button approximation) | ✅ |
 | — | Export as RTF (to file) | ✅ |
 | — | Window ▸ Windows… document manager dialog | ✅ |
-| — | Check for Updates (queries and informs; does not overwrite itself) | ◐ |
+| — | Check for Updates, with download and integrity check | ✅ |
+
+### Follow-up round (2026-07-30, later the same day)
+
+A code-level sweep found several items that were still incomplete or silently inert. All are now done:
+
+| Item | Was | Now |
+|------|-----|-----|
+| `-quickPrint` | A bare `QsciPrinter` ignoring every Preferences ▸ Print setting | Shares the `DocumentPrinter` path with File ▸ Print… — header/footer, margins, colour mode and FormFeed page breaks all apply |
+| `$(NB_PAGES)` | Always expanded to an empty string | A dry-run pagination pass computes the real total, and only when the template actually uses the variable |
+| `-notepadStyleCmdline` | Parsed, then ignored | Full notepad.exe semantics: flag parsing stops at the first filename token, the rest is one filename verbatim, no `path:line` splitting, and a missing file prompts to create it |
+| UDL nesting | Not implemented at all | Regions declare which categories are still recognised inside them; round-trips through Notepad++'s `nesting` XML attribute |
+| Call tips | Current-document heuristic only | Loads Notepad++-compatible API files (`apis/<lang>.xml`), so signatures resolve across files, with `▲ n of m ▼` overload cycling |
+| Auto-update | Query and link only | Downloads the platform's release asset with progress, cancellation and a byte-count integrity check |
 
 | Status | Meaning |
 |--------|---------|
@@ -98,7 +111,7 @@ Macro · Run · Plugins · Window · **Project** (added by macpad++)
 | Comment ▸ Line / Block | ✅ | Uses the language's comment tokens |
 | Blank Operations | ✅ | Trim leading/trailing/both + EOL / Tab↔Space |
 | Auto-completion (word completion) | ✅ | ⌘Space auto-trigger + ⌃Space/⌃⏎ manual trigger; native-lexer languages fall back to the lexer keyword list |
-| Function Parameter Hint (call tip) | ◐ | Taken from function definition lines within the document (not an API database); ⌃⇧Space to invoke manually |
+| Function Parameter Hint (call tip) | ✅ | Notepad++-compatible API files (`apis/<lang>.xml` in the config directory, same `KeyWord`/`Overload`/`Param` schema, so upstream's files can be used directly), falling back to a built-in table and then to function definition lines in the current document; overloads cycle with `▲ n of m ▼`; ⌃⇧Space to invoke manually |
 | Column Editor / Column Mode | ✅ | Insert an incrementing series, repeat count, Text mode, selectable numeric base; convertible to Multi-Edit (column selection → multiple cursors) |
 | Character Panel | ✅ | 6 columns (ASCII/HTML Name/Dec/Hex…), double-click to insert, follows the encoding's code page |
 | Clipboard History | ✅ | |
@@ -161,7 +174,8 @@ Macro · Run · Plugins · Window · **Project** (added by macpad++)
 |---------|:------:|-------|
 | Built-in syntax highlighting | ✅ | 128 languages (33 native QScintilla lexers + 95 data-driven via the generic UDL engine), selectable by hand, grouped by initial letter as upstream does; individual languages can be disabled in preferences |
 | User-Defined Language ▸ Define Your Language | ✅ | Graphical UDL creation, Prefix Mode |
-| Import / Export UDL | ✅ | JSON UDL, plus conversion to and from Notepad++'s `userDefineLang.xml` format (UdlXmlIo) |
+| Import / Export UDL | ✅ | JSON UDL, plus conversion to and from Notepad++'s `userDefineLang.xml` format (UdlXmlIo), including the per-style `nesting` attribute |
+| UDL nesting | ✅ | Comment, string and delimiter regions declare which categories are still recognised inside them (keywords, numbers, operators, other delimiters), as upstream's nesting checkboxes do; edited as readable names in the UDL editor |
 
 ## Settings
 
@@ -171,7 +185,7 @@ Macro · Run · Plugins · Window · **Project** (added by macpad++)
 | Style Configurator | ✅ | Per-language, per-style colour and font, underline, global override, theme dropdown, and complete Global Styles (caret line / selection / whitespace / margin / badBrace / foldActive / change history / urlHovered) |
 | Built-in themes | ✅ | 17 named themes: reproductions of major IDE themes (Monokai/Dracula/One Dark/Nord/Solarized dark·light/Gruvbox dark·light/VS Code Dark+·Light/GitHub dark·light/Night Owl/Tomorrow Night/Material Palenight/Cobalt) plus an original **Cyberpunk neon dark**, each with its own editor background, selection and margin colours and per-style syntax colours for 12 languages; seeded into the user theme directory at startup (freely editable, deletable, importable and exportable) |
 | Shortcut Mapper | ✅ | Rebind shortcuts with persistence and conflict detection |
-| Check for Updates (auto-update) | ◐ | Queries GitHub Releases, compares versions and directs to the download page; the "check at startup" preference genuinely takes effect. Silent self-overwriting is deliberately not implemented |
+| Check for Updates (auto-update) | ✅ | Queries GitHub Releases, compares versions, and downloads the release asset for the running platform with progress, cancellation and a byte-count integrity check; the "check at startup" preference genuinely takes effect. The final install step is left to the user — see the honest list |
 
 ## Tools · Macro · Run
 
@@ -256,7 +270,7 @@ ja (804), en (794). Every new UI string goes through the `lupdate` → translate
 
 | Item | Category | Reason |
 |------|----------|--------|
-| The auto-updater's **self-download and overwrite** | **Product decision** | "Check for updates" is implemented (queries GitHub Releases, compares versions, directs to the download page), and the check-at-startup preference genuinely takes effect. What is **deliberately** omitted is silently downloading and overwriting our own binary — that needs code signing and update-server infrastructure, and having an offline editor rewrite itself without the user noticing is a poor risk/benefit trade |
+| The auto-updater's **final self-replacement step** | **Product decision** | Checking, comparing, downloading the correct platform asset, showing progress and verifying integrity are all implemented. What remains deliberate is that macpad++ does not unpack the archive over its own running binary. The published artifacts are an **unsigned** portable zip and DMG rather than an installer, so a self-replacing updater would turn any compromise of the release pipeline into direct code execution on every user's machine. The download lands in the Downloads folder and is revealed in the file manager; the user performs the final step |
 | Loading Notepad++ `.dll` plugins | Architectural decision + platform limitation | Technically feasible on Windows, but it would amount to reimplementing Notepad++'s internal Win32 message interface, and it conflicts with this project's own in-process extension protocol (partial compatibility is worse than none); on macOS, PE binaries cannot be loaded at all |
 | GDI/DirectWrite rendering toggle | **Qt limitation (both platforms)** | Qt6's Windows QPA already uses DirectWrite, but exposes no user-facing switch of the kind Notepad++ has; macOS uses Core Text. **Neither platform offers a corresponding knob** |
 | Selection history in undo provided natively by Scintilla | **Dependency version limitation** | Upstream v8.8.1 uses Scintilla 5.4's `SCI_SETUNDOSELECTIONHISTORY`; the bundled QScintilla 2.14.1 is pinned to Scintilla 5.3, which lacks that message. The same user-visible behaviour is achieved instead with an application-level selection history stack |
