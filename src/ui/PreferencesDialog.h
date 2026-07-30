@@ -48,6 +48,8 @@ private:
     QWidget *buildMultiInstanceDatePage();
     QWidget *buildDelimiterPage();
     QWidget *buildMiscPage();
+    // File Association（複刻 Notepad++ 同名分頁）：變更立即寫入 OS，不隨 OK/Cancel
+    QWidget *buildFileAssociationPage();
 
     macpad::persistence::Settings m_original;  // 保留傳入設定，result() 以此為底避免遺失未暴露欄位
 
@@ -79,6 +81,7 @@ private:
     QCheckBox *m_openCopyAfterSaveACopy = nullptr;
     QCheckBox *m_advancedAutoIndent = nullptr;
     QListWidget *m_hiddenToolbarButtons = nullptr;
+    QListWidget *m_fileAssocList = nullptr;   // File Association 分頁的副檔名清單
 
     // New Document
     QComboBox *m_defaultEol = nullptr;

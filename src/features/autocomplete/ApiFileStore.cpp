@@ -103,11 +103,10 @@ QString ApiFileStore::filePathFor(const QString &langKey)
         .filePath(QStringLiteral("apis/%1.xml").arg(langKey));
 }
 
-const QVector<ApiEntry> &ApiFileStore::entriesFor(const QString &langKey)
+QVector<ApiEntry> ApiFileStore::entriesFor(const QString &langKey)
 {
-    static const QVector<ApiEntry> empty;
     if (langKey.isEmpty())
-        return empty;
+        return {};
 
     auto &c = cache();
     const auto it = c.constFind(langKey);
@@ -115,7 +114,9 @@ const QVector<ApiEntry> &ApiFileStore::entriesFor(const QString &langKey)
         return it.value();
 
     // 檔案不存在是正常情況（使用者未提供 API 檔），一樣存入空結果避免重複探測
-    return *c.insert(langKey, parseFile(filePathFor(langKey)));
+    const QVector<ApiEntry> parsed = parseFile(filePathFor(langKey));
+    c.insert(langKey, parsed);
+    return parsed;
 }
 
 void ApiFileStore::clearCache()

@@ -51,6 +51,7 @@ private:
     QNetworkReply *m_reply = nullptr;
     QFile *m_file = nullptr;
     QString m_path;
+    QString m_writeError;   // 串流寫檔失敗訊息（非空即代表因寫檔失敗而中止）
     qint64 m_expected = 0;
     bool m_cancelled = false;
 };

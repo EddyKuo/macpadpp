@@ -92,6 +92,8 @@ set(MACPAD_LIB_SOURCES
     platform/SingleInstance.h
     platform/DesktopIntegration.cpp
     platform/DesktopIntegration.h
+    platform/FileAssociation.cpp
+    platform/FileAssociation.h
     ui/EditorPane.cpp
     ui/EditorPane.h
     ui/DocumentListDock.cpp

@@ -407,7 +407,8 @@ void MainWindow::downloadUpdate(const QString &assetUrl, qint64 expectedBytes)
             &macpad::features::UpdateDownloader::cancel);
 
     connect(dl, &macpad::features::UpdateDownloader::finished, this,
-            [this, dl, progress](bool ok, const QString &path, const QString &error) {
+            [this, dl, progress, expectedBytes](bool ok, const QString &path,
+                                                const QString &error) {
         progress->close();
         progress->deleteLater();
         dl->deleteLater();
@@ -419,9 +420,14 @@ void MainWindow::downloadUpdate(const QString &assetUrl, qint64 expectedBytes)
                                      tr("下載失敗：%1").arg(error));
             return;
         }
+        // 伺服器未回報大小時完整性無從驗證，必須說明白，不能讓使用者以為已驗過
+        const QString verified = expectedBytes > 0
+            ? tr("檔案大小已核對無誤。")
+            : tr("注意：伺服器未提供檔案大小，無法核對完整性。");
         QMessageBox::information(
             this, tr("Check for Updates"),
-            tr("已下載至：\n%1\n\n關閉 macpad++ 後再安裝/解壓縮以完成更新。").arg(path));
+            tr("已下載至：\n%1\n\n%2\n關閉 macpad++ 後再安裝/解壓縮以完成更新。")
+                .arg(path, verified));
         macpad::platform::revealInFileManager(path);
     });
 

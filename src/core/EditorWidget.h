@@ -176,8 +176,10 @@ public:
     // 只有一個簽名時不加箭頭，外觀與單一簽名版本相同。
     void showCallTips(const QStringList &overloads);
     void cancelCallTip();
-    // 目前顯示的是第幾個多載（0-based）；未顯示多載時為 -1。供測試與上層查詢。
-    int currentCallTipOverload() const { return m_callTipIndex; }
+    // 目前顯示的是第幾個多載（0-based）；未顯示多載時為 -1。
+    // Scintilla 會自行關閉 call tip（Esc、失焦、繼續打字）且不通知本 widget，
+    // 故此處以 SCI_CALLTIPACTIVE 實際查詢，避免回報「已經關掉的提示」的陳舊索引。
+    int currentCallTipOverload() const;
     // 強制對游標前識別字發出 callTipRequested（不需鍵入 '(' 觸發），供上層綁定快捷鍵手動觸發
     void triggerCallTip();
 

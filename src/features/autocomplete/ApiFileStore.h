@@ -45,7 +45,11 @@ public:
 
     // 取得某語言的 API 條目；結果會快取，同一語言只解析一次。
     // 檔案不存在時回傳空 vector——此為正常情況（使用者未提供 API 檔）。
-    static const QVector<ApiEntry> &entriesFor(const QString &langKey);
+    //
+    // 刻意「回傳值」而非參照：快取是 QHash，Qt6 的 QHash 在插入觸發 rehash 時會讓
+    // 既有元素的參照失效。若回傳參照，呼叫端只要在持有期間又查詢了另一個語言，
+    // 手上的參照就懸空。QVector 為隱式共享（COW），回傳值成本僅是一次原子加減。
+    static QVector<ApiEntry> entriesFor(const QString &langKey);
 
     // 某語言的 API 檔預期路徑（設定目錄下 apis/<langKey>.xml）
     static QString filePathFor(const QString &langKey);

@@ -1,11 +1,14 @@
 #include "ui/PreferencesDialog.h"
 
+#include "platform/FileAssociation.h"
+
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDialogButtonBox>
 #include <QFormLayout>
 #include <QListWidget>
 #include <QLabel>
+#include <QMessageBox>
 #include <QLineEdit>
 #include <QSpinBox>
 #include <QTabWidget>
@@ -47,6 +50,7 @@ PreferencesDialog::PreferencesDialog(const Settings &current, QWidget *parent)
     m_tabs->addTab(buildDefaultDirectoryPage(), tr("Default Directory"));
     m_tabs->addTab(buildRecentFilesPage(), tr("Recent Files History"));
     m_tabs->addTab(buildLanguagePage(), tr("Language"));
+    m_tabs->addTab(buildFileAssociationPage(), tr("File Association"));
     m_tabs->addTab(buildMultiInstanceDatePage(), tr("Multi-Instance & Date"));
     m_tabs->addTab(buildDelimiterPage(), tr("Delimiter"));
     m_tabs->addTab(buildMiscPage(), tr("MISC"));
@@ -645,6 +649,59 @@ QWidget *PreferencesDialog::buildDelimiterPage()
     auto *form = new QFormLayout(page);
     form->addRow(tr("雙擊選字邊界字元"), m_delimiterChars);
     form->addRow(m_ctrlDoubleClickWholeWord);
+    return page;
+}
+
+// File Association（複刻 Notepad++ 同名分頁）。
+// 此頁的變更「立即生效」而非等按 OK——它寫的是作業系統層的設定，不是本程式的 Settings，
+// 混在 OK/Cancel 語意裡反而容易誤解（Notepad++ 亦是按下即套用）。
+QWidget *PreferencesDialog::buildFileAssociationPage()
+{
+    using macpad::platform::FileAssociation;
+    auto *page = new QWidget(this);
+    auto *layout = new QVBoxLayout(page);
+
+    if (!FileAssociation::isSupported()) {
+        // 不靜默無效：明說為何不能做、以及該去哪裡設定
+        auto *label = new QLabel(FileAssociation::unsupportedReason(), page);
+        label->setWordWrap(true);
+        layout->addWidget(label);
+        layout->addStretch();
+        return page;
+    }
+
+    auto *hint = new QLabel(
+        tr("勾選要以 macpad++ 開啟的副檔名。變更會立即寫入目前使用者的設定\n"
+           "（HKCU，不需系統管理員權限），取消勾選會還原先前的關聯。"), page);
+    hint->setWordWrap(true);
+    layout->addWidget(hint);
+
+    m_fileAssocList = new QListWidget(page);
+    for (const QString &ext : FileAssociation::commonExtensions()) {
+        auto *item = new QListWidgetItem(QStringLiteral(".%1").arg(ext), m_fileAssocList);
+        item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
+        item->setCheckState(FileAssociation::isAssociated(ext) ? Qt::Checked : Qt::Unchecked);
+        item->setData(Qt::UserRole, ext);
+    }
+    layout->addWidget(m_fileAssocList);
+
+    connect(m_fileAssocList, &QListWidget::itemChanged, this, [this](QListWidgetItem *item) {
+        const QString ext = item->data(Qt::UserRole).toString();
+        QString err;
+        const bool want = item->checkState() == Qt::Checked;
+        const bool ok = want ? FileAssociation::associate(ext, &err)
+                             : FileAssociation::unassociate(ext, &err);
+        if (!ok) {
+            QMessageBox::warning(this, tr("File Association"),
+                                 tr("無法變更 .%1 的關聯：\n%2").arg(ext, err));
+            // 失敗就把勾選狀態改回實際狀態，不讓 UI 顯示成功的假象
+            QSignalBlocker blocker(m_fileAssocList);
+            item->setCheckState(FileAssociation::isAssociated(ext) ? Qt::Checked
+                                                                   : Qt::Unchecked);
+        }
+    });
+
+    layout->addStretch();
     return page;
 }
 

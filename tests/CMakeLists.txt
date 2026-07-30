@@ -50,6 +50,7 @@ set(MACPAD_TESTS
     test_multirowtabbar
     test_updatechecker
     test_apifilestore
+    test_fileassociation
 )
 
 foreach(t ${MACPAD_TESTS})

@@ -160,7 +160,8 @@ EditorWidget::EditorWidget(QWidget *parent)
     // Call tip 多載切換：點擊「▲ n of m ▼」的箭頭時循環切換（1 = 上、2 = 下）。
     // 複刻 Notepad++ 對多載函式的呈現方式。
     connect(this, &QsciScintillaBase::SCN_CALLTIPCLICK, this, [this](int direction) {
-        if (m_callTipOverloads.size() < 2 || m_callTipIndex < 0)
+        // 以 Scintilla 的實際狀態為準（提示可能已被關掉而內部索引尚未清除）
+        if (m_callTipOverloads.size() < 2 || currentCallTipOverload() < 0)
             return;
         const int n = m_callTipOverloads.size();
         if (direction == 1)
@@ -1075,6 +1076,14 @@ void EditorWidget::showCallTips(const QStringList &overloads)
     m_callTipOverloads = list;
     m_callTipIndex = 0;
     renderCallTip();
+}
+
+int EditorWidget::currentCallTipOverload() const
+{
+    // 提示已被 Scintilla 關掉時，內部索引即無意義——直接回報「沒有多載顯示中」。
+    if (!const_cast<EditorWidget *>(this)->SendScintilla(SCI_CALLTIPACTIVE))
+        return -1;
+    return m_callTipIndex;
 }
 
 void EditorWidget::renderCallTip()
