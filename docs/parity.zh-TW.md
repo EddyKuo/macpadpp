@@ -60,6 +60,7 @@ changelog 與 `langs.model.xml`，把 v8.7 → v8.9.7 之間新增的功能全�
 | UDL nesting | 完全未實作 | 區塊可宣告內部仍辨識哪些類別，並與 Notepad++ 的 `nesting` XML 屬性互轉 |
 | Call tip | 僅掃描當前文件 | 載入 Notepad++ 相容 API 檔（`apis/<lang>.xml`），跨檔案的簽名叫得出來，多載以 `▲ n of m ▼` 切換 |
 | 自動更新 | 僅查詢並導向頁面 | 直接下載本平台發佈檔，含進度、取消與位元組數完整性檢查 |
+| 檔案關聯 | 以「macOS 做不到」為由排除 | Windows 上完整實作（每使用者登錄檔、可完全還原）；macOS 明說執行期無法變更的原因 |
 
 | 狀態 | 說明 |
 |------|------|
@@ -182,6 +183,7 @@ Plugins · Window · **Project**（macpad++ 新增）
 | Preferences | ✅ | 全分類均有真實 runtime 效果（無死設定）：主題/Tab 寬/自動存檔、Toolbar（含逐顆隱藏）/Tab Bar（多列、標籤長度、首行命名）/狀態列可見性+圖示大小、Margins·Border·Edge（caret 寬/行號欄/多重邊界）、Default Directory 策略、Recent Files 數量/全路徑/子選單、語言啟停、逐語言縮排、Multi-Instance 模式、Delimiter 字元（影響雙擊選字範圍）、檔案狀態自動偵測、Session 副檔名、音效提示 |
 | Style Configurator | ✅ | 逐語言逐 style 改色 + 字型、底線、全域覆寫、主題下拉套用、完整 Global Styles（含 caret line/選取/空白/邊欄/badBrace/foldActive/change history/urlHovered） |
 | 內建主題（Theme） | ✅ | 隨附 17 套具名主題：複刻大廠 IDE（Monokai/Dracula/One Dark/Nord/Solarized 深淺/Gruvbox 深淺/VS Code Dark+·Light/GitHub 深淺/Night Owl/Tomorrow Night/Material Palenight/Cobalt）+ 原創 **Cyberpunk 暗色霓虹**，各帶專屬編輯器底色·選取·邊欄色 + 12 語言逐 style 語法色；啟動時自動植入使用者主題目錄（可自由改/刪/匯入匯出） |
+| File Association（檔案關聯） | ◐ | **Windows**：完整實作——於 Preferences ▸ File Association 勾選副檔名即以「每使用者」層級關聯（HKCU，免管理員權限），取消勾選會還原原本的關聯，且不留孤兒登錄檔鍵。**macOS**：執行期無法變更（關聯由 app bundle 的 `Info.plist` 宣告），該頁明白說明原因並指向 Finder ▸ 取得資訊，而非靜默無效 |
 | Shortcut Mapper | ✅ | 重綁快捷鍵並持久化、衝突偵測 |
 | Check for Updates（自動更新） | ✅ | 查詢 GitHub Releases、比對版本，並直接下載本平台的發佈檔（含進度、取消與位元組數完整性檢查）；啟動時自動檢查的偏好真正生效。最後的安裝步驟交由使用者執行——見誠實清單 |
 

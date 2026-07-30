@@ -62,6 +62,17 @@ The **tabBarMultiLine** and **autoUpdater** items above have since been implemen
   the download page; the check-at-startup preference genuinely takes effect. Only silent
   self-overwriting remains deliberately unimplemented (a product decision).
 
+A further pass the same day applied the dual-platform rule to one more item the earlier
+re-assessment had missed:
+
+- **Registry file association** — listed among the `na_macos` exemptions and left there even by the
+  2026-07-29 re-assessment. But per the "neither platform can do it" bar, it should have been
+  re-examined: on Windows a per-user association is just a write to `HKCU\Software\Classes`, needing
+  no administrator rights and fully reversible. It is now implemented as Preferences ▸ File
+  Association, restoring the previous association on removal and leaving no orphan keys. macOS still
+  cannot do it at runtime (associations come from the bundle's `Info.plist`), and the page says so
+  rather than silently doing nothing.
+
 For the current state, see [`docs/parity.md`](parity.md).
 
 ---

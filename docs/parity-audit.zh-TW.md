@@ -52,6 +52,14 @@ macpad++ 已同時發行 **macOS 與 Windows 10/11**，因此「macOS 做不到�
 - **autoUpdater** —— 「檢查更新」已會查詢 GitHub Releases、比對版本並引導至下載頁；
   啟動時自動檢查的偏好真正生效。僅「靜默自我覆寫」仍刻意不做（產品決策）。
 
+同日稍後再一次檢視，補上一項先前重新認定時漏掉的：
+
+- **登錄檔檔案關聯** —— 一直列在 `na_macos` 豁免中，連 2026-07-29 那次重新認定也沒動它。
+  但依「兩個平台都做不到才排除」的標準，這項本就該重審：Windows 上的每使用者關聯只是寫入
+  `HKCU\Software\Classes`，免管理員權限且可完全還原。現已實作為 Preferences ▸ File Association，
+  解除時還原原本的關聯、且不留孤兒鍵。macOS 執行期仍無法變更（關聯由 bundle 的 `Info.plist` 宣告），
+  該頁明白說明原因，而非靜默無效。
+
 現況請見 [`docs/parity.zh-TW.md`](parity.zh-TW.md)。
 
 ---

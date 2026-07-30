@@ -62,6 +62,7 @@ A code-level sweep found several items that were still incomplete or silently in
 | UDL nesting | Not implemented at all | Regions declare which categories are still recognised inside them; round-trips through Notepad++'s `nesting` XML attribute |
 | Call tips | Current-document heuristic only | Loads Notepad++-compatible API files (`apis/<lang>.xml`), so signatures resolve across files, with `▲ n of m ▼` overload cycling |
 | Auto-update | Query and link only | Downloads the platform's release asset with progress, cancellation and a byte-count integrity check |
+| File Association | Excluded as "macOS cannot do it" | Implemented on Windows (per-user registry, fully reversible); macOS states why it cannot be done at runtime |
 
 | Status | Meaning |
 |--------|---------|
@@ -184,6 +185,7 @@ Macro · Run · Plugins · Window · **Project** (added by macpad++)
 | Preferences | ✅ | Every category has real runtime effect (no dead settings): theme / tab width / autosave, toolbar (including hiding individual buttons) / tab bar (multi-row, label length, first-line naming) / status bar visibility + icon size, Margins·Border·Edge (caret width, line-number margin, multi-edge), Default Directory policy, Recent Files count / full path / submenu, per-language enable, per-language indentation, multi-instance mode, delimiter characters (affecting double-click word range), automatic file-status detection, session file extension, audible cues |
 | Style Configurator | ✅ | Per-language, per-style colour and font, underline, global override, theme dropdown, and complete Global Styles (caret line / selection / whitespace / margin / badBrace / foldActive / change history / urlHovered) |
 | Built-in themes | ✅ | 17 named themes: reproductions of major IDE themes (Monokai/Dracula/One Dark/Nord/Solarized dark·light/Gruvbox dark·light/VS Code Dark+·Light/GitHub dark·light/Night Owl/Tomorrow Night/Material Palenight/Cobalt) plus an original **Cyberpunk neon dark**, each with its own editor background, selection and margin colours and per-style syntax colours for 12 languages; seeded into the user theme directory at startup (freely editable, deletable, importable and exportable) |
+| File Association | ◐ | **Windows**: fully implemented — tick extensions in Preferences ▸ File Association and they are associated per-user (HKCU, no administrator rights), with the previous association restored on untick and no orphan registry keys left behind. **macOS**: not possible at runtime — associations are declared by the app bundle's `Info.plist`, so the page explains this and points at Finder ▸ Get Info instead of silently doing nothing |
 | Shortcut Mapper | ✅ | Rebind shortcuts with persistence and conflict detection |
 | Check for Updates (auto-update) | ✅ | Queries GitHub Releases, compares versions, and downloads the release asset for the running platform with progress, cancellation and a byte-count integrity check; the "check at startup" preference genuinely takes effect. The final install step is left to the user — see the honest list |
 
