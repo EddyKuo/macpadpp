@@ -131,7 +131,19 @@ jobs:
           echo "附加檔案："; echo "$ASSETS"
           if [ -z "$ASSETS" ]; then echo "找不到任何要發佈的檔案"; exit 1; fi
           # Release 說明 = annotated tag 的說明文字（人工撰寫的重點）＋ --generate-notes 自動附上的 commit/PR 清單
-          git for-each-ref "refs/tags/${GITHUB_REF_NAME}" --format='%(contents)' > release_notes.md
+          #
+          # 注意：checkout 取得的 tag ref 可能指向 commit 而非 tag 物件，此時 %(contents) 會退回
+          # 「commit message」——那會把 commit trailer（Co-Authored-By / Claude-Session 等）公開到
+          # Release 頁面。故先確保取到 annotated tag 物件，並無條件濾掉 trailer 行。
+          git fetch --force origin "refs/tags/${GITHUB_REF_NAME}:refs/tags/${GITHUB_REF_NAME}" || true
+          if [ "$(git cat-file -t "refs/tags/${GITHUB_REF_NAME}")" = "tag" ]; then
+            git for-each-ref "refs/tags/${GITHUB_REF_NAME}" --format='%(contents)' > raw_notes.md
+          else
+            echo "警告：${GITHUB_REF_NAME} 不是 annotated tag，改用 --generate-notes 自動產生說明"
+            : > raw_notes.md
+          fi
+          # 濾除任何 commit trailer / 署名行，避免內部開發中繼資料外流
+          grep -v -E '^(Co-Authored-By|Claude-Session|Signed-off-by|Generated with|🤖)' raw_notes.md > release_notes.md
           echo "--- Release notes 內容 ---"; cat release_notes.md
           gh release create "$GITHUB_REF_NAME" $ASSETS \
             --repo "$GITHUB_REPOSITORY" \
