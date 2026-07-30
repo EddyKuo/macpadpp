@@ -34,6 +34,16 @@ QString exePath()
 
 }  // namespace
 
+QString FileAssociation::openCommandFor(const QString &exePath)
+{
+    // 注意：不可寫成 QStringLiteral("\"%1\" \"%%1\"").arg(exePath)。
+    // QString::arg 沒有 printf 的 %% 逸出，且會取代「所有」同號標記——
+    // 字面上的 %%1 內含第二個合法的 %1，會一併被換成執行檔路徑，
+    // 產生 `"X" "%X"`：Windows 找不到 %1 token，關聯後開檔永遠收不到檔名。
+    // 改用雙參數形式：替換文字本身不會再被掃描，字面的 %1 得以保留。
+    return QStringLiteral("\"%1\" \"%2\"").arg(exePath, QStringLiteral("%1"));
+}
+
 QString FileAssociation::progId()
 {
     // 以固定字串為 ProgID：不隨版本變動，否則升版後舊關聯會指向不存在的類別。
@@ -102,17 +112,20 @@ bool FileAssociation::associate(const QString &ext, QString *error)
     QSettings classes(kClassesRoot, QSettings::NativeFormat);
 
     // 1) 建立（或更新）本程式的 ProgID：開啟命令與圖示
-    const QString cmd = QStringLiteral("\"%1\" \"%%1\"").arg(exePath());
+    const QString cmd = openCommandFor(exePath());
     classes.setValue(QStringLiteral("%1/.").arg(progId()),
                      QCoreApplication::translate("FileAssociation", "macpad++ 文件"));
     classes.setValue(QStringLiteral("%1/DefaultIcon/.").arg(progId()),
                      QStringLiteral("\"%1\",0").arg(exePath()));
     classes.setValue(QStringLiteral("%1/shell/open/command/.").arg(progId()), cmd);
 
-    // 2) 保留原本的關聯值，之後解除時才還得回去（而不是留下空殼）
+    // 2) 保留「本程式首次接手之前」的關聯值，解除時才還得回去。
+    //    只在尚無備份時寫入：若中途有別的程式直接搶走關聯，使用者再次勾選時
+    //    prev 會是那個程式，覆寫備份就會讓真正的原始擁有者永遠救不回來。
+    const QString backupKey = QStringLiteral(".%1/macpadpp_backup").arg(e);
     const QString prev = classes.value(QStringLiteral(".%1/.").arg(e)).toString();
-    if (!prev.isEmpty() && prev != progId())
-        classes.setValue(QStringLiteral(".%1/macpadpp_backup").arg(e), prev);
+    if (!prev.isEmpty() && prev != progId() && classes.value(backupKey).toString().isEmpty())
+        classes.setValue(backupKey, prev);
 
     // 3) 指向本程式
     classes.setValue(QStringLiteral(".%1/.").arg(e), progId());
@@ -149,7 +162,16 @@ bool FileAssociation::unassociate(const QString &ext, QString *error)
         classes.setValue(QStringLiteral(".%1/.").arg(e), prev);   // 還原先前的擁有者
         classes.remove(backupKey);
     } else {
-        classes.remove(QStringLiteral(".%1").arg(e));             // 本來就沒人關聯：整個移除
+        // 本來就沒人擁有預設值：只移除我們寫的那個預設值。
+        // 不可 remove(".ext") ——QSettings 會刪掉整個子樹，而該鍵底下可能還有
+        // 別的軟體放的 OpenWithProgids / OpenWithList / ShellNew 等，與我們無關。
+        classes.remove(QStringLiteral(".%1/.").arg(e));
+        // 若整個 .ext 已空無一物，才連空殼一併清掉
+        classes.beginGroup(QStringLiteral(".%1").arg(e));
+        const bool empty = classes.childKeys().isEmpty() && classes.childGroups().isEmpty();
+        classes.endGroup();
+        if (empty)
+            classes.remove(QStringLiteral(".%1").arg(e));
     }
 
     // 已無任何副檔名指向本程式的 ProgID 時，一併移除 ProgID 本身，

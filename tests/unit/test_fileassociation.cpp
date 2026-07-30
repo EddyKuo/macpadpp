@@ -4,7 +4,11 @@
 // 假副檔名，並在結束時還原，不動使用者既有的關聯。
 #include <QtTest>
 
+#include <QSettings>
+#include <QTabWidget>
+
 #include "platform/FileAssociation.h"
+#include "ui/PreferencesDialog.h"
 
 using macpad::platform::FileAssociation;
 
@@ -15,6 +19,22 @@ private slots:
     {
         // ProgID 不可隨版本變動，否則升版後既有關聯會指向不存在的類別
         QCOMPARE(FileAssociation::progId(), QStringLiteral("macpadpp.Document"));
+    }
+
+    // 關聯的成敗全繫於這個命令字串：Windows 會把被雙擊的檔案路徑代入其中的 %1。
+    // 先前寫成 arg("\"%1\" \"%%1\"") ——QString::arg 沒有 %% 逸出且會取代所有同號標記，
+    // 字面的 %%1 內那個 %1 也被換成執行檔路徑，產生 `"X" "%X"`：
+    // 關聯看似成功、登錄檔也對，但雙擊開檔永遠收不到檔名。原本的測試只驗
+    // .ext → ProgID 的對應，完全碰不到這條命令，所以會全綠地放行。
+    void openCommandKeepsThePercentOneToken()
+    {
+        const QString exe = QStringLiteral("C:\\Program Files\\macpad++\\macpad++.exe");
+        const QString cmd = FileAssociation::openCommandFor(exe);
+
+        QCOMPARE(cmd, QStringLiteral("\"C:\\Program Files\\macpad++\\macpad++.exe\" \"%1\""));
+        QVERIFY2(cmd.contains(QStringLiteral("\"%1\"")), qPrintable(cmd));
+        // 執行檔路徑只能出現一次；出現兩次即代表 %1 被吃掉了
+        QCOMPARE(cmd.count(exe), 1);
     }
 
     void commonExtensionsAreBareAndLowercase()
@@ -92,6 +112,68 @@ private slots:
         QVERIFY(!FileAssociation::associate(QString(), &err));
         QVERIFY(!err.isEmpty());
         QVERIFY(!FileAssociation::isAssociated(QString()));
+    }
+
+    // 直接檢查寫進登錄檔的成果，而不只是「我們自己的 API 說成功了」。
+    // 兩項都是實際會咬人的：命令字串少了 %1 就收不到檔名；解除關聯若刪整個子樹
+    // 會連別的軟體放在 .ext 底下的資料一起毀掉。
+    void registryEffectsAreCorrect()
+    {
+        if (!FileAssociation::isSupported())
+            QSKIP("本平台不支援執行期變更關聯");
+
+        const QString ext = QStringLiteral("macpadppreg");
+        const QString root = QStringLiteral("HKEY_CURRENT_USER\\Software\\Classes");
+        const QString extKey = QStringLiteral(".%1").arg(ext);
+
+        {   // 前置：模擬「別的軟體已在該副檔名底下放了子鍵」
+            QSettings seed(root, QSettings::NativeFormat);
+            seed.setValue(QStringLiteral("%1/OpenWithProgids/SomeOtherApp").arg(extKey),
+                          QString());
+            seed.sync();
+        }
+
+        QString err;
+        QVERIFY2(FileAssociation::associate(ext, &err), qPrintable(err));
+
+        {   // 1) shell\open\command 必須保留字面的 "%1"
+            QSettings check(root, QSettings::NativeFormat);
+            const QString cmd =
+                check.value(QStringLiteral("%1/shell/open/command/.")
+                                .arg(FileAssociation::progId())).toString();
+            QVERIFY2(cmd.contains(QStringLiteral("\"%1\"")), qPrintable(cmd));
+        }
+
+        QVERIFY2(FileAssociation::unassociate(ext, &err), qPrintable(err));
+
+        {   // 2) 別人的子鍵必須原封不動
+            QSettings check(root, QSettings::NativeFormat);
+            check.beginGroup(extKey);
+            const QStringList groups = check.childGroups();
+            check.endGroup();
+            QVERIFY2(groups.contains(QStringLiteral("OpenWithProgids")),
+                     "unassociate 刪掉了不屬於本程式的登錄檔子鍵");
+        }
+
+        {   // 收尾：清掉本測試自己種下的資料
+            QSettings cleanup(root, QSettings::NativeFormat);
+            cleanup.remove(extKey);
+            cleanup.sync();
+        }
+    }
+
+    // 偏好設定確實有這個分頁——模組寫好卻沒接進 UI 是這類功能最常見的漏接
+    void preferencesDialogHasTheTab()
+    {
+        macpad::persistence::Settings s;
+        macpad::ui::PreferencesDialog dlg(s);
+        auto *tabs = dlg.findChild<QTabWidget *>();
+        QVERIFY(tabs);
+        bool found = false;
+        for (int i = 0; i < tabs->count(); ++i)
+            if (tabs->tabText(i) == QLatin1String("File Association"))
+                found = true;
+        QVERIFY2(found, "Preferences 缺少 File Association 分頁");
     }
 };
 

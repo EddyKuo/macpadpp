@@ -36,6 +36,11 @@ public:
 
     // 本程式使用的 ProgID（登錄檔中的類別識別字）
     static QString progId();
+
+    // 組出登錄檔 shell\open\command 的命令字串：`"<exe>" "%1"`。
+    // 其中的 `%1` 必須原樣保留——Windows 會把被雙擊的檔案路徑代入該 token；
+    // 少了它，關聯後開檔會啟動程式卻收不到檔名。抽成純函式以便直接斷言。
+    static QString openCommandFor(const QString &exePath);
 };
 
 }  // namespace macpad::platform

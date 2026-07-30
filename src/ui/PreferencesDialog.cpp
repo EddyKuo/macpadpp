@@ -672,7 +672,10 @@ QWidget *PreferencesDialog::buildFileAssociationPage()
 
     auto *hint = new QLabel(
         tr("勾選要以 macpad++ 開啟的副檔名。變更會立即寫入目前使用者的設定\n"
-           "（HKCU，不需系統管理員權限），取消勾選會還原先前的關聯。"), page);
+           "（HKCU，不需系統管理員權限），取消勾選會還原先前的關聯。\n\n"
+           "注意：Windows 8 以後，若該副檔名已由「預設應用程式」明確指定過\n"
+           "（Explorer 的 UserChoice），系統會以該設定優先，此處的勾選不會改變\n"
+           "雙擊行為。這種情況請至「設定 ▸ 應用程式 ▸ 預設應用程式」變更。"), page);
     hint->setWordWrap(true);
     layout->addWidget(hint);
 
