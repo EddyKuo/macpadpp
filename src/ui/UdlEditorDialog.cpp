@@ -124,9 +124,25 @@ UdlEditorDialog::UdlEditorDialog(macpad::features::UdlManager *manager, QWidget 
     advForm->addRow(tr("Operators:"), m_operators);
 
     m_delimiters = new QPlainTextEdit(advancedPage);
-    m_delimiters->setPlaceholderText(tr("每行一組，格式：開始|跳脫|結束，如：\"|\\|\""));
+    m_delimiters->setPlaceholderText(
+        tr("每行一組，格式：開始|跳脫|結束|巢狀，如：\"|\\|\"|number,kw1\n"
+           "「巢狀」可省略；填入後該區塊內部仍會辨識所列類別"));
     m_delimiters->setMaximumHeight(70);
     advForm->addRow(tr("Delimiters:"), m_delimiters);
+
+    // Nesting（複刻 Notepad++ UDL 的巢狀勾選）：以逗號分隔的類別名稱表示，
+    // 可用：comment / linecomment / number / operator / string / kw1..kw8 / delim1..delim8
+    const QString nestHint = tr("逗號分隔：comment, linecomment, number, operator, string, "
+                                "kw1..kw8, delim1..delim8（留空 = 區塊內不辨識任何類別）");
+    m_blockCommentNesting = new QLineEdit(advancedPage);
+    m_blockCommentNesting->setPlaceholderText(nestHint);
+    m_lineCommentNesting = new QLineEdit(advancedPage);
+    m_lineCommentNesting->setPlaceholderText(nestHint);
+    m_stringNesting = new QLineEdit(advancedPage);
+    m_stringNesting->setPlaceholderText(nestHint);
+    advForm->addRow(tr("Block comment nesting:"), m_blockCommentNesting);
+    advForm->addRow(tr("Line comment nesting:"), m_lineCommentNesting);
+    advForm->addRow(tr("String nesting:"), m_stringNesting);
 
     m_folderOpen = new QLineEdit(advancedPage);
     m_folderOpen->setPlaceholderText(QStringLiteral("{"));
@@ -279,8 +295,17 @@ macpad::features::UdlDefinition UdlEditorDialog::collectDefinition() const
         del.open = parts.at(0);
         del.escape = parts.size() > 1 ? parts.at(1) : QString();
         del.close = parts.size() > 2 ? parts.at(2) : QString();
+        // 第 4 欄為選填的巢狀類別清單；省略即 0（區塊內不辨識任何類別）
+        del.nesting = parts.size() > 3
+            ? macpad::features::UdlNest::fromSpec(parts.at(3)) : 0;
         def.delimiters.push_back(del);
     }
+
+    def.blockCommentNesting =
+        macpad::features::UdlNest::fromSpec(m_blockCommentNesting->text());
+    def.lineCommentNesting =
+        macpad::features::UdlNest::fromSpec(m_lineCommentNesting->text());
+    def.stringNesting = macpad::features::UdlNest::fromSpec(m_stringNesting->text());
 
     def.folderTokens.open = m_folderOpen->text();
     def.folderTokens.middle = m_folderMiddle->text();
@@ -322,9 +347,18 @@ void UdlEditorDialog::loadDefinitionIntoUi(const macpad::features::UdlDefinition
     m_operators->setPlainText(ops.join(QLatin1Char(' ')));
 
     QStringList delimLines;
-    for (const auto &d : def.delimiters)
-        delimLines << d.open + QLatin1Char('|') + d.escape + QLatin1Char('|') + d.close;
+    for (const auto &d : def.delimiters) {
+        QString line = d.open + QLatin1Char('|') + d.escape + QLatin1Char('|') + d.close;
+        // 巢狀欄位僅在有設定時才寫出，維持舊定義的三欄外觀不變
+        if (d.nesting != 0)
+            line += QLatin1Char('|') + macpad::features::UdlNest::toSpec(d.nesting);
+        delimLines << line;
+    }
     m_delimiters->setPlainText(delimLines.join(QLatin1Char('\n')));
+
+    m_blockCommentNesting->setText(macpad::features::UdlNest::toSpec(def.blockCommentNesting));
+    m_lineCommentNesting->setText(macpad::features::UdlNest::toSpec(def.lineCommentNesting));
+    m_stringNesting->setText(macpad::features::UdlNest::toSpec(def.stringNesting));
 
     m_folderOpen->setText(def.folderTokens.open);
     m_folderMiddle->setText(def.folderTokens.middle);

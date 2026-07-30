@@ -666,32 +666,55 @@ void MainWindow::updateIncrementalSearchCount(const QString &needle)
 
 // 列印目前文件（工具列與 File ▸ Print… 共用；先前工具列會套用 Preferences ▸ Print，
 // 選單那條卻是裸的 QsciPrinter，兩者行為不一致——此處統一走同一條路徑）。
-void MainWindow::printCurrentDocument()
+bool MainWindow::preparePrinter(macpad::features::DocumentPrinter &printer, EditorWidget *&editor)
 {
-    EditorWidget *e = currentEditor();
-    if (!e)
-        return;
+    editor = currentEditor();
+    if (!editor)
+        return false;
 
     const auto ps = macpad::persistence::SettingsStore::load();
-    macpad::features::DocumentPrinter printer;
-    printer.setFilePath(e->isUntitled() ? QString() : e->filePath());
+    printer.setFilePath(editor->isUntitled() ? QString() : editor->filePath());
     printer.setHeaderTemplate(ps.printHeader);
     printer.setFooterTemplate(ps.printFooter);
     printer.setMagnification(0);
     // 深色主題直接照畫面配色列印會整頁塗黑，故色彩模式獨立設定（預設黑字白底）
-    e->SendScintilla(QsciScintillaBase::SCI_SETPRINTCOLOURMODE,
-                     static_cast<unsigned long>(qBound(0, ps.printColourMode, 3)));
+    editor->SendScintilla(QsciScintillaBase::SCI_SETPRINTCOLOURMODE,
+                          static_cast<unsigned long>(qBound(0, ps.printColourMode, 3)));
     const qreal m = qBound(0, ps.printMarginMm, 50);
     printer.setPageMargins(QMarginsF(m, m, m, m), QPageLayout::Millimeter);
+    return true;
+}
+
+void MainWindow::sendToPrinter(macpad::features::DocumentPrinter &printer, EditorWidget *editor)
+{
+    const auto ps = macpad::persistence::SettingsStore::load();
+    // FormFeed 視為分頁符（Notepad++ v8.9.7）；關閉時走原本的整份分頁。
+    // printDocument 會在頁首/頁尾用到 $(NB_PAGES) 時先試排求總頁數。
+    printer.printDocument(editor, ps.printFormFeedAsPageBreak);
+}
+
+void MainWindow::printCurrentDocument()
+{
+    macpad::features::DocumentPrinter printer;
+    EditorWidget *e = nullptr;
+    if (!preparePrinter(printer, e))
+        return;
 
     QPrintDialog dlg(&printer, this);
     if (dlg.exec() != QDialog::Accepted)
         return;
-    // FormFeed 視為分頁符（Notepad++ v8.9.7）；關閉時走原本的整份分頁
-    if (ps.printFormFeedAsPageBreak)
-        printer.printWithFormFeeds(e);
-    else
-        printer.printRange(e);
+    sendToPrinter(printer, e);
+}
+
+// -quickPrint：免對話框直印。先前此路徑在 main.cpp 裡是裸的 QsciPrinter，
+// 完全忽略 Preferences ▸ Print（頁首/頁尾/邊界/色彩模式/FormFeed），與另外兩條列印路徑不一致。
+void MainWindow::quickPrintCurrentDocument()
+{
+    macpad::features::DocumentPrinter printer;
+    EditorWidget *e = nullptr;
+    if (!preparePrinter(printer, e))
+        return;
+    sendToPrinter(printer, e);
 }
 
 

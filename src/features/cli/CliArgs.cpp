@@ -194,6 +194,28 @@ ParsedArgs CliArgs::parse(const QStringList &args)
         if (arg.startsWith(QLatin1Char('-'))) {
             continue;
         }
+        // -notepadStyleCmdline：複刻 notepad.exe 的命令列語意——自「第一個檔名 token」起，
+        // 剩下的整段命令列都屬於同一個檔名，未加引號的空白也是檔名的一部分
+        //（Notepad++ 用此模式取代系統記事本，才能開啟 C:\my notes\a b.txt 這種未引號路徑）。
+        //
+        // 關鍵在於這裡要「就地停止旗標解析」：若繼續讓後續 token 走旗標分派，
+        // 檔名中長得像旗標的字（如 "my -log.txt" 的 -log.txt 會被誤判為 -l<lang>，
+        // 或 "-z" 會連同吞掉下一個 token）就會被吃掉，檔名靜默殘缺。
+        // 旗標僅在檔名之前有效，與實際的啟動方式一致。
+        if (out.notepadStyleCmdline) {
+            QStringList rest;
+            for (int k = i; k < args.size(); ++k)
+                rest << args.at(k);
+            FileArg single;
+            // 不解析 path:line 後綴：notepad.exe 沒有這個語法，貿然拆解會拆錯檔名。
+            // 註：args 是 OS/Qt 切好的 argv，連續空白早已被壓成一個，
+            // 故此處只能以單一空白重組——含連續空白的路徑無法逐字還原（已知限制，
+            // 真正的 notepad.exe 讀的是未切割的原始命令列字串）。
+            single.path = rest.join(QLatin1Char(' '));
+            out.files.append(single);
+            break;
+        }
+
         // 其餘視為檔案路徑（仍支援 path:line 後綴）
         out.files.append(parseFileArg(arg));
     }

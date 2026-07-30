@@ -4,6 +4,54 @@
 
 namespace macpad::features {
 
+namespace UdlNest {
+
+int fromSpec(const QString &spec)
+{
+    int mask = 0;
+    const auto parts = spec.split(QLatin1Char(','), Qt::SkipEmptyParts);
+    for (const QString &raw : parts) {
+        const QString t = raw.trimmed().toLower();
+        if (t == QLatin1String("comment"))          mask |= Comment;
+        else if (t == QLatin1String("linecomment")) mask |= LineComment;
+        else if (t == QLatin1String("number"))      mask |= Number;
+        else if (t == QLatin1String("operator"))    mask |= Operator;
+        else if (t == QLatin1String("string"))      mask |= String;
+        else if (t.startsWith(QLatin1String("kw"))) {
+            bool ok = false;
+            const int n = t.mid(2).toInt(&ok);
+            if (ok && n >= 1 && n <= kUdlMaxKeywordGroups)
+                mask |= keywordBit(n - 1);
+        } else if (t.startsWith(QLatin1String("delim"))) {
+            bool ok = false;
+            const int n = t.mid(5).toInt(&ok);
+            if (ok && n >= 1 && n <= 8)
+                mask |= delimiterBit(n - 1);
+        }
+        // 其餘名稱一律忽略（IL-1：不臆測使用者意圖）
+    }
+    return mask;
+}
+
+QString toSpec(int mask)
+{
+    QStringList out;
+    if (mask & Comment)     out << QStringLiteral("comment");
+    if (mask & LineComment) out << QStringLiteral("linecomment");
+    if (mask & Number)      out << QStringLiteral("number");
+    if (mask & Operator)    out << QStringLiteral("operator");
+    if (mask & String)      out << QStringLiteral("string");
+    for (int g = 0; g < kUdlMaxKeywordGroups; ++g)
+        if (mask & keywordBit(g))
+            out << QStringLiteral("kw%1").arg(g + 1);
+    for (int d = 0; d < 8; ++d)
+        if (mask & delimiterBit(d))
+            out << QStringLiteral("delim%1").arg(d + 1);
+    return out.join(QLatin1Char(','));
+}
+
+}  // namespace UdlNest
+
 const QSet<QString> &UdlDefinition::keywordGroup(int idx) const
 {
     static const QSet<QString> empty;
@@ -60,6 +108,8 @@ UdlDefinition UdlDefinition::fromJson(const QJsonObject &obj)
         del.open = o.value(QStringLiteral("open")).toString();
         del.escape = o.value(QStringLiteral("escape")).toString();
         del.close = o.value(QStringLiteral("close")).toString();
+        // nesting：舊版 JSON 無此欄位時為 0（區塊內不辨識任何巢狀類別），與舊行為相同
+        del.nesting = o.value(QStringLiteral("nesting")).toInt(0);
         d.delimiters.push_back(del);
     }
 
@@ -74,6 +124,10 @@ UdlDefinition UdlDefinition::fromJson(const QJsonObject &obj)
     d.blockCommentStart = obj.value(QStringLiteral("block_comment_start")).toString();
     d.blockCommentEnd = obj.value(QStringLiteral("block_comment_end")).toString();
     d.caseSensitive = obj.value(QStringLiteral("case_sensitive")).toBool(true);
+    // 註解/字串的 nesting 遮罩；舊版無此欄位時為 0，行為與加入 nesting 之前相同
+    d.blockCommentNesting = obj.value(QStringLiteral("block_comment_nesting")).toInt(0);
+    d.lineCommentNesting = obj.value(QStringLiteral("line_comment_nesting")).toInt(0);
+    d.stringNesting = obj.value(QStringLiteral("string_nesting")).toInt(0);
 
     // 樣式（③a UDL Styler）：舊版 JSON 無此欄位時 styles 保持空，
     // UdlLexer 會回退至內建 defaultColor()（向後相容）。
@@ -139,6 +193,7 @@ QJsonObject UdlDefinition::toJson() const
         dObj.insert(QStringLiteral("open"), del.open);
         dObj.insert(QStringLiteral("escape"), del.escape);
         dObj.insert(QStringLiteral("close"), del.close);
+        dObj.insert(QStringLiteral("nesting"), del.nesting);
         delims.append(dObj);
     }
     o.insert(QStringLiteral("delimiters"), delims);
@@ -153,6 +208,9 @@ QJsonObject UdlDefinition::toJson() const
     o.insert(QStringLiteral("block_comment_start"), blockCommentStart);
     o.insert(QStringLiteral("block_comment_end"), blockCommentEnd);
     o.insert(QStringLiteral("case_sensitive"), caseSensitive);
+    o.insert(QStringLiteral("block_comment_nesting"), blockCommentNesting);
+    o.insert(QStringLiteral("line_comment_nesting"), lineCommentNesting);
+    o.insert(QStringLiteral("string_nesting"), stringNesting);
 
     // 樣式（③a UDL Styler）：以字串化的樣式編號為鍵
     QJsonObject stylesObj;

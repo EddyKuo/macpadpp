@@ -38,6 +38,27 @@ public:
     QColor defaultColor(int style) const override;
 
 private:
+    // 掃描一次 styleText 內用得到的、預先轉成 UTF-8 的樣板（避免在迴圈中重複轉碼）
+    struct ScanTables {
+        QByteArray lineComment;
+        QByteArray blockOpen;
+        QByteArray blockClose;
+        struct Delim { QByteArray open, escape, close; int nesting = 0; };
+        QVector<Delim> delims;
+        QList<QByteArray> operators;   // 依長度遞減，確保最長匹配優先
+    };
+
+    // 在 utf8[i] 處嘗試辨識一個 token 並上色，回傳消耗的位元組數（至少 1）。
+    // mask 為 UdlNest 位元遮罩，決定此處允許辨識哪些類別——巢狀區塊內部即以較窄的
+    // mask 遞迴呼叫本函式，未獲允許的類別會退回以 fallbackStyle 逐位元組上色。
+    int scanToken(const QByteArray &utf8, int i, int end, const ScanTables &t,
+                  int mask, int fallbackStyle);
+    // 掃描一段有明確結束標記的區塊（註解／分隔符／字串）：開頭與結尾標記以 bodyStyle 上色，
+    // 中間內容依 nesting 遞迴。回傳消耗的位元組數。
+    int scanRegion(const QByteArray &utf8, int i, int end, const ScanTables &t,
+                   const QByteArray &openTok, const QByteArray &closeTok,
+                   const QByteArray &escapeTok, int nesting, int bodyStyle);
+
     // 第 groupIdx（0-based，最多 8）組關鍵字對應的樣式編號
     static int styleForKeywordGroup(int groupIdx);
     // 依 folderTokens 掃描整份文件、設定 fold points

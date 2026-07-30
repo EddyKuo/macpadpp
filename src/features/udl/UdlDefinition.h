@@ -27,11 +27,40 @@ struct UdlStyle {
     bool underline = false;
 };
 
+// Nesting（巢狀）位元遮罩：描述「某個區塊內部還允許哪些類別被辨識並上色」。
+// 複刻 Notepad++ UDL 的 nesting 勾選框——例如字串內允許 Number，或註解內允許 Keyword1。
+// 遮罩為 0（預設）時區塊內部一律以區塊自身的樣式上色，與加入 nesting 之前的行為完全相同。
+namespace UdlNest {
+constexpr int Comment     = 1 << 0;   // 區塊註解
+constexpr int LineComment = 1 << 1;   // 行註解
+constexpr int Number      = 1 << 2;
+constexpr int Operator    = 1 << 3;
+constexpr int String      = 1 << 4;   // 內建的引號字串（" 與 '）
+// bits 8..15：關鍵字第 0..7 組；bits 16..23：自訂分隔符第 0..7 組
+constexpr int KeywordBase = 8;
+constexpr int DelimBase   = 16;
+
+constexpr int keywordBit(int group) { return 1 << (KeywordBase + group); }
+constexpr int delimiterBit(int idx) { return 1 << (DelimBase + idx); }
+
+// 頂層掃描：所有類別皆可辨識
+constexpr int All = 0x00FFFFFF;
+
+// 人類可讀的遮罩字串（供 UDL 編輯器輸入與 JSON 之外的顯示用），逗號分隔，例如
+//   "comment,number,kw1,delim2"
+// 可用名稱：comment / linecomment / number / operator / string / kw1..kw8 / delim1..delim8
+// 無法辨識的名稱一律忽略（不報錯、不臆測），空字串回傳 0。
+int fromSpec(const QString &spec);
+QString toSpec(int mask);
+}  // namespace UdlNest
+
 // 成對分隔符區塊（如自訂字串/區塊界定），可選跳脫字元（FR-059）
 struct UdlDelimiter {
     QString open;
     QString escape;   // 可為空：無跳脫字元
     QString close;
+    // 此區塊內部允許辨識的類別（UdlNest 位元遮罩）；0 = 整段以 Delimiter 樣式上色（預設）
+    int nesting = 0;
 };
 
 // 摺疊符（開頭/中間/結尾字串），用於產生 fold points（FR-059）
@@ -57,6 +86,10 @@ struct UdlDefinition {
     QString lineComment;         // 如 "#"、"//"
     QString blockCommentStart;   // 如 "/*"
     QString blockCommentEnd;     // 如 "*/"
+    // 註解與內建字串內部允許辨識的類別（UdlNest 位元遮罩）；0 = 整段以自身樣式上色（預設）
+    int blockCommentNesting = 0;
+    int lineCommentNesting = 0;
+    int stringNesting = 0;
     bool caseSensitive = true;
     // 每個樣式（鍵為 UdlLexer::Style 列舉值）的外觀設定；未設定的樣式回退至
     // UdlLexer::defaultColor() 內建預設色（向後相容，③a）。

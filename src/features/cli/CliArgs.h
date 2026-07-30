@@ -47,7 +47,10 @@ struct ParsedArgs {
     QString settingsDir;                  // -settingsDir <dir>：自訂設定檔存放目錄
     QString uiLangCode;                   // -L<langCode>：介面語言代碼（大寫 L，區分 -l<lang> 語法高亮）
     QString udlName;                      // -udl=<name>：套用自訂使用者定義語言（UDL）
-    bool notepadStyleCmdline = false;     // -notepadStyleCmdline：Notepad 風格命令列相容模式
+    // -notepadStyleCmdline：Notepad 風格命令列相容模式。啟用後，所有非旗標 token 會被
+    // 併回「單一檔名」（未加引號的空白視為檔名的一部分），且不再解析 path:line 後綴，
+    // 與 notepad.exe 的語意一致（Notepad++ 用此模式取代系統記事本）。
+    bool notepadStyleCmdline = false;
 
     // -systemtray：啟動後常駐系統匣（Windows 通知區 / macOS 選單列狀態區）。
     // QSystemTrayIcon 為跨平台 API，兩平台皆實際生效。

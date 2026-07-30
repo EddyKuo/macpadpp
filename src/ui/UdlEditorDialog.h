@@ -80,8 +80,12 @@ private:
     QLineEdit *m_blockEnd = nullptr;
     QCheckBox *m_caseSensitive = nullptr;
     QPlainTextEdit *m_operators = nullptr;
-    // 每行一組分隔符，格式："開始|跳脫|結束"
+    // 每行一組分隔符，格式："開始|跳脫|結束|巢狀"（第 4 欄選填）
     QPlainTextEdit *m_delimiters = nullptr;
+    // Nesting 遮罩（以 UdlNest::toSpec/fromSpec 的逗號分隔名稱表示）
+    QLineEdit *m_blockCommentNesting = nullptr;
+    QLineEdit *m_lineCommentNesting = nullptr;
+    QLineEdit *m_stringNesting = nullptr;
     QLineEdit *m_folderOpen = nullptr;
     QLineEdit *m_folderMiddle = nullptr;
     QLineEdit *m_folderClose = nullptr;

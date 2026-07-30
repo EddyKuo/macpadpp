@@ -88,6 +88,157 @@ QColor UdlLexer::defaultColor(int style) const
     }
 }
 
+// 掃描一段有明確結束標記的區塊。開頭/結尾標記固定以 bodyStyle 上色；
+// 中間內容若 nesting 非 0 就遞迴 scanToken（讓字串內的數字、註解內的關鍵字等能被辨識），
+// 否則整段以 bodyStyle 上色——與加入 nesting 之前的行為完全相同。
+int UdlLexer::scanRegion(const QByteArray &utf8, int i, int end, const ScanTables &t,
+                         const QByteArray &openTok, const QByteArray &closeTok,
+                         const QByteArray &escapeTok, int nesting, int bodyStyle)
+{
+    const int startPos = i;
+    setStyling(openTok.size(), bodyStyle);
+    int j = i + openTok.size();
+
+    while (j < utf8.size()) {
+        // 跳脫字元優先：\" 之類不得被誤判為結尾
+        if (!escapeTok.isEmpty() && utf8.mid(j, escapeTok.size()) == escapeTok) {
+            const int skip = qMin(escapeTok.size() + 1, utf8.size() - j);
+            setStyling(skip, bodyStyle);
+            j += skip;
+            continue;
+        }
+        if (!closeTok.isEmpty() && utf8.mid(j, closeTok.size()) == closeTok)
+            break;
+        if (nesting != 0) {
+            j += scanToken(utf8, j, end, t, nesting, bodyStyle);
+        } else {
+            setStyling(1, bodyStyle);
+            ++j;
+        }
+    }
+
+    // 結尾標記；未閉合時（掃到檔尾）就只到檔尾為止
+    if (j < utf8.size() && !closeTok.isEmpty() && utf8.mid(j, closeTok.size()) == closeTok) {
+        const int n = qMin(closeTok.size(), utf8.size() - j);
+        setStyling(n, bodyStyle);
+        j += n;
+    }
+    return j - startPos;
+}
+
+
+int UdlLexer::scanToken(const QByteArray &utf8, int i, int end, const ScanTables &t,
+                        int mask, int fallbackStyle)
+{
+    auto isWordChar = [](char c) {
+        return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+               (c >= '0' && c <= '9') || c == '_';
+    };
+    const char c = utf8.at(i);
+
+    // 行註解：延伸至行尾（結尾標記為換行，不吃掉換行本身）
+    if ((mask & UdlNest::LineComment) && !t.lineComment.isEmpty()
+        && utf8.mid(i, t.lineComment.size()) == t.lineComment) {
+        const int nest = m_def.lineCommentNesting;
+        setStyling(t.lineComment.size(), Comment);
+        int j = i + t.lineComment.size();
+        while (j < utf8.size() && utf8.at(j) != '\n') {
+            if (nest != 0) {
+                j += scanToken(utf8, j, end, t, nest, Comment);
+            } else {
+                setStyling(1, Comment);
+                ++j;
+            }
+        }
+        return j - i;
+    }
+    // 區塊註解
+    if ((mask & UdlNest::Comment) && !t.blockOpen.isEmpty()
+        && utf8.mid(i, t.blockOpen.size()) == t.blockOpen) {
+        return scanRegion(utf8, i, end, t, t.blockOpen, t.blockClose, QByteArray(),
+                          m_def.blockCommentNesting, Comment);
+    }
+    // 自訂分隔符區塊（FR-059）；逐組檢查 nesting 遮罩是否允許該組
+    for (int d = 0; d < t.delims.size(); ++d) {
+        if (!(mask & UdlNest::delimiterBit(qMin(d, 7))))
+            continue;
+        const auto &dl = t.delims.at(d);
+        if (utf8.mid(i, dl.open.size()) != dl.open)
+            continue;
+        return scanRegion(utf8, i, end, t, dl.open, dl.close, dl.escape, dl.nesting, Delimiter);
+    }
+    // 內建引號字串
+    if ((mask & UdlNest::String) && (c == '"' || c == '\'')) {
+        const QByteArray q(1, c);
+        return scanRegion(utf8, i, end, t, q, q, QByteArrayLiteral("\\"),
+                          m_def.stringNesting, String);
+    }
+    // 數字
+    if ((mask & UdlNest::Number) && c >= '0' && c <= '9') {
+        int j = i;
+        while (j < utf8.size() &&
+               ((utf8.at(j) >= '0' && utf8.at(j) <= '9') || utf8.at(j) == '.')) ++j;
+        setStyling(j - i, Number);
+        return j - i;
+    }
+    // 識別字/關鍵字（依 8 組關鍵字分別著色）
+    if (isWordChar(c)) {
+        int j = i;
+        while (j < utf8.size() && isWordChar(utf8.at(j))) ++j;
+        const QString word = QString::fromUtf8(utf8.mid(i, j - i));
+
+        int style = fallbackStyle;
+        const int groupCount = m_def.keywordGroups.isEmpty()
+            ? 1
+            : std::min(static_cast<int>(m_def.keywordGroups.size()), kUdlMaxKeywordGroups);
+        for (int g = 0; g < groupCount; ++g) {
+            if (!(mask & UdlNest::keywordBit(g)))
+                continue;   // 此巢狀層級不允許這組關鍵字
+            const QSet<QString> &group = m_def.keywordGroup(g);
+            bool kw = false;
+            if (m_def.keywordGroupPrefix(g)) {
+                // 前綴模式（FR-059 擴充）：token 以任一關鍵字為前綴即視為命中
+                for (const QString &k : group) {
+                    if (k.isEmpty())
+                        continue;
+                    if (word.startsWith(k, m_def.caseSensitive ? Qt::CaseSensitive
+                                                               : Qt::CaseInsensitive)) {
+                        kw = true;
+                        break;
+                    }
+                }
+            } else {
+                kw = m_def.caseSensitive
+                    ? group.contains(word)
+                    : group.contains(word.toLower()) || group.contains(word);
+                if (!m_def.caseSensitive && !kw) {
+                    for (const QString &k : group)
+                        if (k.compare(word, Qt::CaseInsensitive) == 0) { kw = true; break; }
+                }
+            }
+            if (kw) {
+                style = styleForKeywordGroup(g);
+                break;
+            }
+        }
+        setStyling(j - i, style);
+        return j - i;
+    }
+    // 運算子（FR-059）
+    if (mask & UdlNest::Operator) {
+        for (const QByteArray &op : t.operators) {
+            if (utf8.mid(i, op.size()) == op) {
+                setStyling(op.size(), Operator);
+                return op.size();
+            }
+        }
+    }
+
+    setStyling(1, fallbackStyle);
+    return 1;
+}
+
+
 void UdlLexer::styleText(int start, int end)
 {
     if (!editor())
@@ -103,157 +254,25 @@ void UdlLexer::styleText(int start, int end)
     int i = start;
     startStyling(start);
 
-    auto isWordChar = [](char c) {
-        return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
-               (c >= '0' && c <= '9') || c == '_';
-    };
-
-    const QByteArray lc = m_def.lineComment.toUtf8();
-    const QByteArray bcs = m_def.blockCommentStart.toUtf8();
-    const QByteArray bce = m_def.blockCommentEnd.toUtf8();
-
-    // 分隔符（成對區塊，含可選跳脫字元）的 UTF-8 快取
-    struct DelimBytes { QByteArray open, escape, close; };
-    QVector<DelimBytes> delims;
+    ScanTables tables;
+    tables.lineComment = m_def.lineComment.toUtf8();
+    tables.blockOpen = m_def.blockCommentStart.toUtf8();
+    tables.blockClose = m_def.blockCommentEnd.toUtf8();
     for (const auto &d : m_def.delimiters) {
         if (d.open.isEmpty() || d.close.isEmpty())
             continue;
-        delims.push_back({d.open.toUtf8(), d.escape.toUtf8(), d.close.toUtf8()});
+        tables.delims.push_back({d.open.toUtf8(), d.escape.toUtf8(), d.close.toUtf8(), d.nesting});
     }
-
     // 運算子依長度遞減排序，確保最長匹配優先（如 "==" 優先於 "="）
-    QList<QByteArray> ops;
     for (const QString &op : m_def.operators)
         if (!op.isEmpty())
-            ops << op.toUtf8();
-    std::sort(ops.begin(), ops.end(), [](const QByteArray &a, const QByteArray &b) {
-        return a.size() > b.size();
-    });
+            tables.operators << op.toUtf8();
+    std::sort(tables.operators.begin(), tables.operators.end(),
+              [](const QByteArray &a, const QByteArray &b) { return a.size() > b.size(); });
 
-    while (i < end && i < utf8.size()) {
-        const char c = utf8.at(i);
-
-        // 行註解
-        if (!lc.isEmpty() && utf8.mid(i, lc.size()) == lc) {
-            int j = i;
-            while (j < end && j < utf8.size() && utf8.at(j) != '\n') ++j;
-            setStyling(j - i, Comment);
-            i = j;
-            continue;
-        }
-        // 區塊註解
-        if (!bcs.isEmpty() && utf8.mid(i, bcs.size()) == bcs) {
-            int j = i + bcs.size();
-            while (j < utf8.size() && utf8.mid(j, bce.size()) != bce) ++j;
-            j = qMin(end, j + bce.size());
-            setStyling(j - i, Comment);
-            i = j;
-            continue;
-        }
-        // 自訂分隔符區塊（FR-059）
-        {
-            bool matched = false;
-            for (const auto &d : delims) {
-                if (utf8.mid(i, d.open.size()) != d.open)
-                    continue;
-                int j = i + d.open.size();
-                while (j < utf8.size() && utf8.mid(j, d.close.size()) != d.close) {
-                    if (!d.escape.isEmpty() && utf8.mid(j, d.escape.size()) == d.escape)
-                        j += d.escape.size();
-                    ++j;
-                }
-                j = qMin(end, j + d.close.size());
-                setStyling(j - i, Delimiter);
-                i = j;
-                matched = true;
-                break;
-            }
-            if (matched)
-                continue;
-        }
-        // 字串
-        if (c == '"' || c == '\'') {
-            const char q = c;
-            int j = i + 1;
-            while (j < end && j < utf8.size() && utf8.at(j) != q) {
-                // 跳脫字元：\" 等不視為字串結尾
-                if (utf8.at(j) == '\\' && j + 1 < utf8.size()) ++j;
-                ++j;
-            }
-            j = qMin(end, j + 1);
-            setStyling(j - i, String);
-            i = j;
-            continue;
-        }
-        // 數字
-        if (c >= '0' && c <= '9') {
-            int j = i;
-            while (j < end && j < utf8.size() &&
-                   ((utf8.at(j) >= '0' && utf8.at(j) <= '9') || utf8.at(j) == '.')) ++j;
-            setStyling(j - i, Number);
-            i = j;
-            continue;
-        }
-        // 識別字/關鍵字（依 8 組關鍵字分別著色）
-        if (isWordChar(c)) {
-            int j = i;
-            while (j < end && j < utf8.size() && isWordChar(utf8.at(j))) ++j;
-            QString word = QString::fromUtf8(utf8.mid(i, j - i));
-
-            int style = Default;
-            const int groupCount = m_def.keywordGroups.isEmpty()
-                ? 1
-                : std::min(static_cast<int>(m_def.keywordGroups.size()), kUdlMaxKeywordGroups);
-            for (int g = 0; g < groupCount; ++g) {
-                const QSet<QString> &group = m_def.keywordGroup(g);
-                bool kw = false;
-                if (m_def.keywordGroupPrefix(g)) {
-                    // 前綴模式（FR-059 擴充）：token 以任一關鍵字為前綴即視為命中，
-                    // 而非要求整詞相等；比對是否區分大小寫依 caseSensitive 而定。
-                    for (const QString &k : group) {
-                        if (k.isEmpty())
-                            continue;
-                        if (word.startsWith(k, m_def.caseSensitive ? Qt::CaseSensitive
-                                                                    : Qt::CaseInsensitive)) {
-                            kw = true;
-                            break;
-                        }
-                    }
-                } else {
-                    kw = m_def.caseSensitive
-                        ? group.contains(word)
-                        : group.contains(word.toLower()) || group.contains(word);
-                    if (!m_def.caseSensitive && !kw) {
-                        for (const QString &k : group)
-                            if (k.compare(word, Qt::CaseInsensitive) == 0) { kw = true; break; }
-                    }
-                }
-                if (kw) {
-                    style = styleForKeywordGroup(g);
-                    break;
-                }
-            }
-            setStyling(j - i, style);
-            i = j;
-            continue;
-        }
-        // 運算子（FR-059）
-        {
-            bool matched = false;
-            for (const QByteArray &op : ops) {
-                if (utf8.mid(i, op.size()) == op) {
-                    setStyling(op.size(), Operator);
-                    i += op.size();
-                    matched = true;
-                    break;
-                }
-            }
-            if (matched)
-                continue;
-        }
-        setStyling(1, Default);
-        ++i;
-    }
+    // 頂層：所有類別皆可辨識；區塊內部由 scanRegion 依各自的 nesting 遮罩遞迴。
+    while (i < end && i < utf8.size())
+        i += scanToken(utf8, i, end, tables, UdlNest::All, Default);
 
     applyFolding(text);
 }

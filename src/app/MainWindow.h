@@ -32,7 +32,7 @@ class QDockWidget;
 class QShortcut;
 
 namespace macpad::core { class EditorWidget; }
-namespace macpad::features { class FindReplaceDialog; }
+namespace macpad::features { class FindReplaceDialog; class DocumentPrinter; }
 namespace macpad::ui { class EditorPane; class DocumentListDock;
     class FunctionListDock; class ClipboardHistoryDock; class DocumentMapDock; class WorkspaceDock;
     class CharacterPanel; class ProjectPanelDock; }
@@ -68,6 +68,12 @@ public:
     void setFullReadOnly(bool on);                      // -fullReadOnly（全域唯讀）
     void enableMonitoringForOpenFiles();                // -monitor（監控所有已開啟檔案）
     void applyUdlByName(const QString &name);           // -udl=<name>（對作用中編輯器套用 UDL）
+    // -notepadStyleCmdline：以 notepad.exe 的語意開檔——檔案不存在時詢問是否建立，
+    // 而非直接報「無法開啟」。存在時行為與 openFile() 相同。
+    void openFileNotepadStyle(const QString &path);
+    // -quickPrint：免對話框直印目前文件。與 File ▸ Print… 共用同一條 DocumentPrinter 路徑，
+    // 因此頁首/頁尾/邊界/色彩模式/FormFeed 分頁等 Preferences ▸ Print 設定一併生效。
+    void quickPrintCurrentDocument();
     // -systemtray：常駐系統匣（Windows 通知區 / macOS 選單列狀態區）。
     // 系統不支援時安全略過（回傳 false），不影響主視窗運作。
     bool enableSystemTray();
@@ -154,6 +160,13 @@ private slots:
     void updateIncrementalSearchCount(const QString &needle);
     // 列印目前文件（工具列與 File ▸ Print… 共用同一條路徑，含 Print 偏好與 FormFeed 分頁）
     void printCurrentDocument();
+    // 依 Preferences ▸ Print 設定好 printer 與編輯器色彩模式；回傳是否有可列印的文件。
+    // printCurrentDocument()（帶對話框）與 quickPrintCurrentDocument()（免對話框）共用。
+    bool preparePrinter(macpad::features::DocumentPrinter &printer,
+                        macpad::core::EditorWidget *&editor);
+    // 送印：依偏好決定是否以 FormFeed 分頁。
+    void sendToPrinter(macpad::features::DocumentPrinter &printer,
+                       macpad::core::EditorWidget *editor);
     void viewCurrentFileInBrowser(const QString &appName);
     // 編輯區右鍵選單（複刻 Notepad++ 編輯區右鍵）：由 EditorWidget::contextMenuRequested 觸發，
     // sender() 即被右鍵的編輯器；先將其設為作用中分頁再建構選單，使選單各項作用於正確文件。

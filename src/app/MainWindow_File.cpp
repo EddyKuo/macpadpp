@@ -212,6 +212,30 @@ void MainWindow::openFile(const QString &path)
 }
 
 
+// -notepadStyleCmdline 專用：複刻 notepad.exe 對不存在檔案的處理——詢問後建立空檔再開啟。
+// 一般開檔路徑維持原本的「無法開啟」警告，不受影響。
+void MainWindow::openFileNotepadStyle(const QString &path)
+{
+    const QString absPath = QFileInfo(path).absoluteFilePath();
+    if (!QFileInfo::exists(absPath)) {
+        const auto btn = QMessageBox::question(
+            this, tr("Create File"),
+            tr("找不到「%1」。要建立新檔案嗎？").arg(absPath),
+            QMessageBox::Yes | QMessageBox::No, QMessageBox::Yes);
+        if (btn != QMessageBox::Yes)
+            return;
+        QFile f(absPath);
+        if (!f.open(QIODevice::WriteOnly)) {
+            QMessageBox::warning(this, tr("Create Failed"),
+                                 tr("無法建立 %1：\n%2").arg(absPath, f.errorString()));
+            return;
+        }
+        f.close();
+    }
+    openFile(absPath);
+}
+
+
 void MainWindow::openFileAtLine(const QString &path, int line, int column)
 {
     openFile(path);

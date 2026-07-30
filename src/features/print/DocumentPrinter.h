@@ -34,7 +34,19 @@ public:
     // 文件中沒有 \f 時等同單段列印，輸出與原本一致。
     int printWithFormFeeds(QsciScintillaBase *sci);
 
+    // 列印整份文件的統一入口：需要時先跑一趟「試排」求出總頁數（供 $(NB_PAGES) 展開），
+    // 再依 formFeeds 決定走 printWithFormFeeds 或 printRange。
+    // 只有在頁首/頁尾真的用到 $(NB_PAGES) 時才會試排，否則不付出這個成本。
+    int printDocument(QsciScintillaBase *sci, bool formFeeds);
+
+    // 頁首/頁尾樣板是否用到 $(NB_PAGES)（決定要不要試排）。公開以利單元測試。
+    bool needsPageCount() const;
+
 private:
+    // 試排：把同樣的版面設定輸出到暫存 PDF，藉 formatPage 記錄最大頁碼求得總頁數。
+    // 以相同的 resolution 與 pageLayout 進行，讓分頁結果與實際列印一致。
+    int computePageCount(QsciScintillaBase *sci, bool formFeeds);
+
     QString m_filePath;
     QString m_header;
     QString m_footer;
@@ -42,6 +54,9 @@ private:
     // 加上偏移後 $(CURRENT_PAGE) 才是整份文件的連續頁碼。
     int m_pageOffset = 0;
     int m_pagesInSegment = 0;   // 本段已輸出的頁數（由 formatPage 更新）
+    int m_totalPages = 0;       // 上一次列印實際輸出的總頁數（供試排取用）
+    int m_pageCount = 0;        // 整份文件總頁數；0 = 未知（$(NB_PAGES) 展開為空）
+    bool m_counting = false;    // 目前是否為試排（避免試排中再次試排而遞迴）
 };
 
 }  // namespace macpad::features

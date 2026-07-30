@@ -125,6 +125,92 @@ private slots:
         QCOMPARE(styleAt(idx), int(UdlLexer::Keyword));
     }
 
+    // Nesting（複刻 Notepad++ UDL 的巢狀勾選）：區塊內部依遮罩辨識其他類別。
+    // 預設遮罩為 0，行為必須與加入 nesting 之前完全相同（回歸保護）。
+    void nestingDefaultsToOpaqueRegions()
+    {
+        QsciScintilla editor;
+        UdlDefinition d = makeDef(true);
+        // 未設任何 nesting：註解內的關鍵字與數字仍應整段是 Comment
+        UdlLexer *lexer = new UdlLexer(d, &editor);
+        editor.setLexer(lexer);
+        const QString text = QStringLiteral("/* if 123 */\n");
+        editor.setText(text);
+        lexer->styleText(0, text.toUtf8().size());
+
+        auto styleAt = [&](int pos) -> int {
+            return editor.SendScintilla(QsciScintillaBase::SCI_GETSTYLEAT, pos);
+        };
+        QCOMPARE(styleAt(text.indexOf(QStringLiteral("if"))), int(UdlLexer::Comment));
+        QCOMPARE(styleAt(text.indexOf(QStringLiteral("123"))), int(UdlLexer::Comment));
+    }
+
+    void nestingAllowsKeywordsAndNumbersInsideBlockComment()
+    {
+        QsciScintilla editor;
+        UdlDefinition d = makeDef(true);
+        // 區塊註解內允許辨識「第 0 組關鍵字」與「數字」
+        d.blockCommentNesting = UdlNest::keywordBit(0) | UdlNest::Number;
+        UdlLexer *lexer = new UdlLexer(d, &editor);
+        editor.setLexer(lexer);
+        const QString text = QStringLiteral("/* if 123 zz */\n");
+        editor.setText(text);
+        lexer->styleText(0, text.toUtf8().size());
+
+        auto styleAt = [&](int pos) -> int {
+            return editor.SendScintilla(QsciScintillaBase::SCI_GETSTYLEAT, pos);
+        };
+        // 開頭標記本身仍是 Comment
+        QCOMPARE(styleAt(0), int(UdlLexer::Comment));
+        // 巢狀允許的類別以自己的樣式呈現
+        QCOMPARE(styleAt(text.indexOf(QStringLiteral("if"))), int(UdlLexer::Keyword));
+        QCOMPARE(styleAt(text.indexOf(QStringLiteral("123"))), int(UdlLexer::Number));
+        // 未被允許的內容（一般識別字）回退為區塊自身樣式
+        QCOMPARE(styleAt(text.indexOf(QStringLiteral("zz"))), int(UdlLexer::Comment));
+        // 結尾標記仍是 Comment
+        QCOMPARE(styleAt(text.indexOf(QStringLiteral("*/"))), int(UdlLexer::Comment));
+    }
+
+    void nestingAllowsNumbersInsideString()
+    {
+        QsciScintilla editor;
+        UdlDefinition d = makeDef(true);
+        d.stringNesting = UdlNest::Number;
+        UdlLexer *lexer = new UdlLexer(d, &editor);
+        editor.setLexer(lexer);
+        const QString text = QStringLiteral("\"ab 42 cd\"\n");
+        editor.setText(text);
+        lexer->styleText(0, text.toUtf8().size());
+
+        auto styleAt = [&](int pos) -> int {
+            return editor.SendScintilla(QsciScintillaBase::SCI_GETSTYLEAT, pos);
+        };
+        QCOMPARE(styleAt(0), int(UdlLexer::String));                              // 開引號
+        QCOMPARE(styleAt(text.indexOf(QStringLiteral("42"))), int(UdlLexer::Number));
+        QCOMPARE(styleAt(text.indexOf(QStringLiteral("ab"))), int(UdlLexer::String));
+        QCOMPARE(styleAt(text.indexOf(QStringLiteral("cd"))), int(UdlLexer::String));
+    }
+
+    // 未閉合的區塊不得讓掃描器卡死或越界
+    void nestingUnterminatedRegionTerminatesAtEof()
+    {
+        QsciScintilla editor;
+        UdlDefinition d = makeDef(true);
+        d.blockCommentNesting = UdlNest::Number;
+        UdlLexer *lexer = new UdlLexer(d, &editor);
+        editor.setLexer(lexer);
+        const QString text = QStringLiteral("code /* 7 unterminated");
+        editor.setText(text);
+        lexer->styleText(0, text.toUtf8().size());
+
+        auto styleAt = [&](int pos) -> int {
+            return editor.SendScintilla(QsciScintillaBase::SCI_GETSTYLEAT, pos);
+        };
+        QCOMPARE(styleAt(text.indexOf(QStringLiteral("/*"))), int(UdlLexer::Comment));
+        QCOMPARE(styleAt(text.indexOf(QStringLiteral("7"))), int(UdlLexer::Number));
+        QCOMPARE(styleAt(text.size() - 1), int(UdlLexer::Comment));
+    }
+
     void styleTextCaseInsensitiveKeywordMatching()
     {
         QsciScintilla editor;

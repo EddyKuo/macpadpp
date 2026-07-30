@@ -348,6 +348,57 @@ private slots:
         const auto p = CliArgs::parse({"-notepadStyleCmdline", "file.txt"});
         QVERIFY(p.notepadStyleCmdline);
         QCOMPARE(p.files.size(), 1);
+        QCOMPARE(p.files.at(0).path, QStringLiteral("file.txt"));
+    }
+
+    // notepad.exe 語意：未加引號的空白屬於檔名的一部分，多個 token 併回單一檔名
+    void notepadStyleJoinsUnquotedSpaces()
+    {
+        const auto p = CliArgs::parse({"-notepadStyleCmdline", "C:\\my notes\\a b.txt"});
+        QCOMPARE(p.files.size(), 1);
+        QCOMPARE(p.files.at(0).path, QStringLiteral("C:\\my notes\\a b.txt"));
+
+        // shell 已把未引號路徑切成多個 token 的情況
+        const auto q = CliArgs::parse({"-notepadStyleCmdline", "my", "long", "name.txt"});
+        QCOMPARE(q.files.size(), 1);
+        QCOMPARE(q.files.at(0).path, QStringLiteral("my long name.txt"));
+    }
+
+    // notepad.exe 沒有 path:line 語法，該模式下不得拆解，否則檔名會被拆錯
+    void notepadStyleDoesNotSplitLineSuffix()
+    {
+        const auto p = CliArgs::parse({"-notepadStyleCmdline", "notes.txt:12"});
+        QCOMPARE(p.files.size(), 1);
+        QCOMPARE(p.files.at(0).path, QStringLiteral("notes.txt:12"));
+        QCOMPARE(p.files.at(0).line, 0);
+
+        // 對照組：未啟用該模式時仍照常拆解
+        const auto q = CliArgs::parse({"notes.txt:12"});
+        QCOMPARE(q.files.at(0).path, QStringLiteral("notes.txt"));
+        QCOMPARE(q.files.at(0).line, 12);
+    }
+
+    // 檔名之前的旗標仍須被辨識並吞噬，不可混進檔名
+    void notepadStyleKeepsOtherFlagsOut()
+    {
+        const auto p = CliArgs::parse({"-notepadStyleCmdline", "-ro", "a", "b.txt"});
+        QVERIFY(p.readOnly);
+        QCOMPARE(p.files.size(), 1);
+        QCOMPARE(p.files.at(0).path, QStringLiteral("a b.txt"));
+    }
+
+    // 檔名「之後」長得像旗標的字必須原樣留在檔名中，否則檔名會被靜默吃掉一段。
+    // -log.txt 會命中 -l<lang> 的前綴規則、-z 還會連下一個 token 一起吞。
+    void notepadStyleDoesNotEatFlagLikeFilenameWords()
+    {
+        const auto p = CliArgs::parse({"-notepadStyleCmdline", "my", "-log.txt"});
+        QCOMPARE(p.files.size(), 1);
+        QCOMPARE(p.files.at(0).path, QStringLiteral("my -log.txt"));
+        QVERIFY(p.forceLanguage.isEmpty());   // 不得被誤解析為 -l<lang>
+
+        const auto q = CliArgs::parse({"-notepadStyleCmdline", "readme", "-z", "draft.txt"});
+        QCOMPARE(q.files.size(), 1);
+        QCOMPARE(q.files.at(0).path, QStringLiteral("readme -z draft.txt"));
     }
 
     void parseSystemTrayFlag()
@@ -414,9 +465,12 @@ private slots:
             {"-openSession", "/tmp/s.session", "-openFoldersAsWorkspace", "/tmp/ws",
              "-x", "10", "-y", "20", "-notabbar", "-fullReadOnly", "-monitor",
              "-settingsDir", "/tmp/cfg", "-Lde", "-udl=Custom", "-z", "zval",
-             "-notepadStyleCmdline", "-systemtray", "-noPlugin",
+             "-systemtray", "-noPlugin",
              "-pluginMessage", "msg", "-loadingTime", "99", "-qn", "1",
              "src/main.cpp:7", "docs/readme.md"});
+        // 註：-notepadStyleCmdline 不放進這組綜合測試——它會刻意把多個檔案 token 併為
+        // 單一檔名（notepad.exe 語意），與本測試「多檔各自解析」的斷言互斥。
+        // 該旗標的行為由 notepadStyle* 系列測試單獨涵蓋。
 
         QCOMPARE(p.openSessionPath, QStringLiteral("/tmp/s.session"));
         QCOMPARE(p.openFoldersAsWorkspace.size(), 1);
@@ -431,7 +485,6 @@ private slots:
         QCOMPARE(p.settingsDir, QStringLiteral("/tmp/cfg"));
         QCOMPARE(p.uiLangCode, QStringLiteral("de"));
         QCOMPARE(p.udlName, QStringLiteral("Custom"));
-        QVERIFY(p.notepadStyleCmdline);
         QVERIFY(p.systemTray);
         QVERIFY(p.noPluginIgnored);
         QVERIFY(p.pluginMessageIgnored);

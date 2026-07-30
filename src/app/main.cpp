@@ -9,7 +9,6 @@
 #include "core/EditorWidget.h"
 #include "core/LexerFactory.h"
 
-#include <Qsci/qsciprinter.h>
 #include "features/cli/CliArgs.h"
 #include "persistence/AppPaths.h"
 #include "persistence/SettingsStore.h"
@@ -33,7 +32,9 @@ static QString resolveLanguage(const QString &configured)
 static void openParsedArgs(MainWindow &window, const macpad::features::ParsedArgs &parsed)
 {
     for (const auto &fa : parsed.files) {
-        if (fa.line > 0)
+        if (parsed.notepadStyleCmdline)
+            window.openFileNotepadStyle(fa.path);   // 檔案不存在時詢問是否建立（同 notepad.exe）
+        else if (fa.line > 0)
             window.openFileAtLine(fa.path, fa.line, qMax(1, fa.column));
         else
             window.openFile(fa.path);
@@ -91,17 +92,17 @@ static void openParsedArgs(MainWindow &window, const macpad::features::ParsedArg
     // -udl=<name>：對作用中編輯器套用指定的使用者定義語言（UDL）
     if (!parsed.udlName.isEmpty())
         window.applyUdlByName(parsed.udlName);
-    // -notepadStyleCmdline：Notepad 風格多檔命令列語意（產品決策，暫不改變現行開檔行為）。
+    // -notepadStyleCmdline：Notepad 風格命令列語意——整段剩餘命令列視為單一檔名
+    //（未加引號的空白屬檔名一部分、不解析 :line 後綴），檔案不存在時詢問是否建立。
+    // 實際處理分別位於 CliArgs::parse() 與 openParsedArgs()。
     // -uiLangCode（-L<code>）：介面語言於啟動前決定（見 main() 內 resolveLanguage）；此處不重載。
     // -alwaysOnTop / -title:/-titleAdd:：視窗層級選項（開檔後統一套用）
     window.applyCliWindowOptions(parsed.alwaysOnTop, parsed.titleAdd);
     // -quickPrint：以預設印表機直印目前檔案（免對話框），列印後保留開啟。
-    if (parsed.quickPrint) {
-        if (auto *e = window.activeEditor()) {
-            QsciPrinter printer;  // 預設印表機；保留語法高亮
-            printer.printRange(e);
-        }
-    }
+    // 走 MainWindow 與 File ▸ Print… 相同的 DocumentPrinter 路徑，故 Preferences ▸ Print
+    // 的頁首/頁尾/邊界/色彩模式/FormFeed 分頁設定同樣生效。
+    if (parsed.quickPrint)
+        window.quickPrintCurrentDocument();
 }
 
 int main(int argc, char *argv[])

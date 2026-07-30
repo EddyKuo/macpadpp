@@ -121,6 +121,57 @@ constexpr int kFontStyleUnderline = 4;
 // 最多 8 組分隔符，每組佔 3 個依序代碼（open/escape/close），對齊 UdlDefinition::delimiters。
 constexpr int kMaxDelimiterSets = 8;
 
+// ---- Nesting 位元對映 ----
+// Notepad++ 的 nesting 遮罩（SCE_USER_MASK_NESTING_*）與本專案 UdlNest 的位元配置不同，
+// 匯入/匯出時必須逐位轉換，否則巢狀設定會對應到錯誤的類別。
+// Notepad++ 位元配置（見上游 Scintilla 的 SciLexer.h）：
+constexpr int kNppNestDelimiter1 = 0x00001;   // DELIMITER1..8 = bit 0..7
+constexpr int kNppNestComment    = 0x00100;   // 256
+constexpr int kNppNestCommentLine= 0x00200;   // 512
+constexpr int kNppNestKeyword1   = 0x00400;   // KEYWORD1..8 = 1024 << 0..7
+constexpr int kNppNestOperators1 = 0x40000;   // 262144
+constexpr int kNppNestOperators2 = 0x80000;   // 524288
+constexpr int kNppNestNumbers    = 0x100000;  // 1048576
+
+// Notepad++ 的 UDL 樣式編號（SCE_USER_STYLE_*），用於認出哪個 WordsStyle 帶的是哪個區塊的 nesting
+constexpr int kNppStyleComment     = 1;
+constexpr int kNppStyleCommentLine = 2;
+constexpr int kNppStyleDelimiter1  = 21;   // DELIMITER1..8 = 21..28
+
+int nppNestingToInternal(int npp)
+{
+    int out = 0;
+    if (npp & kNppNestComment)     out |= UdlNest::Comment;
+    if (npp & kNppNestCommentLine) out |= UdlNest::LineComment;
+    if (npp & kNppNestNumbers)     out |= UdlNest::Number;
+    if (npp & (kNppNestOperators1 | kNppNestOperators2)) out |= UdlNest::Operator;
+    for (int g = 0; g < kUdlMaxKeywordGroups; ++g)
+        if (npp & (kNppNestKeyword1 << g))
+            out |= UdlNest::keywordBit(g);
+    for (int d = 0; d < kMaxDelimiterSets; ++d)
+        if (npp & (kNppNestDelimiter1 << d))
+            out |= UdlNest::delimiterBit(d);
+    return out;
+}
+
+int internalNestingToNpp(int internal)
+{
+    int out = 0;
+    if (internal & UdlNest::Comment)     out |= kNppNestComment;
+    if (internal & UdlNest::LineComment) out |= kNppNestCommentLine;
+    if (internal & UdlNest::Number)      out |= kNppNestNumbers;
+    if (internal & UdlNest::Operator)    out |= kNppNestOperators1;
+    for (int g = 0; g < kUdlMaxKeywordGroups; ++g)
+        if (internal & UdlNest::keywordBit(g))
+            out |= (kNppNestKeyword1 << g);
+    for (int d = 0; d < kMaxDelimiterSets; ++d)
+        if (internal & UdlNest::delimiterBit(d))
+            out |= (kNppNestDelimiter1 << d);
+    // 註：UdlNest::String（內建引號字串）在 Notepad++ 沒有對應的 nesting 位元
+    //（上游把引號視為 Delimiter 的一種），故匯出時捨棄，不假造位元。
+    return out;
+}
+
 }  // namespace
 
 UdlDefinition UdlXmlIo::importFromXml(const QString &path, const QString &langName)
@@ -138,6 +189,8 @@ UdlDefinition UdlXmlIo::importFromXml(const QString &path, const QString &langNa
     QMap<QString, QString> keywordLists;   // name -> 內文
     QMap<int, UdlStyle> styleMap;
     QVector<bool> prefixModes;             // <Settings><Prefix words1..8=…>（與 exportToXml 對稱）
+    // WordsStyle 的 nesting 屬性：styleID → Notepad++ 原始遮罩（稍後對映到對應區塊）
+    QMap<int, int> nestingByStyleId;
 
     while (!xml.atEnd() && !found) {
         const auto token = xml.readNext();
@@ -186,6 +239,11 @@ UdlDefinition UdlXmlIo::importFromXml(const QString &path, const QString &langNa
                     st.italic = (fontStyle & kFontStyleItalic) != 0;
                     st.underline = (fontStyle & kFontStyleUnderline) != 0;
                     styleMap.insert(styleId, st);
+                    // nesting：Notepad++ 把巢狀設定放在各 WordsStyle 上；缺此屬性即 0
+                    const int nest =
+                        xml.attributes().value(QStringLiteral("nesting")).toInt();
+                    if (nest != 0)
+                        nestingByStyleId.insert(styleId, nest);
                 }
             }
         } else if (token == QXmlStreamReader::EndElement) {
@@ -252,6 +310,19 @@ UdlDefinition UdlXmlIo::importFromXml(const QString &path, const QString &langNa
     }
 
     def.styles = styleMap;
+
+    // 把各 WordsStyle 上的 nesting 對映回對應區塊（註解 / 行註解 / 第 n 組分隔符）。
+    // 必須在 delimiters 建好之後做，索引才對得上。
+    if (nestingByStyleId.contains(kNppStyleComment))
+        def.blockCommentNesting = nppNestingToInternal(nestingByStyleId.value(kNppStyleComment));
+    if (nestingByStyleId.contains(kNppStyleCommentLine))
+        def.lineCommentNesting = nppNestingToInternal(nestingByStyleId.value(kNppStyleCommentLine));
+    for (int d = 0; d < def.delimiters.size() && d < kMaxDelimiterSets; ++d) {
+        const int styleId = kNppStyleDelimiter1 + d;
+        if (nestingByStyleId.contains(styleId))
+            def.delimiters[d].nesting = nppNestingToInternal(nestingByStyleId.value(styleId));
+    }
+
     return def;
 }
 
@@ -342,6 +413,21 @@ bool UdlXmlIo::exportToXml(const UdlDefinition &def, const QString &path)
         if (it.value().italic) fontStyle |= kFontStyleItalic;
         if (it.value().underline) fontStyle |= kFontStyleUnderline;
         xml.writeAttribute(QStringLiteral("fontStyle"), QString::number(fontStyle));
+        // nesting：把本專案的內部遮罩轉回 Notepad++ 的位元配置後輸出；0 則省略屬性
+        int nest = 0;
+        if (it.key() == kNppStyleComment)
+            nest = def.blockCommentNesting;
+        else if (it.key() == kNppStyleCommentLine)
+            nest = def.lineCommentNesting;
+        else if (it.key() >= kNppStyleDelimiter1
+                 && it.key() < kNppStyleDelimiter1 + kMaxDelimiterSets) {
+            const int idx = it.key() - kNppStyleDelimiter1;
+            if (idx < def.delimiters.size())
+                nest = def.delimiters.at(idx).nesting;
+        }
+        if (nest != 0)
+            xml.writeAttribute(QStringLiteral("nesting"),
+                               QString::number(internalNestingToNpp(nest)));
         xml.writeEndElement();  // WordsStyle
     }
     xml.writeEndElement();  // Styles
