@@ -1,98 +1,104 @@
-# macpad++ — 建置說明
+# macpad++ — Build Guide
 
-單機原生桌面程式（**macOS / Windows**，Qt6 + QScintilla）。無後端、無網路、無資料庫。
-單一份原始碼，兩平台各自獨立建置（非交叉編譯）：CMake 依 `APPLE` / `WIN32` 自動分流。
+**English** · [繁體中文](BUILD.zh-TW.md)
 
----
-
-## 目錄
-
-| 你的平台 | 前往 |
-|----------|------|
-| 🍎 **macOS**（Apple Silicon / Intel） | [macOS 建置](#macos-建置) |
-| 🪟 **Windows**（10 / 11，MSVC） | [Windows 建置](#windows-建置) |
-
-- [平台總覽](#平台總覽) — 兩平台差異對照表
-- [macOS 建置](#macos-建置) — 相依 → 建置 → 執行 → 打包 → 疑難
-- [Windows 建置](#windows-建置) — 前置 → 取得 Qt → 建 QScintilla → 建置 → 執行 → 打包 → 疑難
-- [測試與效能基準](#測試與效能基準)
-- [實作範圍](#實作範圍)
+A standalone native desktop application (**macOS / Windows**, Qt6 + QScintilla). No backend, no
+network, no database. One source tree, built independently on each platform (not cross-compiled):
+CMake branches automatically on `APPLE` / `WIN32`.
 
 ---
 
-## 平台總覽
+## Contents
 
-| 項目 | 🍎 macOS | 🪟 Windows |
+| Your platform | Go to |
+|---------------|-------|
+| 🍎 **macOS** (Apple Silicon / Intel) | [macOS build](#macos-build) |
+| 🪟 **Windows** (10 / 11, MSVC) | [Windows build](#windows-build) |
+
+- [Platform overview](#platform-overview) — differences between the two platforms
+- [macOS build](#macos-build) — dependencies → build → run → package → troubleshooting
+- [Windows build](#windows-build) — prerequisites → get Qt → build QScintilla → build → run → package → troubleshooting
+- [Tests and benchmarks](#tests-and-benchmarks)
+- [Implementation scope](#implementation-scope)
+
+---
+
+## Platform overview
+
+| Item | 🍎 macOS | 🪟 Windows |
 |------|----------|-----------|
-| 編譯器 | clang（Xcode CLT） | MSVC（Visual Studio 2022） |
-| Qt / QScintilla 來源 | Homebrew | Qt 官方預編譯（aqt）＋ QScintilla 自原始碼建置 |
-| 產生器 | 預設（Makefile/Ninja） | Ninja |
-| 警告旗標 | `-Wall -Wextra -Werror` | `/W4 /WX /permissive-` |
-| 產出 | `macpad++.app`（bundle） | `macpad++.exe`（WIN32 GUI + 圖示） |
-| 執行期同梱 | macdeployqt | windeployqt（build 後就地同梱） |
-| 散佈包 | `.dmg`（`scripts/package_macos.sh`） | `.zip`（`scripts/package_windows.ps1`） |
+| Compiler | clang (Xcode CLT) | MSVC (Visual Studio 2022) |
+| Qt / QScintilla source | Homebrew | Official prebuilt Qt (aqt) + QScintilla built from source |
+| Generator | default (Makefile/Ninja) | Ninja |
+| Warning flags | `-Wall -Wextra -Werror` | `/W4 /WX /permissive-` |
+| Output | `macpad++.app` (bundle) | `macpad++.exe` (WIN32 GUI + icon) |
+| Runtime bundling | macdeployqt | windeployqt (staged in place after build) |
+| Distribution package | `.dmg` (`scripts/package_macos.sh`) | `.zip` (`scripts/package_windows.ps1`) |
 
-> 平台差異全部收斂於 `#ifdef Q_OS_*`（如 `src/platform/DesktopIntegration`）與 CMake 的
-> `if(APPLE)/elseif(WIN32)`；編輯器核心、搜尋、UDL 等業務邏輯兩平台完全共用。
+> All platform differences are confined to `#ifdef Q_OS_*` (e.g. `src/platform/DesktopIntegration`)
+> and CMake's `if(APPLE)/elseif(WIN32)`. The editor core, search, UDL and other business logic are
+> fully shared between platforms.
 
 ---
 
-## macOS 建置
+## macOS build
 
-前置：Xcode Command Line Tools（clang）、[Homebrew](https://brew.sh)。
+Prerequisites: Xcode Command Line Tools (clang), [Homebrew](https://brew.sh).
 
-### 1. 安裝相依
+### 1. Install dependencies
 
 ```bash
 brew install cmake qt qscintilla2
 ```
 
-> Qt6 下載較大（數百 MB～1GB+），首次安裝需一些時間。
+> Qt6 is a large download (several hundred MB to 1 GB+); the first install takes a while.
 
-### 2. 設定與建置
+### 2. Configure and build
 
 ```bash
 cmake -S . -B build -DCMAKE_PREFIX_PATH="$(brew --prefix qt)"
 cmake --build build -j
 ```
 
-### 3. 執行
+### 3. Run
 
 ```bash
 open build/src/macpad++.app
-# 或直接跑執行檔（可加開啟指定檔案 / 行號）：
+# or run the executable directly (optionally opening a file / line):
 ./build/src/macpad++.app/Contents/MacOS/macpad++ path/to/file.cpp
 ```
 
-### 4. 打包（DMG）
+### 4. Package (DMG)
 
 ```bash
-scripts/package_macos.sh 0.4.0            # 用主機架構
-scripts/package_macos.sh 0.4.0 arm64      # DMG 檔名帶架構後綴
-# 產出：dist/macpad++-0.4.0[-arm64].dmg（macdeployqt 同梱 Qt framework）
+scripts/package_macos.sh 0.6.0            # host architecture
+scripts/package_macos.sh 0.6.0 arm64      # architecture suffix in the DMG filename
+# produces: dist/macpad++-0.6.0[-arm64].dmg (macdeployqt bundles the Qt frameworks)
 ```
 
-> 未簽名散佈：使用者初次開啟需右鍵→開啟，或
-> `xattr -dr com.apple.quarantine /Applications/macpad++.app`。
+> Unsigned distribution: on first launch users must right-click → Open, or run
+> `xattr -dr com.apple.quarantine /Applications/macpad++.app`.
 
-### 5. macOS 疑難
+### 5. macOS troubleshooting
 
-- **找不到 QScintilla**：確認 `brew --prefix qscintilla2` 有輸出；或
-  `cmake -S . -B build -DQSCINTILLA_ROOT="$(brew --prefix qscintilla2)"`。
-- **找不到 Qt6**：加 `-DCMAKE_PREFIX_PATH="$(brew --prefix qt)"`。
-- **QScintilla 標頭找不到（`Qsci/...`）**：Homebrew 的 include 在
-  `$(brew --prefix qscintilla2)/include`，CMake 已自動加入。
+- **QScintilla not found:** check that `brew --prefix qscintilla2` produces output, or pass
+  `cmake -S . -B build -DQSCINTILLA_ROOT="$(brew --prefix qscintilla2)"`.
+- **Qt6 not found:** add `-DCMAKE_PREFIX_PATH="$(brew --prefix qt)"`.
+- **QScintilla headers not found (`Qsci/...`):** Homebrew's includes live in
+  `$(brew --prefix qscintilla2)/include`; CMake adds this automatically.
 
 ---
 
-## Windows 建置
+## Windows build
 
-前置：Visual Studio 2022（或 Build Tools，含 MSVC）、CMake ≥ 3.21、Ninja、Python 3（供取得 Qt）。
-以下 `cmd` 指令請在 **「x64 Native Tools Command Prompt for VS 2022」** 中執行（已載入 MSVC 環境）。
+Prerequisites: Visual Studio 2022 (or Build Tools, including MSVC), CMake ≥ 3.21, Ninja, Python 3
+(for fetching Qt). Run the `cmd` commands below in the **"x64 Native Tools Command Prompt for
+VS 2022"**, which has the MSVC environment loaded.
 
-### 1. 取得 Qt6（含 WebEngine 等模組）
+### 1. Get Qt6 (including WebEngine and other modules)
 
-以 [aqtinstall](https://github.com/miurahr/aqtinstall) 下載官方預編譯二進位（避免自行編譯 WebEngine/Chromium）：
+Use [aqtinstall](https://github.com/miurahr/aqtinstall) to download the official prebuilt binaries,
+avoiding a from-source build of WebEngine/Chromium:
 
 ```powershell
 python -m pip install aqtinstall
@@ -100,11 +106,11 @@ python -m aqt install-qt windows desktop 6.8.1 win64_msvc2022_64 `
     -m qt5compat qtwebengine qtwebchannel qtpositioning qtimageformats `
     --outputdir C:\Qt
 ```
-安裝後 Qt 前綴為 `C:\Qt\6.8.1\msvc2022_64`。
+After installation the Qt prefix is `C:\Qt\6.8.1\msvc2022_64`.
 
-### 2. 建置 QScintilla（對應 Qt6）
+### 2. Build QScintilla (against Qt6)
 
-QScintilla 無官方 Windows 二進位，以原始碼建置並安裝進 Qt 前綴：
+QScintilla has no official Windows binaries; build from source and install into the Qt prefix:
 
 ```cmd
 set PATH=C:\Qt\6.8.1\msvc2022_64\bin;%PATH%
@@ -113,9 +119,10 @@ tar -xzf qsci.tar.gz
 cd QScintilla_src-2.14.1\src
 qmake qscintilla.pro && nmake && nmake install
 ```
-（會把 `Qsci/*.h` 與 `qscintilla2_qt6.dll/.lib` 安裝進 Qt 前綴，CMake 會自動探測。）
+(This installs `Qsci/*.h` and `qscintilla2_qt6.dll/.lib` into the Qt prefix, where CMake finds them
+automatically.)
 
-### 3. 設定與建置
+### 3. Configure and build
 
 ```cmd
 cd <repo>
@@ -123,70 +130,84 @@ cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="C:\
 cmake --build build -j
 ```
 
-### 4. 執行
+### 4. Run
 
 ```cmd
-:: build 後已由 windeployqt 就地同梱 Qt/WebEngine/QScintilla DLL，可直接執行（免設 PATH）
+:: after the build, windeployqt has staged the Qt/WebEngine/QScintilla DLLs in place,
+:: so this runs directly with no PATH setup
 build\src\macpad++.exe
 ```
 
-> **就地同梱**：Windows build 會在 `build\src\` 以 `windeployqt` 放入所有 Qt 執行期 DLL、
-> `platforms\qwindows.dll`（必要）、WebEngine 元件與 `qscintilla2_qt6.dll`，故 `macpad++.exe`
-> 免設定 PATH 即可執行。首次部署 WebEngine 較耗時；快速迭代可用 `-DMACPAD_WINDEPLOY=OFF` 關閉。
+> **In-place bundling:** the Windows build runs `windeployqt` into `build\src\`, placing all Qt
+> runtime DLLs, `platforms\qwindows.dll` (required), the WebEngine components and
+> `qscintilla2_qt6.dll` there, so `macpad++.exe` runs without PATH configuration. The first
+> WebEngine deployment is slow; for fast iteration disable it with `-DMACPAD_WINDEPLOY=OFF`.
 
-### 5. 打包（免安裝 zip）
+### 5. Package (portable zip)
 
 ```powershell
-pwsh scripts/package_windows.ps1 -Version 0.4.0
-# 產出 dist\macpad++-0.4.0-x64.zip（windeployqt 同梱 Qt/WebEngine/QScintilla，於乾淨機器可執行）
+pwsh scripts/package_windows.ps1 -Version 0.6.0
+# produces dist\macpad++-0.6.0-x64.zip (windeployqt bundles Qt/WebEngine/QScintilla; runs on a clean machine)
 ```
 
-### 6. Windows 疑難
+### 6. Windows troubleshooting
 
-- **執行時找不到一堆 `Qt6*.dll`**：預設 `MACPAD_WINDEPLOY=ON` 會在 build 後就地同梱；
-  若曾以 `-DMACPAD_WINDEPLOY=OFF` 關閉，改回 ON 重建，或臨時把 Qt `bin` 加入 `PATH`。
-- **`could not find or load the Qt platform plugin "windows"`**：缺 `platforms\qwindows.dll`；
-  同上，讓 windeployqt 同梱即可。
-- **執行時找不到 `qscintilla2_qt6.dll`**：把 Qt 前綴的 `lib` 加入 `PATH`，或讓 windeployqt 同梱。
-- **LNK2001 `QsciScintilla::staticMetaObject`**：消費端未定義 `QSCINTILLA_DLL`（QScintilla 以
-  DLL 提供時需 `__declspec(dllimport)`）。本專案 CMake 已於 WIN32 自動加上。
-- **`SendScintilla` C2666 多載歧義**：MSVC 於 LLP64 下 `unsigned long`≠`uintptr_t`；本專案已將
-  相關 wParam 轉為 `quintptr`。
+- **A pile of missing `Qt6*.dll` at runtime:** the default `MACPAD_WINDEPLOY=ON` bundles them in
+  place after the build. If you disabled it with `-DMACPAD_WINDEPLOY=OFF`, turn it back on and
+  rebuild, or add Qt's `bin` to `PATH` temporarily.
+- **`could not find or load the Qt platform plugin "windows"`:** `platforms\qwindows.dll` is missing;
+  as above, let windeployqt bundle it.
+- **`qscintilla2_qt6.dll` not found at runtime:** add the Qt prefix's `lib` to `PATH`, or let
+  windeployqt bundle it.
+- **LNK2001 `QsciScintilla::staticMetaObject`:** the consumer did not define `QSCINTILLA_DLL`
+  (`__declspec(dllimport)` is required when QScintilla is provided as a DLL). This project's CMake
+  adds it automatically on WIN32.
+- **`SendScintilla` C2666 overload ambiguity:** under MSVC's LLP64, `unsigned long` ≠ `uintptr_t`;
+  this project casts the affected `wParam` values to `quintptr`.
 
 ---
 
-## 測試與效能基準
+## Tests and benchmarks
 
-單元測試以 QtTest 撰寫，連結核心邏輯（NFR-008）；共 37 套件。
+Unit tests are written with QtTest and link against the core logic (NFR-008); **47 suites**.
 
-**macOS**：
+**macOS:**
 ```bash
 ctest --test-dir build --output-on-failure
-QT_QPA_PLATFORM=offscreen ./build/tests/bench_largefile 100   # 大檔案效能基準
+QT_QPA_PLATFORM=offscreen ./build/tests/bench_largefile 100   # large-file benchmark
 ```
 
-**Windows**（測試可執行檔未就地同梱，需臨時把 Qt bin/lib 加入 PATH）：
+**Windows** (test executables are not staged with DLLs, so add Qt's bin/lib to PATH first):
 ```cmd
 set PATH=C:\Qt\6.8.1\msvc2022_64\bin;C:\Qt\6.8.1\msvc2022_64\lib;%PATH%
 ctest --test-dir build --output-on-failure
 ```
 
-實測效能：開 100 MB ≈ 120 ms；10 MB 正則取代 15 萬處 ≈ 52 ms（均遠優於門檻）。
-核心邏輯以 clang source-based coverage 量測，功能範圍行覆蓋率約 90%（排除純 UI）。
+Measured performance: opening 100 MB ≈ 120 ms; a regex replace of 150,000 occurrences in 10 MB
+≈ 52 ms (both far inside the thresholds). Core logic is measured with clang source-based coverage
+at roughly 90% line coverage over the functional scope (excluding pure UI).
 
 ---
 
-## 實作範圍
+## Implementation scope
 
-SRS 全部 FR 已實作（詳見 `specs/approved/TestReport_20260707.md`）：
+Every FR in the SRS is implemented (see `specs/approved/TestReport_20260707.md`):
 
-**v1 核心**：多分頁（拖曳/關閉/未存確認/**標色/唯讀鎖定**）、**分割視窗**、語法高亮（10 語言）、
-**多游標（⌘/Ctrl+Click）**、**欄位選取（⌥/Alt+拖曳）**、折疊、括號配對、書籤、搜尋取代+regex、
-開存/另存（原子寫入）、自動儲存、編碼偵測+EOL、**Session 還原**、最近檔案、外部檔案監控、
-**深色模式跟隨系統**、狀態列、Zoom/全螢幕、平台慣例快捷鍵、擴充協定+dogfood。
+**v1 core:** tabs (drag / close / unsaved confirmation / **colouring / read-only locking**),
+**split window**, syntax highlighting, **multi-cursor (⌘/Ctrl+Click)**, **column selection
+(⌥/Alt+drag)**, folding, brace matching, bookmarks, search & replace with regex, open/save/save-as
+(atomic writes), autosave, encoding detection + EOL, **session restore**, recent files, external
+file monitoring, **dark mode following the system**, status bar, zoom / full screen,
+platform-conventional shortcuts, extension protocol + dogfooding.
 
-**v2 進階**：**Find in Files**（背景/可取消）、**Mark All + 增量搜尋**、Document List、
-自動完成、**巨集錄製/播放**、**Function List / Document Map / Clipboard History** 面板、
-**Folder as Workspace**、**Run 外部指令**、**UDL 自訂語言**、命令列 `file:line`、**單一/多執行個體**。
+**v2 advanced:** **Find in Files** (background, cancellable), **Mark All + incremental search**,
+Document List, autocompletion, **macro record/playback**, **Function List / Document Map /
+Clipboard History** panels, **Folder as Workspace**, **Run external command**, **UDL custom
+languages**, command-line `file:line`, **single/multi-instance**.
 
-**v3**：**列印**（保留語法高亮）+ **HTML 匯出**、**Plugin Manager**、多視窗。
+**v3:** **printing** (syntax highlighting preserved) + **HTML export**, **Plugin Manager**,
+multiple windows.
+
+**v0.6.0 (parity with Notepad++ v8.9.7):** 128 languages, Function List rules for 45 languages,
+pinned tabs and a multi-row tab bar, the Windows… document manager dialog, RTF export, FormFeed
+page breaks, update checking. See [`docs/parity.md`](docs/parity.md) for the full comparison.

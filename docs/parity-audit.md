@@ -1,128 +1,182 @@
-# macpad++ ↔ Notepad++ 對等性稽核（Parity Audit）
+# macpad++ ↔ Notepad++ Parity Audit
 
-> **日期**：2026-07-08（Sprint 5 實作後之最終複核）　**方法**：8 個 Sonnet agent 平行對照 [npp-user-manual.org](https://npp-user-manual.org/)，逐項驗證**現況原始碼**（VERIFY，非假設）後分類，1 個 agent 綜整判定。
-> 前兩版基線（A0 稽核前 full 31%、A1 Sprint 1–3 後 full 57%）保留於下方比較表。
+**English** · [繁體中文](parity-audit.zh-TW.md)
 
----
-
-## 📌 雙平台重新認定（2026-07-29 追記，v0.5.2 之後）
-
-**背景**：本文件（含下方所有 `na_macos` 判定）是在專案**僅支援 macOS** 時寫的。v0.5.0–v0.5.2 起
-macpad++ 已同時發行 **macOS 與 Windows 10/11**，因此「macOS 做不到」不再是充分的排除理由——
-排除的門檻改為「**兩個平台都難以實現**」。以 Sonnet 研究 agent 逐項重新認定的結果如下。
-
-### ⚠️ 原判定有誤：這些從來就不是平台限制（已於本輪實作）
-
-| 項目 | 原判定 | 更正後事實 | 狀態 |
-|------|--------|-----------|------|
-| **檔案唯讀屬性** | `na_macos` | `QFileInfo::isWritable()` / `QFile::setPermissions()` **本來就跨平台**（Windows 對應 `FILE_ATTRIBUTE_READONLY`、POSIX 對應寫入位元）。原本只是漏呼叫 Qt API，程式中所有 read-only 都只是 app 內旗標 | ✅ 已實作雙平台 + Edit ▸ Clear Read-Only Flag |
-| **系統匣** | `na_macos` | `QSystemTrayIcon` **在 macOS 亦支援**（顯示於選單列狀態區），單一實作即涵蓋兩平台、無需 `#ifdef` | ✅ 已實作，`-systemtray` 由「僅吞噬」改為真旗標 |
-
-### 排除理由需更正（結論仍是排除，但原因寫錯）
-
-| 項目 | 原寫法 | 正確理由 |
-|------|--------|---------|
-| **DirectWrite** | 「macOS 不可能」 | Qt6 Windows QPA **本來就已使用 DirectWrite**；Notepad++ 暴露的是 GDI/DirectWrite 切換開關，Qt6 未提供對應旋鈕，**Windows 上同樣做不到**。非 macOS 專屬限制 |
-| **tabBarMultiLine** | 「平台限制」 | 這是 **Qt widget 工具組限制**，`QTabBar` 在 **Windows 上一樣沒有**原生多列換行。與作業系統無關；要做就得自寫多列 tab widget（兩平台成本相同） |
-| **autoUpdater** | 「平台限制」 | **產品決策**（刻意不做連網自我更新），非技術限制。兩平台技術上皆可行。支援 Windows 不改變此結論 |
-
-### 仍為真排除
-
-- **Notepad++ `.dll` 外掛 ABI**：Windows 技術上可 `LoadLibrary` 載入，但那等同重寫 Notepad++ 內部
-  Win32 訊息介面、且與本專案「自建 in-process 擴充協定」的架構決策相衝突；macOS 則絕無可能。
-  風險極高、部分相容比不相容更糟 → 維持排除。
-
-### 📌 本文件的已知瑕疵
-
-下方「平台豁免（na_macos，6 項）」宣稱 6 項，但正文只具名 5 項（DLL 外掛 ABI、登錄檔關聯、
-檔案唯讀屬性、系統匣、DirectWrite），**第 6 項從未在任何段落被指名**。依 IL-1（禁臆測）
-不擅自補全，僅在此標記為文件缺陷待釐清。
+> **Date**: 2026-07-08 (final review after the Sprint 5 implementation) **Method**: 8 Sonnet agents in
+> parallel compared against [npp-user-manual.org](https://npp-user-manual.org/), verifying each item
+> against the **current source code** (VERIFY, not assume) before classifying it; 1 agent synthesised
+> the verdict.
+> The two previous baselines (A0 pre-audit full 31%, A1 after Sprints 1–3 full 57%) are retained in the
+> comparison table below.
 
 ---
 
-## 📌 後續收斂（Sprint 6→7.1，2026-07-08 追記）
+## 📌 Dual-platform re-assessment (added 2026-07-29, after v0.5.2)
 
-本稽核當時列出的 **27 項 missing + 41 項 partial**，其中**可實作者已於 Sprint 6、7、7.1 全數收斂**。
-以下為收斂結果總覽，下方原始稽核表格與清單**保留作為歷史基線**，不再回填修改（IL-2 契約不可篡改精神）。
+**Background**: this document — including every `na_macos` classification below — was written when the
+project **supported macOS only**. Since v0.5.0–v0.5.2 macpad++ ships for **both macOS and Windows
+10/11**, so "macOS cannot do it" is no longer a sufficient reason to exclude something; the bar became
+"**neither platform can reasonably do it**". The item-by-item re-assessment by a Sonnet research agent
+follows.
 
-### 已關閉的重大缺口（headline closures）
+### ⚠️ The original classification was wrong: these were never platform limitations (implemented in that round)
 
-- **Project Panel + Find in Projects**（本稽核唯一「地基性」缺口）：新增 `ProjectPanelDock` + `ProjectStore`，
-  搭配 `FindInFilesEngine::searchInFiles` 對專案檔清單非阻塞搜尋 —— 補齊稽核中明確標記「無 Project Panel
-  概念，整體缺席」的項目。
-- **Preferences 全 13 分類 + 真實 runtime 消費**：Toolbar/Tab Bar/Margins·Border·Edge/Default Directory/
-  Recent Files History/Language 逐語言啟停/Indentation 逐語言 tab/Multi-Instance and Date/Delimiter/MISC
-  等全部補上，且每個新增偏好都有對應的實際生效路徑（非僅存值不生效）。
-- **UDL XML 匯入匯出 + Prefix Mode**：新增 `UdlXmlIo` 相容 Notepad++ `userDefineLang.xml` 格式；關鍵字比對
-  新增 startsWith 前綴模式。
-- **Function List 可設定解析規則**：新增 `FunctionListConfig` + overrideMap，解析規則不再硬編於 C++。
-- **Macro 管理對話框 + Run 命令快捷鍵**：新增 `MacroManagerDialog`（Modify Shortcut/Delete/Rename）與
-  `RunCommandStore`（已存命令可綁快捷鍵）。
-- **Character Panel HTML 三欄位**：擴充為 6 欄（新增 HTML Name/Decimal/Hex），並支援雙擊插入各表示法。
-- **Workspace 檔案管理右鍵選單**：補上 New File/Folder、Rename、Delete、Copy Path/Name、Open Terminal Here
-  等操作（稽核當時僅有 Add Folder/Remove Root/Find in This Folder/Reveal in Finder）。
-- **編輯器手動補全 / 手動 call tip**：Ctrl+Space、Ctrl+Return（手動補全觸發）與 Ctrl+Shift+Space（手動 call
-  tip 觸發）皆已補上，稽核中標記為死碼的 `ApiDatabase::callTipFor` 也已接線。
-- **Style Configurator 全域覆寫 + 主題下拉**：新增一鍵套用單一背景/前景至所有語言的全域覆寫，以及對話框內
-  「Select theme:」主題下拉；Global Styles 剩餘欄位（badBrace、foldActive、change-history margins、
-  urlHovered 等）也全數接上真實 Scintilla 訊息。
-- **Sprint 7.1 收尾的最後 5 個「存而未用」偏好**：`ctrlDoubleClickWholeWord`（Ctrl/⌘+雙擊選整字）、
-  `docPeekerEnabled`（文件清單 hover 預覽前 ~15 行）、`foldMarginStyle`（折疊標記樣式映射）、
-  `multiEdgeEnabled`（多重垂直邊界線）、`highlightMatchingTags`（HTML/XML 標籤配對高亮）—— 全部從
-  「已持久化但未消費」變為有真實 runtime 效果。
+| Item | Original classification | Corrected fact | Status |
+|------|------------------------|----------------|--------|
+| **Read-only file attribute** | `na_macos` | `QFileInfo::isWritable()` / `QFile::setPermissions()` **were always cross-platform** (mapping to `FILE_ATTRIBUTE_READONLY` on Windows and the write bit on POSIX). The Qt API simply was never called; every read-only state in the program was merely an in-app flag | ✅ Implemented on both platforms + Edit ▸ Clear Read-Only Flag |
+| **System tray** | `na_macos` | `QSystemTrayIcon` **is supported on macOS too** (shown in the menu bar status area); one implementation covers both platforms with no `#ifdef` needed | ✅ Implemented; `-systemtray` went from "silently swallowed" to a real flag |
 
-### 現況：僅剩兩項平台本質限制未實作
+### Exclusion reasons needing correction (still excluded, but the reason was wrong)
 
-除上述收斂外，本稽核清單中其餘可實作的 partial/missing 項目（CLI 旗標、搜尋選項記憶、Column Editor
-repeat/text 模式、Split View 旋轉、codepoint 範圍搜尋等）亦已在 Sprint 6/7/7.1 陸續補齊。**目前唯二仍未實作
-的項目，皆為 macOS 平台本質限制，非投入不足**：
+| Item | Original wording | Correct reason |
+|------|------------------|----------------|
+| **DirectWrite** | "impossible on macOS" | Qt6's Windows QPA **already uses DirectWrite**; what Notepad++ exposes is a GDI/DirectWrite toggle, and Qt6 offers no corresponding knob, so it **cannot be done on Windows either**. Not a macOS-specific limitation |
+| **tabBarMultiLine** | "platform limitation" | This is a **Qt widget toolkit limitation**: `QTabBar` has no native multi-row wrapping **on Windows either**. Nothing to do with the operating system; implementing it means writing a multi-row tab widget by hand (equal cost on both platforms) |
+| **autoUpdater** | "platform limitation" | A **product decision** (deliberately not doing networked self-update), not a technical limitation. Technically feasible on both platforms. Supporting Windows does not change this |
 
-1. **autoUpdater** —— 依設計不做連網自動更新（非技術限制，是刻意的架構決策）。
-2. **tabBarMultiLine** —— Qt `QTabBar` 無原生多列換行機制，已 best-effort 以捲動按鈕近似。
+### Genuinely still excluded
 
-加上原本即屬平台不可能的 **na_macos**（Windows `.dll` 外掛 ABI、登錄檔關聯等）—— macpad++ 改以自建的
-in-process 擴充協定取代，非缺失。
+- **Notepad++ `.dll` plugin ABI**: on Windows it could technically be loaded with `LoadLibrary`, but
+  that amounts to reimplementing Notepad++'s internal Win32 message interface and conflicts with this
+  project's architectural decision to build its own in-process extension protocol; on macOS it is
+  simply impossible. Very high risk, and partial compatibility is worse than none → remains excluded.
 
-**誠實定位**：這不代表「100%/完美複製品」——上述兩項平台限制與 na_macos 項目確實不存在於 macpad++
-中，且逐選項像素級比對仍可能發現細節落差。但就**結構性、功能性缺口**而言，本稽核當時列出的可實作項目
-已全數關閉；殘餘缺口的性質已從「待投入的功能落差」收斂為「平台能力邊界」。
+### 📌 Known defect in this document
 
-詳細 Sprint 對照見 `sprint/current/status.md` Sprint 6 / Sprint 7 / Sprint 7.1 條目。
+The "Platform exemptions (na_macos, 6 items)" section below claims 6 items, but the body names only 5
+(DLL plugin ABI, registry associations, read-only file attribute, system tray, DirectWrite); **the
+sixth is never named in any paragraph**. Per IL-1 (no speculation) it is not filled in here, merely
+flagged as a documentation defect to be clarified.
 
 ---
 
-## 歷史基線（Sprint 5 後、Sprint 6 之前）
+## 📌 Follow-up (added 2026-07-30, v0.6.0)
 
-> 以下表格與清單為 Sprint 5 實作後的原始稽核結果，**保留作為歷史基線**，不隨後續 Sprint 回填修改。
+The **tabBarMultiLine** and **autoUpdater** items above have since been implemented, so the
+"only two remaining limitations" statement in the historical section below is no longer current:
+
+- **tabBarMultiLine** — implemented by writing `ui/MultiRowTabBar`, a `QTabBar` subclass that takes
+  over painting and hit-testing to wrap tabs across genuine rows, replacing the earlier
+  scroll-button approximation.
+- **autoUpdater** — "Check for Updates" now queries GitHub Releases, compares versions and directs to
+  the download page; the check-at-startup preference genuinely takes effect. Only silent
+  self-overwriting remains deliberately unimplemented (a product decision).
+
+For the current state, see [`docs/parity.md`](parity.md).
 
 ---
 
-## 裁定（Verdict）
+## 📌 Follow-up convergence (Sprint 6→7.1, added 2026-07-08)
 
-**日常可完全替代 Notepad++ 的成熟階段，但尚未達逐選項像素級的「完美複製品」。** 本輪重新逐項驗證的 8 大功能區、共 204 項功能點中，完整對等（full）**130（63.7%）**、部分（partial）**41（20%）**、缺少（missing）**27（13.2%）**、平台豁免（na_macos）**6（2.9%）**。
+Of the **27 missing + 41 partial** items this audit listed, **everything implementable was closed
+during Sprints 6, 7 and 7.1**. An overview of that convergence follows; the original audit tables and
+lists below are **retained as a historical baseline** and are not back-filled (in the spirit of IL-2,
+contracts are immutable).
 
-**未發現任何地基性（pillar-level）功能整體空白** —— 所有 27 項 missing 都是既有骨架之上的加值選項或長尾旗標，唯一例外是 Find in Projects（因無 Project Panel 概念整體缺席，需另建面板）。
+### Headline closures
 
-## 與歷史稽核比較
+- **Project Panel + Find in Projects** (the only "foundational" gap in this audit): added
+  `ProjectPanelDock` + `ProjectStore`, with `FindInFilesEngine::searchInFiles` searching the project
+  file list without blocking — closing the item the audit explicitly marked as "no Project Panel
+  concept, entirely absent".
+- **All 13 Preferences categories + real runtime consumption**: Toolbar / Tab Bar / Margins·Border·Edge
+  / Default Directory / Recent Files History / per-language enable / per-language indentation /
+  Multi-Instance and Date / Delimiter / MISC and the rest were all added, each new preference wired to
+  a path where it actually takes effect (not merely stored).
+- **UDL XML import/export + Prefix Mode**: added `UdlXmlIo`, compatible with Notepad++'s
+  `userDefineLang.xml` format; keyword matching gained a startsWith prefix mode.
+- **Configurable Function List parsing rules**: added `FunctionListConfig` + overrideMap, so parsing
+  rules are no longer hard-coded in C++.
+- **Macro management dialog + Run command shortcuts**: added `MacroManagerDialog` (Modify Shortcut /
+  Delete / Rename) and `RunCommandStore` (saved commands can be bound to shortcuts).
+- **Character Panel HTML columns**: expanded to 6 columns (adding HTML Name / Decimal / Hex), each
+  representation insertable by double-click.
+- **Workspace file management context menu**: added New File/Folder, Rename, Delete, Copy Path/Name,
+  Open Terminal Here and more (at audit time there was only Add Folder / Remove Root / Find in This
+  Folder / Reveal in Finder).
+- **Editor manual completion / manual call tip**: Ctrl+Space, Ctrl+Return (manual completion) and
+  Ctrl+Shift+Space (manual call tip) were all added, and `ApiDatabase::callTipFor` — flagged as dead
+  code in the audit — is now wired up.
+- **Style Configurator global override + theme dropdown**: added a one-click global override applying a
+  single background/foreground to every language, plus a "Select theme:" dropdown inside the dialog;
+  the remaining Global Styles fields (badBrace, foldActive, change-history margins, urlHovered, …) are
+  all wired to real Scintilla messages.
+- **The last 5 "stored but unused" preferences, closed in Sprint 7.1**:
+  `ctrlDoubleClickWholeWord` (Ctrl/⌘+double-click selects a whole word), `docPeekerEnabled` (document
+  list hover preview of the first ~15 lines), `foldMarginStyle` (fold marker style mapping),
+  `multiEdgeEnabled` (multiple vertical edge guides) and `highlightMatchingTags` (HTML/XML tag pair
+  highlighting) — all went from "persisted but unconsumed" to having real runtime effect.
 
-| 稽核輪次 | ✅ full | 分母 | full 達成率 |
+### State at the time: only two essential platform limitations left
+
+> ⚠️ Superseded — see the 2026-07-30 follow-up above; both have since been implemented.
+
+Besides the convergence above, the remaining implementable partial/missing items from this audit's list
+(CLI flags, search option memory, Column Editor repeat/text mode, Split View rotation, codepoint range
+search, …) were also completed across Sprints 6/7/7.1. **The only two items still unimplemented at that
+point were both essential macOS platform limitations rather than a lack of effort**:
+
+1. **autoUpdater** — by design, no networked automatic update (not a technical limitation, a deliberate
+   architectural decision).
+2. **tabBarMultiLine** — Qt's `QTabBar` has no native multi-row wrapping; approximated best-effort with
+   scroll buttons.
+
+Plus the inherently impossible **na_macos** items (the Windows `.dll` plugin ABI, registry
+associations, …) — macpad++ replaces these with its own in-process extension protocol, so they are not
+shortfalls.
+
+**Honest positioning**: this does not amount to a "100% perfect clone" — the two platform limitations
+and the na_macos items genuinely do not exist in macpad++, and an option-by-option pixel-level
+comparison could still surface detail differences. But in terms of **structural and functional gaps**,
+every implementable item this audit listed has been closed; the residual gaps converged from "feature
+shortfalls awaiting effort" to "the boundary of platform capability".
+
+Sprint-by-sprint detail is in the Sprint 6 / Sprint 7 / Sprint 7.1 entries of
+`sprint/current/status.md`.
+
+---
+
+## Historical baseline (after Sprint 5, before Sprint 6)
+
+> The tables and lists below are the original audit results after the Sprint 5 implementation,
+> **retained as a historical baseline** and not back-filled by later sprints.
+
+---
+
+## Verdict
+
+**Mature enough to fully replace Notepad++ day to day, but not yet an option-by-option pixel-perfect
+clone.** Across the 8 functional areas re-verified in this round — 204 feature points in total — full
+parity covers **130 (63.7%)**, partial **41 (20%)**, missing **27 (13.2%)**, platform-exempt
+(na_macos) **6 (2.9%)**.
+
+**No pillar-level functionality was found to be wholly absent** — all 27 missing items are value-add
+options or long-tail flags on top of existing scaffolding, the sole exception being Find in Projects
+(entirely absent for want of a Project Panel concept, requiring a new panel).
+
+## Comparison with previous audits
+
+| Audit round | ✅ full | Denominator | full rate |
 |---|---|---|---|
-| A0（Sprint 0 基線，稽核前） | 81 | 264 | 31% |
-| A1（Sprint 1–3 後） | 138 | 242 | 57% |
-| **本輪（Sprint 5 後，8 區塊）** | **130** | **204** | **63.7%** |
+| A0 (Sprint 0 baseline, pre-audit) | 81 | 264 | 31% |
+| A1 (after Sprints 1–3) | 138 | 242 | 57% |
+| **This round (after Sprint 5, 8 areas)** | **130** | **204** | **63.7%** |
 
-- full only：130 / 204 = **63.7%**
-- full + na_macos：136 / 204 = **66.7%**
-- full + partial + na_macos：177 / 204 = **86.8%**
-- missing（完全未做）：27 / 204 = 13.2%
+- full only: 130 / 204 = **63.7%**
+- full + na_macos: 136 / 204 = **66.7%**
+- full + partial + na_macos: 177 / 204 = **86.8%**
+- missing (not done at all): 27 / 204 = 13.2%
 
-> ⚠️ **口徑提醒**：A0/A1 是對整個應用程式的全量盤點，本輪僅對 8 個功能區重新逐項驗證，分母 204 ≠ 全應用項目數，百分比不可直接視為線性進步；但就這 8 區塊而言，覆蓋率確實較 A1 整體 57% 進一步提升。
+> ⚠️ **A note on the denominators**: A0/A1 were full inventories of the whole application, whereas this
+> round re-verified only 8 functional areas, so 204 ≠ the application's total item count and the
+> percentages are not directly comparable as linear progress. For these 8 areas, though, coverage did
+> improve beyond A1's overall 57%.
 
 ---
 
-## 各功能區覆蓋率
+## Coverage by functional area
 
-| 功能區 | 項目數 | full | partial | missing | na | full % | full+partial+na % |
+| Area | Items | full | partial | missing | na | full % | full+partial+na % |
 |---|---|---|---|---|---|---|---|
 | Editing / Multi-editing / Column mode | 49 | 33 | 8 | 4 | 4 | 67.3% | 91.8% |
 | Searching | 22 | 15 | 4 | 3 | 0 | 68.2% | 86.4% |
@@ -132,88 +186,139 @@ in-process 擴充協定取代，非缺失。
 | Encoding / EOL / Session / Backup | 19 | 12 | 3 | 3 | 1 | 63.2% | 84.2% |
 | UDL / Style Configurator / Themes | 28 | 12 | 10 | 6 | 0 | 42.9% | 78.6% |
 | Macros / Run / CLI / Preferences / Shortcut / Plugins / MIME | 43 | 31 | 7 | 4 | 1 | 72.1% | 90.7% |
-| **合計** | **204** | **130** | **41** | **27** | **6** | **63.7%** | **86.8%** |
+| **Total** | **204** | **130** | **41** | **27** | **6** | **63.7%** | **86.8%** |
 
-最弱區塊：**UDL / Style Configurator / Themes（42.9% full）** —— 本輪最集中的缺口來源。最強區塊：**Macros / Run / CLI / Preferences / Shortcut / Plugins / MIME（72.1% full）**。
+Weakest area: **UDL / Style Configurator / Themes (42.9% full)** — the densest source of gaps this
+round. Strongest area: **Macros / Run / CLI / Preferences / Shortcut / Plugins / MIME (72.1% full)**.
 
 ---
 
-## ❌ 缺少（Missing，27 項）
+## ❌ Missing (27 items)
 
-### 編輯 & 多選 & 欄位
-- **Column Editor — 重複次數（repeat count）欄位**：ColumnEditorDialog 僅有 Initial number / Increase by / Base / Leading zeros，無 repeat-count spinbox。
-- **Undo the Latest Added Multi-Select**：無獨立「撤銷最後一次多選」命令（僅 skipAndSelectNext 內部有 drop-last，未暴露為命令）。
-- **「Enable Column Selection to Multi-Editing」偏好（v8.6.3+）**：無控制矩形選取是否轉為多游標的開關。
-- **Blank Operations ▸「Trim Both and EOL to Space」合併命令**：現為分開的兩個動作，無單一合併項。
+### Editing & multi-select & column mode
+- **Column Editor — repeat count field**: ColumnEditorDialog has only Initial number / Increase by /
+  Base / Leading zeros, with no repeat-count spinbox.
+- **Undo the Latest Added Multi-Select**: no dedicated "undo the last multi-select" command (only an
+  internal drop-last inside skipAndSelectNext, not exposed as a command).
+- **"Enable Column Selection to Multi-Editing" preference (v8.6.3+)**: no switch controlling whether a
+  rectangular selection converts to multiple cursors.
+- **Blank Operations ▸ combined "Trim Both and EOL to Space" command**: currently two separate actions
+  with no single combined item.
 
-### 搜尋
-- **Find in Projects 分頁**（搜尋 Project Panel 檔案）：無 Project Panel 概念，整體缺席。
-- **依字元碼位範圍搜尋**（codepoint range）：完全缺席。
-- **Find/Replace 選項跨 session 記憶**：核取方塊每次以固定預設初始化，無 QSettings 存還原。
+### Searching
+- **Find in Projects tab** (searching Project Panel files): no Project Panel concept, entirely absent.
+- **Search by character codepoint range**: entirely absent.
+- **Find/Replace options remembered across sessions**: the checkboxes initialise to fixed defaults each
+  time, with no QSettings save/restore.
 
-### 剪貼簿 / 字元面板
-- **Character Panel 編碼感知顯示**（ANSI/Unicode 依檔案編碼變動 128–255 對照）：固定 QChar(0..255)，不隨編碼變。
+### Clipboard / Character Panel
+- **Encoding-aware Character Panel display** (ANSI/Unicode varying the 128–255 mapping by file
+  encoding): fixed at QChar(0..255), not varying with encoding.
 
-### 自動完成 / Function List
-- **手動 call tip 觸發（Ctrl+Shift+Space）**：僅在鍵入 `(` 自動觸發。
-- **手動補全觸發（Ctrl+Space / Ctrl+Enter）**：無低於門檻的強制觸發（僅 Ctrl+Alt+Space 供路徑補全）。
-- **Function List 使用者自訂解析規則**（functionList/*.xml、overrideMap.xml）：解析規則硬編於 C++，不可外部設定。
+### Auto-completion / Function List
+- **Manual call tip trigger (Ctrl+Shift+Space)**: only auto-triggers on typing `(`.
+- **Manual completion trigger (Ctrl+Space / Ctrl+Enter)**: no forced trigger below the threshold (only
+  Ctrl+Alt+Space for path completion).
+- **User-defined Function List parsing rules** (functionList/*.xml, overrideMap.xml): parsing rules are
+  hard-coded in C++ and cannot be configured externally.
 
 ### Document Map / Workspace / Views
-- **Workspace 檔案管理操作**（New File/Folder、Rename、Delete、Copy Path/Name、Run by System）：右鍵選單僅有 Add Folder / Remove Root / Find in This Folder / Reveal in Finder。
-- **Workspace 檔案過濾器**（include/exclude 樣式）：資料夾樹無過濾 UI/狀態。
-- **Split View 旋轉方向**（並排↔堆疊，分隔線右鍵 4 向旋轉）：QSplitter 固定 Horizontal，無 setOrientation。
+- **Workspace file management operations** (New File/Folder, Rename, Delete, Copy Path/Name, Run by
+  System): the context menu has only Add Folder / Remove Root / Find in This Folder / Reveal in Finder.
+- **Workspace file filters** (include/exclude patterns): the folder tree has no filter UI or state.
+- **Split View rotation** (side-by-side ↔ stacked, 4-way rotation from the splitter context menu):
+  QSplitter is fixed Horizontal with no setOrientation.
 
-### 編碼 / EOL / Session / Backup
-- **CLI `-openSession` 旗標**（啟動時載入 session 檔）：無此旗標。
-- **可自訂副檔名自動以 session 開啟**（MISC 偏好）：未實作。
-- **記住上次 session 不可存取檔案**（v8.6+，唯讀佔位分頁）：未實作。
+### Encoding / EOL / Session / Backup
+- **CLI `-openSession` flag** (load a session file at startup): flag absent.
+- **Custom extensions opened as sessions automatically** (MISC preference): not implemented.
+- **Remember inaccessible files from the last session** (v8.6+, read-only placeholder tabs): not
+  implemented.
 
 ### UDL / Style Configurator / Themes
-- **UDL Dock/Undock + 對話框透明度滑桿**：UdlEditorDialog 為純 QDialog，無 dock/透明度。
-- **UDL Prefix Mode**（關鍵字前綴匹配）：僅精確/大小寫不敏感相等比對，無 startsWith。
-- **Style Configurator 對話框內的主題下拉選單**：主題選擇獨立於 ThemePickerDialog，Style Configurator 內無「Select theme:」下拉。
-- **Style Configurator 每樣式使用者關鍵字欄**：無法從 Style Configurator 編輯內建 lexer 關鍵字清單。
-- **Style Configurator Global Styles 10 項專屬項目**：brace highlight、bad brace、edge colour、bookmark margin、fold margin、fold active、獨立 caret colour、change-history margins、mark colours、URL-hovered 均無專屬 override。
-- **Style Configurator 全域覆寫**（enable global bg/fg 核取）：無一鍵套用單一背景/前景至所有語言。
+- **UDL Dock/Undock + dialog transparency slider**: UdlEditorDialog is a plain QDialog with no
+  dock/transparency.
+- **UDL Prefix Mode** (keyword prefix matching): only exact / case-insensitive equality, no startsWith.
+- **Theme dropdown inside the Style Configurator dialog**: theme selection lives in a separate
+  ThemePickerDialog; the Style Configurator has no "Select theme:" dropdown.
+- **Per-style user keyword field in the Style Configurator**: built-in lexer keyword lists cannot be
+  edited from the Style Configurator.
+- **The 10 dedicated Global Styles items in the Style Configurator**: brace highlight, bad brace, edge
+  colour, bookmark margin, fold margin, fold active, separate caret colour, change-history margins,
+  mark colours and URL-hovered all lack dedicated overrides.
+- **Style Configurator global override** (enable global bg/fg checkboxes): no one-click application of a
+  single background/foreground to every language.
 
 ### Macros / Run / CLI / Preferences / Shortcut / Plugins / MIME
-- **Macro：Modify Shortcut / Delete Macro 對話框**：無法刪除已存巨集或改綁快捷鍵。
-- **Run：每個已存命令可綁快捷鍵**：Saved Commands 僅存 name→command，無 shortcut 欄。
-- **CLI ~16 個旗標**：-noPlugin、-udl=、-L<lang>、-x/-y、-monitor、-notabbar、-fullReadOnly(SavingForbidden)、-systemtray、-loadingTime、-openSession、-openFoldersAsWorkspace、ghost-typing -qn/-qt/-qf/-qSpeed、-settingsDir、-pluginMessage、-notepadStyleCmdline、-z。
-- **Preferences ~13 個分類**：Toolbar、Tab Bar、Margins/Border/Edge、Default Directory、Recent Files History、File Association、Language（逐語言啟停）、Indentation（逐語言 tab）、Print、Multi-Instance and Date、Delimiter、Cloud & Link、MISC。
+- **Macro: Modify Shortcut / Delete Macro dialogs**: saved macros cannot be deleted or rebound.
+- **Run: per-saved-command shortcut binding**: Saved Commands stores only name→command, with no
+  shortcut field.
+- **~16 CLI flags**: -noPlugin, -udl=, -L<lang>, -x/-y, -monitor, -notabbar,
+  -fullReadOnly(SavingForbidden), -systemtray, -loadingTime, -openSession, -openFoldersAsWorkspace,
+  ghost-typing -qn/-qt/-qf/-qSpeed, -settingsDir, -pluginMessage, -notepadStyleCmdline, -z.
+- **~13 Preferences categories**: Toolbar, Tab Bar, Margins/Border/Edge, Default Directory, Recent Files
+  History, File Association, Language (per-language enable), Indentation (per-language tab), Print,
+  Multi-Instance and Date, Delimiter, Cloud & Link, MISC.
 
 ---
 
-## 🟡 部分（Partial，41 項，摘要）
+## 🟡 Partial (41 items, summarised)
 
-- **編輯/欄位**：Column Editor Text 插入模式（後端 insertTextColumn 存在但未接線）；Multi-Select All/Next 的 4 種 match-case/whole-word 變體（僅硬編大小寫敏感）；Character Panel 僅 3 欄（缺 HTML Name/Decimal/Hex 3 欄）；Insert Date/Time 僅單一 ISO 格式（缺 short/long/custom）；Paste Special 僅 Plain Text（缺 HTML/RTF）；Read-Only 僅 app 內旗標（無 OS 檔案屬性）。
-- **搜尋**：Find (Volatile) 僅對話框按鈕（無 Ctrl+Alt+F3 全域鍵）；Go to 僅行號（無位移模式）；Extended 缺 \u \b \o \d escape；搜尋結果視窗無右鍵選單/結果內再搜尋/word-wrap/auto-purge。
-- **剪貼簿/字元**：Clipboard History 泛用捕捉、僅純文字無 metadata；Character Panel 僅 3 欄。
-- **自動完成/Function List**：call tip 用當前文件啟發式（ApiDatabase::callTipFor 是死碼）、無多載疊代；補全接受鍵不可設定；Function List 僅 3 種硬編語言、無 debounce 即時刷新。
-- **Document Map/Workspace**：Map 無縮放/滾輪縮放/可拖曳色帶；Workspace 無「Open Terminal Here」。
-- **編碼/Session**：編碼偵測僅 BOM/UTF-8（無 XML/HTML 宣告嗅探）；named session 未區分排除 untitled；快照備份計時器硬編 30s 恆開、無偏好開關/間隔。
-- **UDL/Style/Themes（最集中）**：UDL 無語言下拉/Rename/Remove；Folder middle token 未用、無 comment/code 折疊選項；Comment 位置/number 前後綴/範圍不可設定；Operators1/2 未分、delimiter 非固定 8 槽；Styler 無字型名/大小/inherit 條紋/transparent/nesting；儲存為 JSON 非 userDefineLang.xml；Style Configurator 無 extensions 欄、無 underline/inherit；Themes 無 Duplicate/Save As、無內建預設主題。
-- **Macros/Prefs/Shortcut/Plugins**：Run Macro Multiple Times 無「until EOF」；General 無在地化/選單列切換；Editing 無 current-line/virtual space 偏好；Searching 頁實為 Search Engine URL；Dark Mode 無 per-tone/per-component 色；Shortcut Mapper 單一平板清單（無 5 分類 tab）；Plugins 選單僅 Admin（無動態外掛項）。
+- **Editing/column**: Column Editor Text insertion mode (the `insertTextColumn` backend exists but is
+  not wired up); the 4 match-case/whole-word variants of Multi-Select All/Next (hard-coded
+  case-sensitive only); Character Panel has only 3 columns (missing HTML Name/Decimal/Hex); Insert
+  Date/Time offers a single ISO format (missing short/long/custom); Paste Special is Plain Text only
+  (missing HTML/RTF); Read-Only is an in-app flag only (no OS file attribute).
+- **Searching**: Find (Volatile) is a dialog button only (no global Ctrl+Alt+F3); Go to supports line
+  numbers only (no offset mode); Extended lacks the \u \b \o \d escapes; the search results window has
+  no context menu, no search-within-results, no word wrap and no auto-purge.
+- **Clipboard/characters**: Clipboard History captures generically, plain text only with no metadata;
+  Character Panel has only 3 columns.
+- **Auto-completion/Function List**: call tips use a current-document heuristic
+  (`ApiDatabase::callTipFor` is dead code) with no overload cycling; the completion accept key is not
+  configurable; Function List covers only 3 hard-coded languages and refreshes live with no debounce.
+- **Document Map/Workspace**: the Map has no zoom, wheel-zoom or draggable colour band; Workspace has no
+  "Open Terminal Here".
+- **Encoding/Session**: encoding detection covers BOM/UTF-8 only (no XML/HTML declaration sniffing);
+  named sessions do not distinguish or exclude untitled buffers; the snapshot backup timer is hard-coded
+  to 30 s and always on, with no preference for toggle or interval.
+- **UDL/Style/Themes (the densest)**: UDL has no language dropdown, Rename or Remove; the folder middle
+  token is unused and there are no comment/code folding options; comment position, number prefixes and
+  suffixes and ranges are not configurable; Operators1/2 are not separated and delimiters are not fixed
+  8 slots; the styler has no font name/size, inherit striping, transparency or nesting; storage is JSON
+  rather than userDefineLang.xml; the Style Configurator has no extensions field and no
+  underline/inherit; Themes have no Duplicate/Save As and no built-in default themes.
+- **Macros/Prefs/Shortcut/Plugins**: Run Macro Multiple Times has no "until EOF"; General has no
+  localisation or menu bar toggle; Editing has no current-line or virtual-space preferences; the
+  Searching page is really a Search Engine URL page; Dark Mode has no per-tone or per-component colours;
+  the Shortcut Mapper is a single flat list (no 5-category tabs); the Plugins menu has only Admin (no
+  dynamic plugin entries).
 
 ---
 
-## ⛔ 平台豁免（na_macos，6 項）
+## ⛔ Platform exemptions (na_macos, 6 items)
 
-Windows 專屬、macOS 平台不可能或不適用（DLL 外掛 ABI、登錄檔關聯、Windows 檔案唯讀屬性、系統匣、DirectWrite 等平台綁定項）。視為「已於 macOS 適配範圍內滿足」。
+Windows-specific items that are impossible or inapplicable on macOS (DLL plugin ABI, registry
+associations, the Windows read-only file attribute, system tray, DirectWrite and other
+platform-bound items). Treated as "satisfied within the scope of the macOS adaptation".
+
+> Note: two of these — the read-only file attribute and the system tray — were later found to be
+> misclassified and have been implemented; see the dual-platform re-assessment at the top.
 
 ---
 
-## 收斂判斷與優先投入建議
+## Convergence judgement and recommended priorities
 
-最值得優先投入的可實作缺口（技術上均無阻礙）：
-1. **UDL 與 Style Configurator 次要分頁/欄位補完**（最大宗缺口集中處）
-2. **Call tip 多載疊代導覽 + 手動觸發快捷鍵**（既有簽章表 ApiDatabase::callTipFor 已存在卻是死碼）
-3. **Function List 可擴充解析規則**
-4. **Workspace 檔案管理操作與檔案過濾器**
-5. **Character Panel HTML 三欄位與編碼感知顯示**
-6. **Preferences 剩餘 ~13 分類、CLI 剩餘 ~16 旗標**（長尾但直接可行）
+The implementable gaps most worth prioritising (none of them technically blocked):
+1. **Completing the UDL and Style Configurator secondary tabs and fields** (where the gaps concentrate)
+2. **Call tip overload cycling + a manual trigger shortcut** (the existing signature table
+   `ApiDatabase::callTipFor` is present but dead)
+3. **Extensible Function List parsing rules**
+4. **Workspace file management operations and file filters**
+5. **The Character Panel's HTML columns and encoding-aware display**
+6. **The remaining ~13 Preferences categories and ~16 CLI flags** (long tail, but directly actionable)
 
-→ 見 `sprint/current/status.md` Sprint 6 對此清單的收斂結果。**後續更新（2026-07-08）**：Sprint 7 / 7.1
-接續 Sprint 6，將本清單中結構性缺口（Project Panel/Find in Projects）與所有其餘可實作項目全數收斂完畢，
-詳見本文件頂部「後續收斂（Sprint 6→7.1）」章節。
+→ See the Sprint 6 entry in `sprint/current/status.md` for how this list was closed. **Later update
+(2026-07-08)**: Sprints 7 and 7.1 followed Sprint 6 and closed the structural gap (Project Panel /
+Find in Projects) along with every other implementable item; see the "Follow-up convergence
+(Sprint 6→7.1)" section at the top of this document.

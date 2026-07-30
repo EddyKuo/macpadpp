@@ -1,24 +1,22 @@
-# Third-Party Notices
+# 第三方資源授權（Third-Party Notices）
 
-**English** · [繁體中文](THIRD-PARTY-NOTICES.zh-TW.md)
+[English](THIRD-PARTY-NOTICES.md) · **繁體中文**
 
-This project's own licence is in [LICENSE](LICENSE). Listed below are the third-party assets
-distributed together with the program; their original notices are retained as required by their
-licences.
+本專案自身授權見 [LICENSE](LICENSE)。以下為隨程式一同散布的第三方資源，
+依其授權條款保留原始聲明。
 
 ---
 
-## Phosphor Icons — toolbar icons
+## Phosphor Icons — 工具列圖示
 
-`resources/icons/*.svg` (excluding `app-icon.svg`, which is original to this project)
+`resources/icons/*.svg`（不含 `app-icon.svg`，該檔為本專案自製）
 
-- Source: <https://github.com/phosphor-icons/core>
-- Licence: MIT
-- Modifications: `fill="currentColor"` was replaced with the explicit value `#000000`, and nothing
-  else. Qt's `QSvgRenderer` does not resolve `currentColor`, so the shapes would fail to render if
-  left as-is; the colour actually displayed is re-applied at runtime by the program using SourceIn
-  composition according to the active theme, so this value does not affect appearance. The artwork
-  itself is unmodified.
+- 來源：<https://github.com/phosphor-icons/core>
+- 授權：MIT
+- 修改說明：僅將 `fill="currentColor"` 取代為明確色值 `#000000`。
+  Qt 的 `QSvgRenderer` 不解析 `currentColor`，未處理會算繪不出圖形；
+  實際顯示顏色由程式在執行期依主題以 SourceIn 重新填色，故此色值不影響外觀。
+  圖形本身未經修改。
 
 ```
 MIT License

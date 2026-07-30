@@ -1,172 +1,183 @@
-# macpad++ 外掛開發指南
+# macpad++ Plugin Development Guide
 
-本文件說明如何為 macpad++ 開發外掛(plugin / extension),包含**外掛如何被掛載進來**、
-可用的宿主服務、完整協定 API,以及兩個從零開始的實作範例(一個純選單動作、一個帶面板 UI)。
+**English** · [繁體中文](plugin-development.zh-TW.md)
 
----
-
-## 1. 這是什麼樣的外掛系統?
-
-macpad++ 的外掛是 **in-process 的 C++ 擴充**,和主程式一起編譯,透過一組**凍結的協定介面**
-(`src/extension/IExtension.h`)與編輯核心互動。
-
-> **為什麼不是像 Notepad++ 那樣載入 `.dll`?**
-> Notepad++ 的外掛是 Windows 專屬的原生二進位,macOS 無法載入執行。macpad++ 改用
-> in-process 協定:外掛以受限的 `IHostServices` 存取核心(而非直接碰內部狀態),
-> 換得型別安全、可測試、跨平台。協定本身是**向前相容基準**(見 `IExtension.h` 的 CON-007 註記),
-> 只做加法(additive)升級。
-
-一個外掛可以:
-
-- 在任一選單加入動作(`addMenuAction`)
-- 讀寫目前作用中的編輯器(`activeEditor`)
-- 顯示狀態列訊息(`showStatusMessage`)
-- 掛載自己的 UI,例如停靠面板(`hostWindow`)
+This document explains how to develop a plugin (extension) for macpad++: **how a plugin gets mounted**,
+what host services are available, the complete protocol API, and two worked examples built from
+scratch (one a pure menu action, one with panel UI).
 
 ---
 
-## 2. 架構總覽
+## 1. What kind of plugin system is this?
+
+macpad++ plugins are **in-process C++ extensions**, compiled together with the main program, which
+interact with the editing core through a **frozen protocol interface** (`src/extension/IExtension.h`).
+
+> **Why not load `.dll`s the way Notepad++ does?**
+> Notepad++'s plugins are Windows-specific native binaries that macOS cannot load or execute. macpad++
+> uses an in-process protocol instead: plugins access the core through a restricted `IHostServices`
+> (rather than touching internal state directly), buying type safety, testability and cross-platform
+> behaviour. The protocol itself is a **forward-compatibility baseline** (see the CON-007 note in
+> `IExtension.h`) and only ever grows additively.
+
+A plugin can:
+
+- Add actions to any menu (`addMenuAction`)
+- Read and write the currently active editor (`activeEditor`)
+- Show status bar messages (`showStatusMessage`)
+- Mount its own UI, for instance a dock panel (`hostWindow`)
+
+---
+
+## 2. Architecture overview
 
 ```
 ┌─────────────────────────────────────────────┐
-│ MainWindow  (實作 IHostServices)              │
+│ MainWindow  (implements IHostServices)        │
 │                                               │
 │   m_extensions = ExtensionRegistry(this)      │
-│   m_extensions->load( 你的外掛 )   ◀── 掛載點  │
+│   m_extensions->load( your plugin )  ◀── mount point
 └───────────────┬───────────────────────────────┘
                 │ onLoad(host)
                 ▼
         ┌──────────────────┐     host->activeEditor()
-        │  你的 IExtension  │ ──▶ host->addMenuAction()
+        │  your IExtension  │ ──▶ host->addMenuAction()
         │                  │     host->showStatusMessage()
         └──────────────────┘     host->hostWindow()
 ```
 
-三個角色:
+Three roles:
 
-| 角色 | 檔案 | 職責 |
-|------|------|------|
-| `IExtension` | `src/extension/IExtension.h` | **你要實作的介面**:宣告能力 + 生命週期 hook |
-| `IHostServices` | `src/extension/IExtension.h` | 宿主(MainWindow)提供給外掛的受限服務 |
-| `ExtensionRegistry` | `src/extension/ExtensionRegistry.h` | 載入/卸載外掛、列出能力(供 Plugins Admin) |
+| Role | File | Responsibility |
+|------|------|----------------|
+| `IExtension` | `src/extension/IExtension.h` | **The interface you implement**: capability declaration + lifecycle hooks |
+| `IHostServices` | `src/extension/IExtension.h` | The restricted services the host (MainWindow) offers plugins |
+| `ExtensionRegistry` | `src/extension/ExtensionRegistry.h` | Loads/unloads plugins, lists capabilities (for Plugins Admin) |
 
-現成範例(可照抄):
-- `src/extension/builtin/WordCountExtension.{h,cpp}` — 最簡:一個選單動作 + 狀態列。
-- `src/extension/builtin/MarkdownPreviewExtension.{h,cpp}` — 進階:掛一個停靠面板,隨編輯即時更新。
+Ready-made examples you can copy:
+- `src/extension/builtin/WordCountExtension.{h,cpp}` — the simplest: one menu action plus a status bar
+  message.
+- `src/extension/builtin/MarkdownPreviewExtension.{h,cpp}` — advanced: mounts a dock panel that updates
+  live as you edit.
 
 ---
 
-## 3. 協定 API 參考
+## 3. Protocol API reference
 
-### 3.1 `IExtension` — 你要實作的介面
+### 3.1 `IExtension` — the interface you implement
 
 ```cpp
 class IExtension {
 public:
     virtual ~IExtension() = default;
 
-    // 自我描述(顯示於 Plugins ▸ Plugins Admin)
+    // Self-description (shown in Plugins ▸ Plugins Admin)
     virtual ExtensionCapabilities capabilities() const = 0;
 
-    // 生命週期:載入時取得宿主服務;卸載時釋放資源
+    // Lifecycle: receive host services on load; release resources on unload
     virtual void onLoad(IHostServices *host) = 0;
     virtual void onUnload() = 0;
 };
 ```
 
-### 3.2 `ExtensionCapabilities` — 能力宣告
+### 3.2 `ExtensionCapabilities` — capability declaration
 
 ```cpp
 struct ExtensionCapabilities {
-    QString id;       // 唯一識別,建議 "作者.外掛名",如 "acme.wordcount"
-    QString name;     // 顯示名稱
-    QString version;  // SemVer,如 "1.0.0"
+    QString id;       // unique identifier, suggested form "author.pluginname", e.g. "acme.wordcount"
+    QString name;     // display name
+    QString version;  // SemVer, e.g. "1.0.0"
 };
 ```
 
-### 3.3 `IHostServices` — 你能對核心做的事
+### 3.3 `IHostServices` — what you can ask the core to do
 
 ```cpp
 class IHostServices {
 public:
-    // 目前作用中的編輯器(可能為 nullptr,務必判空)
+    // The currently active editor (may be nullptr — always check)
     virtual macpad::core::EditorWidget *activeEditor() = 0;
 
-    // 在指定選單新增動作。menuTitle 以顯示名比對(自動去除 & 助記符),
-    // 找不到就新建一個選單。常用:"File"/"Edit"/"Search"/"View"/"Tools"…
+    // Add an action to a given menu. menuTitle is matched by display name (with & mnemonics
+    // stripped automatically); if not found, a new menu is created.
+    // Common values: "File"/"Edit"/"Search"/"View"/"Tools"…
     virtual void addMenuAction(const QString &menuTitle, const QString &text,
                                std::function<void()> callback) = 0;
 
-    // 狀態列訊息(timeoutMs 後消失;0 = 持續顯示)
+    // Status bar message (disappears after timeoutMs; 0 = show indefinitely)
     virtual void showStatusMessage(const QString &message, int timeoutMs = 3000) = 0;
 
-    // 宿主主視窗(QMainWindow)。進階外掛可用它掛自己的 UI,例如 addDockWidget。
+    // The host main window (QMainWindow). Advanced plugins can use it to mount their own UI,
+    // e.g. via addDockWidget.
     virtual QWidget *hostWindow() = 0;
 };
 ```
 
-### 3.4 你能對編輯器做什麼:`EditorWidget`
+### 3.4 What you can do to the editor: `EditorWidget`
 
-`activeEditor()` 回傳 `macpad::core::EditorWidget*`,它是 **`QsciScintilla` 的子類**,
-所以除了下列 macpad++ 專屬方法,還可用**全部 QScintilla API**。常用:
+`activeEditor()` returns a `macpad::core::EditorWidget*`, which is **a subclass of `QsciScintilla`**, so
+in addition to the macpad++-specific methods below, **the entire QScintilla API** is available.
+Commonly used:
 
 ```cpp
 #include "core/EditorWidget.h"
 
-// 內容
-QString text() const;                       // 全文
-QString selectedText() const;               // 選取文字
-void    insert(const QString &);            // 於游標處插入
+// Content
+QString text() const;                       // whole document
+QString selectedText() const;               // selected text
+void    insert(const QString &);            // insert at the caret
 void    replaceSelectedText(const QString &);
 void    setText(const QString &);
 
-// 游標 / 位置
+// Caret / position
 void getCursorPosition(int *line, int *col) const;
 void setCursorPosition(int line, int col);
 int  lines() const;
 
-// 檔案 / 狀態
+// File / state
 QString filePath() const;
 bool    isUntitled() const;
 bool    isDirty() const;
-Encoding encoding() const;                  // 見 core/FileEncoding.h
-EditorWidget::DocStats stats();             // 字元/行/選取/OVR 等
+Encoding encoding() const;                  // see core/FileEncoding.h
+EditorWidget::DocStats stats();             // characters / lines / selection / OVR etc.
 
-// 訊號(可 connect 做即時反應)
-void textChanged();     // 繼承自 QsciScintilla
+// Signals (connect for live reactions)
+void textChanged();     // inherited from QsciScintilla
 void dirtyChanged(bool);
-void metaChanged();     // 編碼/EOL 變更
+void metaChanged();     // encoding / EOL changed
 ```
 
-> **分層原則**:`extension/` 可以依賴 `core/`,但**避免依賴 `features/` 或 `app/` 的內部**。
-> 需要更高階能力時,優先透過 `IHostServices`,而不是硬接 MainWindow。
+> **Layering principle**: `extension/` may depend on `core/`, but **avoid depending on the internals of
+> `features/` or `app/`**. When you need higher-level capabilities, prefer `IHostServices` over wiring
+> directly into MainWindow.
 
 ---
 
-## 4. 生命週期
+## 4. Lifecycle
 
 ```
-建構外掛物件
+construct the plugin object
       │  ExtensionRegistry::load(ext)
       ▼
-onLoad(host)   ← 收到 host;在此掛選單/建面板/connect 訊號
+onLoad(host)   ← receives host; mount menus / build panels / connect signals here
       │
-   （執行期，回呼被觸發）
+   (runtime, callbacks fire)
       │
-onUnload()     ← App 關閉或 registry 解構時;釋放你建立的資源
+onUnload()     ← on app shutdown or registry destruction; release what you created
 ```
 
-- `load()` 會**立刻**呼叫 `onLoad(host)`,並接管外掛的所有權(`unique_ptr`)。
-- 你在 `onLoad` 存下 `host` 指標即可,之後在回呼中使用。
-- 你 `new` 出來、parent 給主視窗的 QWidget(如 dock)會隨視窗銷毀;若自行管理則在 `onUnload` 釋放。
+- `load()` calls `onLoad(host)` **immediately** and takes ownership of the plugin (`unique_ptr`).
+- Storing the `host` pointer in `onLoad` is all you need; use it later from callbacks.
+- QWidgets you `new` with the main window as parent (such as docks) are destroyed with the window; if
+  you manage them yourself, release them in `onUnload`.
 
 ---
 
-## 5. 範例一:最小外掛(純選單動作)
+## 5. Example one: a minimal plugin (pure menu action)
 
-目標:在 **Edit** 選單加入「Insert Divider」,於游標處插入一行分隔線。
+Goal: add "Insert Divider" to the **Edit** menu, inserting a divider line at the caret.
 
-### 5.1 標頭 `src/extension/builtin/InsertDividerExtension.h`
+### 5.1 Header `src/extension/builtin/InsertDividerExtension.h`
 
 ```cpp
 #pragma once
@@ -187,7 +198,7 @@ private:
 }  // namespace macpad::extension
 ```
 
-### 5.2 實作 `src/extension/builtin/InsertDividerExtension.cpp`
+### 5.2 Implementation `src/extension/builtin/InsertDividerExtension.cpp`
 
 ```cpp
 #include "extension/builtin/InsertDividerExtension.h"
@@ -208,11 +219,11 @@ void InsertDividerExtension::onLoad(IHostServices *host)
     m_host->addMenuAction(QStringLiteral("Edit"), QStringLiteral("Insert Divider"), [this] {
         auto *editor = m_host->activeEditor();
         if (!editor) {
-            m_host->showStatusMessage(QStringLiteral("沒有作用中的編輯器"));
+            m_host->showStatusMessage(tr("No active editor"));
             return;
         }
         editor->insert(QStringLiteral("// ────────────────────────────\n"));
-        m_host->showStatusMessage(QStringLiteral("已插入分隔線"), 2000);
+        m_host->showStatusMessage(tr("Divider inserted"), 2000);
     });
 }
 
@@ -224,38 +235,39 @@ void InsertDividerExtension::onUnload()
 }  // namespace macpad::extension
 ```
 
-### 5.3 加入編譯(`src/CMakeLists.txt`)
+### 5.3 Add it to the build (`src/CMakeLists.txt`)
 
-把兩個檔案加進 `macpad_lib` 的來源清單 `MACPAD_LIB_SOURCES`:
+Add both files to `macpad_lib`'s source list `MACPAD_LIB_SOURCES`:
 
 ```cmake
     extension/builtin/InsertDividerExtension.cpp
     extension/builtin/InsertDividerExtension.h
 ```
 
-### 5.4 **掛載進來**(`src/app/MainWindow.cpp`)
+### 5.4 **Mount it** (`src/app/MainWindow.cpp`)
 
-這是關鍵一步。在建構子中 registry 建立後,`load()` 你的外掛:
+This is the crucial step. In the constructor, after the registry is created, `load()` your plugin:
 
 ```cpp
-#include "extension/builtin/InsertDividerExtension.h"   // 檔首
+#include "extension/builtin/InsertDividerExtension.h"   // at the top of the file
 
-// …建構子內,約在既有兩行旁邊:
+// …inside the constructor, next to the existing two lines:
 m_extensions = std::make_unique<macpad::extension::ExtensionRegistry>(this);
 m_extensions->load(std::make_unique<macpad::extension::WordCountExtension>());
 m_extensions->load(std::make_unique<macpad::extension::MarkdownPreviewExtension>());
-m_extensions->load(std::make_unique<macpad::extension::InsertDividerExtension>());  // ← 新增
+m_extensions->load(std::make_unique<macpad::extension::InsertDividerExtension>());  // ← added
 ```
 
-重新 `cmake --build build` 後,**Edit ▸ Insert Divider** 就會出現,
-且 `Plugins ▸ Plugins Admin` 會列出 `Insert Divider (acme.insertdivider) v1.0.0`。
+After `cmake --build build`, **Edit ▸ Insert Divider** appears, and `Plugins ▸ Plugins Admin` lists
+`Insert Divider (acme.insertdivider) v1.0.0`.
 
 ---
 
-## 6. 範例二:帶面板 UI 的外掛(用 `hostWindow`)
+## 6. Example two: a plugin with panel UI (using `hostWindow`)
 
-需要自己的視覺介面(停靠面板、對話框)時,用 `host->hostWindow()` 取得主視窗來掛載。
-下面示範一個「Outline(大綱)」面板:列出目前檔案的 Markdown 標題,隨編輯即時更新。
+When you need your own visual interface (a dock panel, a dialog), obtain the main window via
+`host->hostWindow()` and mount onto it. Below is an "Outline" panel that lists the current file's
+Markdown headings and updates live.
 
 ```cpp
 // OutlineExtension.h
@@ -307,7 +319,8 @@ OutlineDock::OutlineDock(IHostServices *host, QWidget *parent)
     m_list = new QListWidget(this);
     setWidget(m_list);
 
-    // 每 500ms 依目前作用中編輯器刷新(簡單可靠;或改為 connect textChanged)
+    // Refresh from the active editor every 500 ms (simple and reliable;
+    // alternatively connect to textChanged)
     auto *timer = new QTimer(this);
     connect(timer, &QTimer::timeout, this, &OutlineDock::refresh);
     timer->start(500);
@@ -337,7 +350,7 @@ void OutlineExtension::onLoad(IHostServices *host)
     auto *mw = qobject_cast<QMainWindow *>(host->hostWindow());
     if (!mw) return;
 
-    m_dock = new OutlineDock(host, mw);         // parent = 主視窗 → 隨其銷毀
+    m_dock = new OutlineDock(host, mw);         // parent = main window → destroyed with it
     mw->addDockWidget(Qt::RightDockWidgetArea, m_dock);
     m_dock->hide();
 
@@ -354,102 +367,113 @@ void OutlineExtension::onUnload()
 }  // namespace macpad::extension
 ```
 
-掛載方式同範例一(加入 CMake 來源 + 在 MainWindow `load()`)。
-真實可參考的完整版見 `MarkdownPreviewExtension`(它額外用 `Q_INIT_RESOURCE` 處理內嵌資源,見 §8)。
+Mounting works the same as example one (add the sources to CMake, then `load()` in MainWindow). For a
+complete real-world version, see `MarkdownPreviewExtension` — it additionally uses `Q_INIT_RESOURCE` to
+handle embedded resources (see §8).
 
 ---
 
-## 7. 「掛載進來」三步驟(重點整理)
+## 7. "Mounting it" in three steps (summary)
 
-1. **寫類別**:實作 `IExtension`(`capabilities` / `onLoad` / `onUnload`),放在
-   `src/extension/builtin/`(或你自己的目錄)。
-2. **加入編譯**:把 `.cpp`/`.h` 加進 `src/CMakeLists.txt` 的 `MACPAD_LIB_SOURCES`。
-3. **註冊**:在 `src/app/MainWindow.cpp` 建構子裡
-   `m_extensions->load(std::make_unique<你的Extension>());`,並 `#include` 你的標頭。
+1. **Write the class**: implement `IExtension` (`capabilities` / `onLoad` / `onUnload`), placed in
+   `src/extension/builtin/` (or a directory of your own).
+2. **Add it to the build**: add the `.cpp`/`.h` to `MACPAD_LIB_SOURCES` in `src/CMakeLists.txt`.
+3. **Register it**: in the `src/app/MainWindow.cpp` constructor, call
+   `m_extensions->load(std::make_unique<YourExtension>());` and `#include` your header.
 
-完成後外掛即隨 App 啟動時 `onLoad`,並出現在 **Plugins ▸ Plugins Admin** 清單
-(格式:`名稱 (id) v版本`,逐一列出 `ExtensionRegistry::capabilitiesList()` 內容;
-對話框同時附上「為何不是 `.dll` 外掛」的誠實說明,見 `MainWindow.cpp` 對應 lambda)。
+The plugin's `onLoad` then runs at application startup and it appears in the
+**Plugins ▸ Plugins Admin** list (format: `name (id) vversion`, enumerating
+`ExtensionRegistry::capabilitiesList()`; the dialog also carries an honest explanation of why these are
+not `.dll` plugins — see the corresponding lambda in `MainWindow.cpp`).
 
-> 目前**沒有動態(執行期)載入** —— 外掛與主程式一起編譯。這是刻意的取捨(型別安全、
-> 可測試、跨平台)。若未來要支援執行期載入 `.dylib`,協定 `IExtension` 已是凍結基準,可據此擴充。
+> There is currently **no dynamic (runtime) loading** — plugins are compiled with the main program.
+> This is a deliberate trade-off (type safety, testability, cross-platform). Should runtime `.dylib`
+> loading be supported in future, the `IExtension` protocol is already a frozen baseline to build on.
 
 ---
 
-## 8. 撰寫規範與常見陷阱
+## 8. Conventions and common pitfalls
 
-- **一律判空 `activeEditor()`** —— 沒有分頁時為 `nullptr`。
-- **不要阻塞 UI 執行緒** —— `onLoad` 與回呼都在主執行緒;重工作請用 `QtConcurrent` 或
-  `QProcess` 非同步,完成後再回主執行緒更新。
-- **資源要顯式初始化(靜態庫的坑)** —— 若你的外掛用 `.qrc` 內嵌資源,因為程式編成**靜態庫**,
-  連結器會把「資源自動註冊物件」當死碼丟掉,執行期存取會失敗(例如 WebEngine 顯示 *page not found*)。
-  注意這與外掛物件的 `onLoad` 是**兩回事**:前者註冊**資料**進 Qt 的 `:/` 檔案系統,後者初始化你的**物件**。
-  解法:把 `Q_INIT_RESOURCE(你的qrc基名)` 包在**外掛 .cpp 的全域命名空間**小函式裡,於 `onLoad` 開頭呼叫
-  (讓資源隨外掛自我封裝,不必汙染 `main.cpp`):
+- **Always null-check `activeEditor()`** — it is `nullptr` when there are no tabs.
+- **Do not block the UI thread** — `onLoad` and callbacks run on the main thread; do heavy work
+  asynchronously with `QtConcurrent` or `QProcess` and return to the main thread to update.
+- **Resources must be initialised explicitly (the static library trap)** — if your plugin embeds
+  resources via `.qrc`, note that because the program is built as a **static library**, the linker
+  discards the "resource auto-registration object" as dead code, and runtime access fails (WebEngine
+  showing *page not found*, for instance). This is **distinct** from the plugin object's `onLoad`: the
+  former registers **data** into Qt's `:/` filesystem, the latter initialises **your object**.
+  The fix: wrap `Q_INIT_RESOURCE(your_qrc_basename)` in a small function in the **global namespace of
+  the plugin's .cpp** and call it at the start of `onLoad`, so the resource is self-contained within the
+  plugin rather than polluting `main.cpp`:
 
   ```cpp
-  // 檔案層、全域命名空間(不可放進 namespace,否則 extern 符號對不上 → 連結失敗)
+  // File scope, global namespace (it must NOT go inside a namespace, or the extern symbol
+  // will not match → link failure)
   static void initMyResource() { Q_INIT_RESOURCE(mypluginqrc); }
 
   namespace macpad::extension {
   void MyExtension::onLoad(IHostServices *host) {
-      initMyResource();     // 先註冊資源,再建立會用到 qrc: 的 UI
+      initMyResource();     // register resources before building UI that uses qrc:
       // …
   }
   }
   ```
-  (Markdown 預覽外掛就是這樣初始化 `webview.qrc` —— 見 `MarkdownPreviewExtension.cpp`。)
-- **尊重分層** —— `extension/` → 依賴 `core/` 可以;要更高階能力走 `IHostServices`。
-- **給 dock 一個 `parent`(主視窗)** —— 生命週期自動託管;或在 `onUnload` 自行 `deleteLater()`。
-- **`id` 要唯一** —— 建議 `作者.外掛名`,避免與內建/他人衝突。
+  (The Markdown preview plugin initialises `webview.qrc` exactly this way — see
+  `MarkdownPreviewExtension.cpp`.)
+- **Respect the layering** — `extension/` → depending on `core/` is fine; go through `IHostServices`
+  for anything higher-level.
+- **Give docks a `parent` (the main window)** — lifetime is then managed automatically; otherwise
+  `deleteLater()` them yourself in `onUnload`.
+- **Keep `id` unique** — `author.pluginname` is recommended, to avoid clashing with built-ins or others.
 
 ---
 
-## 9. 測試你的外掛(不需開 GUI)
+## 9. Testing your plugin (no GUI required)
 
-`IHostServices` 是純介面,可用假宿主(fake)在無頭環境下單元測試。參考 `tests/unit/test_extension.cpp`:
+`IHostServices` is a pure interface, so a fake host lets you unit-test headlessly. See
+`tests/unit/test_extension.cpp`:
 
 ```cpp
 class FakeHost : public macpad::extension::IHostServices {
 public:
     macpad::core::EditorWidget *activeEditor() override { return nullptr; }
     void addMenuAction(const QString &menu, const QString &text,
-                       std::function<void()> cb) override { /* 記錄下來 */ }
+                       std::function<void()> cb) override { /* record it */ }
     void showStatusMessage(const QString &msg, int) override { lastStatus = msg; }
     QWidget *hostWindow() override { return nullptr; }
     QString lastStatus;
 };
 
-// 測試:load → 觸發回呼 → 驗證行為
+// Test: load → fire the callback → verify behaviour
 FakeHost host;
 MyExtension ext;
 ext.onLoad(&host);
-// … 呼叫被記錄的 callback,檢查 host.lastStatus 等
+// … invoke the recorded callback, check host.lastStatus and so on
 ```
 
-測試以 `QT_QPA_PLATFORM=offscreen` 執行,可連結 `macpad_lib`。
+Tests run with `QT_QPA_PLATFORM=offscreen` and link against `macpad_lib`.
 
 ---
 
-## 10. 檢查清單
+## 10. Checklist
 
-- [ ] 類別實作了 `capabilities()` / `onLoad()` / `onUnload()`
-- [ ] `capabilities().id` 唯一且具意義
-- [ ] `.cpp`/`.h` 已加入 `src/CMakeLists.txt`
-- [ ] 已在 `MainWindow` 建構子 `load()` 註冊並 `#include`
-- [ ] 所有 `activeEditor()` 都判空
-- [ ] 有 UI 的話,dock 有 parent 或在 `onUnload` 釋放
-- [ ] 用到 `.qrc` 的話,`main.cpp` 有 `Q_INIT_RESOURCE`
-- [ ] 建置後出現在 `Plugins ▸ Plugins Admin`
+- [ ] The class implements `capabilities()` / `onLoad()` / `onUnload()`
+- [ ] `capabilities().id` is unique and meaningful
+- [ ] The `.cpp`/`.h` are added to `src/CMakeLists.txt`
+- [ ] It is registered with `load()` in the `MainWindow` constructor, with the header `#include`d
+- [ ] Every `activeEditor()` call is null-checked
+- [ ] If it has UI, the dock has a parent or is released in `onUnload`
+- [ ] If it uses `.qrc`, `Q_INIT_RESOURCE` is called at the start of `onLoad` (see §8)
+- [ ] It appears in `Plugins ▸ Plugins Admin` after building
 
 ---
 
-## 相關檔案
+## Related files
 
-| 檔案 | 內容 |
-|------|------|
-| `src/extension/IExtension.h` | 協定介面(凍結基準) |
-| `src/extension/ExtensionRegistry.{h,cpp}` | 載入/卸載/能力清單 |
-| `src/extension/builtin/WordCountExtension.{h,cpp}` | 最小範例 |
-| `src/extension/builtin/MarkdownPreviewExtension.{h,cpp}` | 面板 + 內嵌資源範例 |
-| `tests/unit/test_extension.cpp` | 用 FakeHost 測試外掛 |
+| File | Contents |
+|------|----------|
+| `src/extension/IExtension.h` | The protocol interface (frozen baseline) |
+| `src/extension/ExtensionRegistry.{h,cpp}` | Load / unload / capability list |
+| `src/extension/builtin/WordCountExtension.{h,cpp}` | Minimal example |
+| `src/extension/builtin/MarkdownPreviewExtension.{h,cpp}` | Panel + embedded resource example |
+| `tests/unit/test_extension.cpp` | Testing a plugin with FakeHost |

@@ -1,51 +1,58 @@
-# macpad++ Windows 10/11 移植計畫（Porting Plan）
+# macpad++ Windows 10/11 Porting Plan
 
-> **狀態**：草案 v1
-> **目標平台**：Windows 10 (1809+) / Windows 11，x86_64（arm64 為選配）
-> **來源平台**：macOS（Qt6 + QScintilla）
-> **結論先講**：本專案約 **95% 可直接移植**。核心（QScintilla 編輯器、所有 feature 邏輯、persistence、UI dialog）全走 Qt 跨平台 API，無 Objective-C/Cocoa 相依、無 `.mm` 檔。需要改的是 **建置系統、5 處 `open` 外部指令、預設字型、打包/CI**——皆已定位、範圍明確。
+**English** · [繁體中文](plan.zh-TW.md)
+
+> **Status**: draft v1 — **completed and merged as of 2026-07-29**; retained as the historical plan.
+> **Target platform**: Windows 10 (1809+) / Windows 11, x86_64 (arm64 optional)
+> **Source platform**: macOS (Qt6 + QScintilla)
+> **Conclusion first**: roughly **95% of this project ports directly**. The core (the QScintilla
+> editor, all feature logic, persistence, UI dialogs) uses cross-platform Qt APIs throughout, with no
+> Objective-C/Cocoa dependencies and no `.mm` files. What needs changing is the **build system, five
+> `open` shell invocations, the default font, and packaging/CI** — all located, all clearly bounded.
 
 ---
 
-## 1. 現況盤點（Portability Audit）
+## 1. Portability audit
 
-### 1.1 已經跨平台、無需改動的部分 ✅
+### 1.1 Already cross-platform, no change needed ✅
 
-| 項目 | 說明 |
-|------|------|
-| 設定路徑 | `AppPaths.cpp` 用 `QStandardPaths::AppDataLocation`，Windows 自動解析為 `%APPDATA%\macpad++\`。**零改動**，僅需更新註解。 |
-| 深色模式偵測 | `ThemeManager::systemIsDark()` 用 `QStyleHints::colorScheme()`，Windows 原生支援。 |
-| 單一實例 IPC | `SingleInstance.cpp` 用 `QLocalServer`/`QLocalSocket`（Windows 上為 named pipe），跨平台。 |
-| 選單 role | `PreferencesRole`/`AboutRole`/`QuitRole`（`MainWindow_Menus.cpp`）在 Windows 由 Qt 自動退回一般選單項，行為合理。 |
-| 快捷鍵 | 使用 `Qt::CTRL` / `QKeySequence::StandardKey`，Qt 會在 macOS 對映 ⌘、Windows 對映 Ctrl。無硬編 `Qt::MetaModifier`。 |
-| Run 面板 | `RunDock`/`RunCommand` 以 argv 陣列啟動 `QProcess`（非 shell），跨平台。 |
-| 檔案編碼 | `FileEncoding.cpp` + `Core5Compat`（QTextCodec）跨平台。 |
-| Markdown 預覽 | `WebEngineWidgets`（marked.js + mermaid.js）Windows 可用。 |
+| Item | Notes |
+|------|-------|
+| Settings path | `AppPaths.cpp` uses `QStandardPaths::AppDataLocation`, which Windows resolves to `%APPDATA%\macpad++\` automatically. **Zero changes**; only the comment needs updating. |
+| Dark mode detection | `ThemeManager::systemIsDark()` uses `QStyleHints::colorScheme()`, natively supported on Windows. |
+| Single-instance IPC | `SingleInstance.cpp` uses `QLocalServer`/`QLocalSocket` (named pipes on Windows) — cross-platform. |
+| Menu roles | `PreferencesRole`/`AboutRole`/`QuitRole` (`MainWindow_Menus.cpp`) fall back to ordinary menu items on Windows via Qt, which behaves sensibly. |
+| Shortcuts | Uses `Qt::CTRL` / `QKeySequence::StandardKey`, which Qt maps to ⌘ on macOS and Ctrl on Windows. No hard-coded `Qt::MetaModifier`. |
+| Run panel | `RunDock`/`RunCommand` start `QProcess` with an argv array (not a shell) — cross-platform. |
+| File encoding | `FileEncoding.cpp` + `Core5Compat` (QTextCodec) — cross-platform. |
+| Markdown preview | `WebEngineWidgets` (marked.js + mermaid.js) works on Windows. |
 
-### 1.2 需要修改的 macOS 專屬部分 ⚠️
+### 1.2 macOS-specific parts requiring changes ⚠️
 
-| # | 位置 | macOS 現況 | Windows 需求 |
-|---|------|-----------|-------------|
-| A | `CMakeLists.txt:32-55` | QScintilla 以 `brew --prefix` 定位 | vcpkg / 手動 `QSCINTILLA_ROOT` 路徑 |
+| # | Location | Current on macOS | Windows requirement |
+|---|----------|------------------|---------------------|
+| A | `CMakeLists.txt:32-55` | QScintilla located via `brew --prefix` | vcpkg / a manual `QSCINTILLA_ROOT` path |
 | B | `src/CMakeLists.txt:144-161` | `MACOSX_BUNDLE` + `.icns` + Info.plist | `WIN32` executable + `.ico` + `.rc` |
-| C | `MainWindow_Actions.cpp:523` | `open -a <App> <file>`（瀏覽器開啟） | `QDesktopServices` / `cmd /c start` |
-| D | `MainWindow_File.cpp:446` | `open -R <file>`（Finder 選取） | `explorer /select,"<path>"` |
-| E | `MainWindow_Menus.cpp:561` | `open -R <sel>`（Finder 選取） | `explorer /select,"<path>"` |
-| F | `WorkspaceDock.cpp:274` | `open -R <path>`（Finder 選取） | `explorer /select,"<path>"` |
+| C | `MainWindow_Actions.cpp:523` | `open -a <App> <file>` (open in browser) | `QDesktopServices` / `cmd /c start` |
+| D | `MainWindow_File.cpp:446` | `open -R <file>` (select in Finder) | `explorer /select,"<path>"` |
+| E | `MainWindow_Menus.cpp:561` | `open -R <sel>` (select in Finder) | `explorer /select,"<path>"` |
+| F | `WorkspaceDock.cpp:274` | `open -R <path>` (select in Finder) | `explorer /select,"<path>"` |
 | G | `WorkspaceDock.cpp:280` | `open -a Terminal <dir>` | `wt -d <dir>` / `cmd /c start cmd` |
-| H | `EditorWidget.cpp:177,272,288` | 硬編 `Menlo` 13 | 平台預設等寬字型（Consolas / Cascadia Mono） |
-| I | `.github/workflows/*.yml` | 僅 macOS runner | 新增 `windows-latest` 矩陣 |
-| J | `scripts/package_macos.sh` | macdeployqt + DMG | `windeployqt` + 安裝檔 |
+| H | `EditorWidget.cpp:177,272,288` | hard-coded `Menlo` 13 | platform default monospace (Consolas / Cascadia Mono) |
+| I | `.github/workflows/*.yml` | macOS runner only | add a `windows-latest` matrix entry |
+| J | `scripts/package_macos.sh` | macdeployqt + DMG | `windeployqt` + installer |
 
-> 附記：`open -a Terminal` 也可搭配 Run 面板既有能力；但屬便利功能，非核心。
+> Note: `open -a Terminal` could also be handled by the existing Run panel, but it is a convenience
+> feature, not core.
 
 ---
 
-## 2. 移植策略
+## 2. Porting strategy
 
-原則：**用 `#ifdef Q_OS_WIN` / `Q_OS_MACOS` 分支，或抽出一個小型 platform helper，讓 macOS 與 Windows 共用同一份原始碼**。不 fork、不維護兩份。
+Principle: **branch with `#ifdef Q_OS_WIN` / `Q_OS_MACOS`, or extract a small platform helper, so
+macOS and Windows share one source tree.** Do not fork; do not maintain two copies.
 
-建議新增一個薄封裝（延續現有 `src/platform/` 慣例）：
+The recommendation is a thin wrapper (continuing the existing `src/platform/` convention):
 
 ```
 src/platform/DesktopIntegration.{h,cpp}
@@ -57,101 +64,129 @@ src/platform/DesktopIntegration.{h,cpp}
     }
 ```
 
-把 C–H 全部收斂到這支檔案，各呼叫點改為呼叫此 API。日後要加 Linux 也只改一處。
+Consolidate C–H into this one file and change each call site to use the API. Adding Linux later then
+touches a single place.
 
 ---
 
-## 3. 分階段執行計畫
+## 3. Phased execution plan
 
-### Phase 0 — 建立 Windows 建置環境（前置）
-- [ ] 安裝 **Qt 6.5+ for MSVC 2019/2022**（含 `WebEngineWidgets`、`Core5Compat`、`Svg`）。建議用官方 Qt Online Installer 或 aqtinstall。
-- [ ] 取得 **QScintilla for Qt6**：
-  - 首選：**vcpkg**（`vcpkg install qscintilla`），或
-  - 從 Riverbank 原始碼以 `qmake` 建置 `qscintilla2_qt6.dll`，或
-  - 使用 PyQt 發佈的預編譯庫。
-- [ ] 安裝 **CMake ≥ 3.21**、**Ninja**、**MSVC 工具鏈**（Visual Studio 2022 Build Tools）。
-- 驗收：`cmake --version`、`qmake --version`、找得到 `Qsci/qsciscintilla.h`。
+### Phase 0 — Set up the Windows build environment (prerequisite)
+- [x] Install **Qt 6.5+ for MSVC 2019/2022** (including `WebEngineWidgets`, `Core5Compat`, `Svg`).
+  The official Qt Online Installer or aqtinstall are both fine.
+- [x] Obtain **QScintilla for Qt6**:
+  - preferred: **vcpkg** (`vcpkg install qscintilla`), or
+  - build `qscintilla2_qt6.dll` from the Riverbank sources with `qmake`, or
+  - use the prebuilt library shipped by PyQt.
+- [x] Install **CMake ≥ 3.21**, **Ninja**, and the **MSVC toolchain** (Visual Studio 2022 Build Tools).
+- Acceptance: `cmake --version`, `qmake --version`, and `Qsci/qsciscintilla.h` is findable.
 
-### Phase 1 — 建置系統跨平台化（項目 A、B）
-- [ ] **`CMakeLists.txt`**：QScintilla 探測加入 Windows 分支。
-  - `brew --prefix` 呼叫包在 `if(APPLE)` 內。
-  - Windows 用 `find_package`（vcpkg toolchain）或 `QSCINTILLA_ROOT` 提示路徑，`find_library` 的 `NAMES` 加入 `qscintilla2_qt6`（Windows 為 `.lib`/`.dll`）。
-- [ ] **`src/CMakeLists.txt`**：可執行檔目標平台化。
-  - macOS：維持 `MACOSX_BUNDLE` + `.icns`。
-  - Windows：`add_executable(macpad++ WIN32 ...)`（GUI 子系統，無 console 視窗）；加入 `resources/icon/macpad.rc`（引用 `.ico`）。
-  - 用 `if(APPLE) ... elseif(WIN32) ... endif()` 分流 `set_target_properties`。
-- [ ] **警告旗標**：`STRICT_WARNINGS` 目前寫死 `-Wall -Wextra -Werror`（GCC/Clang 語法）。MSVC 需改為 `/W4 /WX`。用 `if(MSVC) ... else() ... endif()` 分流。**（重要：否則 Windows 直接編不過）**
-- [ ] 準備 Windows 圖示：由現有 `.icns`/`.svg` 產生 `resources/icon/macpad.ico`（多尺寸 16–256px）。
-- 驗收：`cmake -S . -B build -G Ninja` 設定成功、`cmake --build build` 連結出 `macpad++.exe`。
+### Phase 1 — Make the build system cross-platform (items A, B)
+- [x] **`CMakeLists.txt`**: add a Windows branch to QScintilla probing.
+  - Wrap the `brew --prefix` call in `if(APPLE)`.
+  - On Windows use `find_package` (vcpkg toolchain) or a `QSCINTILLA_ROOT` hint path, and add
+    `qscintilla2_qt6` to `find_library`'s `NAMES` (`.lib`/`.dll` on Windows).
+- [x] **`src/CMakeLists.txt`**: make the executable target platform-aware.
+  - macOS: keep `MACOSX_BUNDLE` + `.icns`.
+  - Windows: `add_executable(macpad++ WIN32 ...)` (GUI subsystem, no console window); add
+    `resources/icon/macpad.rc` (referencing the `.ico`).
+  - Branch `set_target_properties` with `if(APPLE) ... elseif(WIN32) ... endif()`.
+- [x] **Warning flags**: `STRICT_WARNINGS` currently hard-codes `-Wall -Wextra -Werror` (GCC/Clang
+  syntax). MSVC needs `/W4 /WX` instead; branch with `if(MSVC) ... else() ... endif()`.
+  **(Important: otherwise Windows simply will not compile.)**
+- [x] Prepare the Windows icon: generate `resources/icon/macpad.ico` (multi-size, 16–256px) from the
+  existing `.icns`/`.svg`.
+- Acceptance: `cmake -S . -B build -G Ninja` configures successfully and `cmake --build build` links
+  `macpad++.exe`.
 
-### Phase 2 — 執行期行為跨平台化（項目 C–H）
-- [ ] 新增 `src/platform/DesktopIntegration.{h,cpp}`（見 §2），實作各函式的 `Q_OS_WIN` / `Q_OS_MACOS` 分支：
-  - **Reveal in Explorer**：`QProcess::startDetached("explorer", {"/select," + QDir::toNativeSeparators(path)})`
-    （注意 `explorer` 的 `/select,` 參數格式特殊，路徑需為反斜線）。
-  - **Open in Terminal**：優先 `wt -d <dir>`（Windows Terminal），失敗退回 `cmd /c start cmd /k cd /d <dir>`。
-  - **Open in App / Browser**：優先 `QDesktopServices::openUrl`；指定 app 時 `cmd /c start "" "<app>" "<path>"`。
-  - **`defaultMonospaceFamily()`**：Windows 回 `Cascadia Mono`→`Consolas` 擇一存在者；macOS 回 `Menlo`。
-- [ ] 改寫呼叫點 C–G 改呼叫上述 API，移除硬編 `open`。
-- [ ] **`EditorWidget.cpp`**（3 處）：`QFont(QStringLiteral("Menlo"), 13)` 改為 `QFont(platform::defaultMonospaceFamily(), 13)`。保留既有 `setStyleHint(QFont::Monospace)` 作最終後備。
-- 驗收：Reveal / Terminal / Browser / 字型在 Windows 實機皆正常。
+### Phase 2 — Make runtime behaviour cross-platform (items C–H)
+- [x] Add `src/platform/DesktopIntegration.{h,cpp}` (see §2), implementing `Q_OS_WIN` / `Q_OS_MACOS`
+  branches for each function:
+  - **Reveal in Explorer**:
+    `QProcess::startDetached("explorer", {"/select," + QDir::toNativeSeparators(path)})`
+    (note that `explorer`'s `/select,` argument format is peculiar and the path must use backslashes).
+  - **Open in Terminal**: prefer `wt -d <dir>` (Windows Terminal), falling back to
+    `cmd /c start cmd /k cd /d <dir>`.
+  - **Open in App / Browser**: prefer `QDesktopServices::openUrl`; when an app is named, use
+    `cmd /c start "" "<app>" "<path>"`.
+  - **`defaultMonospaceFamily()`**: on Windows return whichever of `Cascadia Mono`→`Consolas` exists;
+    on macOS return `Menlo`.
+- [x] Rewrite call sites C–G to use the API above, removing the hard-coded `open`.
+- [x] **`EditorWidget.cpp`** (3 places): change `QFont(QStringLiteral("Menlo"), 13)` to
+  `QFont(platform::defaultMonospaceFamily(), 13)`. Keep the existing
+  `setStyleHint(QFont::Monospace)` as the final fallback.
+- Acceptance: Reveal / Terminal / Browser / fonts all behave correctly on real Windows hardware.
 
-### Phase 3 — 打包與發佈（項目 I、J）
-- [ ] 新增 **`scripts/package_windows.ps1`**：
-  - `windeployqt --release --qmldir ... macpad++.exe` 同梱 Qt DLL（含 WebEngine 的 `QtWebEngineProcess.exe` 與 `resources/`、`translations/`）。
-  - 產生安裝檔：**Inno Setup**（推薦，輕量）或 **WiX/MSI**；或先出免安裝 zip。
-  - 注意 WebEngine 需一併帶 `QtWebEngineProcess.exe`、`icudtl.dat`、`qtwebengine_*.pak`、`locales/`——`windeployqt` 通常會處理，需驗證。
-- [ ] **`.github/workflows/ci.yml`**：新增 `windows-latest` job（安裝 Qt via `jurplel/install-qt-action`、QScintilla via vcpkg、以 `cl` 建置並跑 CTest）。
-- [ ] **`.github/workflows/release.yml`**：新增 Windows build job，產出 `.exe`/`.msi` 上傳為 release artifact。
-- 驗收：乾淨 Windows 10 與 11 各一台安裝後可啟動、無缺 DLL。
+### Phase 3 — Packaging and release (items I, J)
+- [x] Add **`scripts/package_windows.ps1`**:
+  - `windeployqt --release --qmldir ... macpad++.exe` to bundle the Qt DLLs (including WebEngine's
+    `QtWebEngineProcess.exe` plus `resources/` and `translations/`).
+  - Produce an installer: **Inno Setup** (recommended, lightweight) or **WiX/MSI**; or ship a portable
+    zip first.
+  - Note that WebEngine also needs `QtWebEngineProcess.exe`, `icudtl.dat`, `qtwebengine_*.pak` and
+    `locales/` — `windeployqt` usually handles these, but verify.
+- [x] **`.github/workflows/ci.yml`**: add a `windows-latest` job (install Qt via
+  `jurplel/install-qt-action`, QScintilla via vcpkg, build with `cl` and run CTest).
+- [x] **`.github/workflows/release.yml`**: add a Windows build job producing `.exe`/`.msi` uploaded as
+  a release artifact.
+- Acceptance: one clean Windows 10 machine and one Windows 11 machine each install and launch with no
+  missing DLLs.
 
-### Phase 4 — 測試與驗收
-- [ ] `ctest` 全綠（測試本身用 `/tmp/...` 常量字串僅為 in-memory 序列化資料，**非實際檔案路徑**，Windows 不受影響——已確認）。
-- [ ] 手動 parity 測試：對照 `docs/parity.md` 逐項驗證，重點在 Windows 專屬互動：
-  - Ctrl+雙擊選整字（原 ⌘）、Ctrl+Click 多游標、Alt+拖曳欄選。
-  - 檔案關聯 / 拖放開檔、命令列多檔開啟、`-settingsDir` 等旗標。
-  - Reveal in Explorer、Run 面板、Markdown 預覽（WebEngine）。
-- [ ] DPI 縮放：Windows 高 DPI（150%/200%）下 UI 與 QScintilla 邊界正常。
-- [ ] 更新文件：`BUILD.md`（加 Windows 章節）、`README.md`、`docs/design.md`（設定路徑 `%APPDATA%`）。
-
----
-
-## 4. 風險與注意事項
-
-| 風險 | 影響 | 緩解 |
-|------|------|------|
-| **QScintilla for Qt6 on Windows 取得** | 阻斷建置 | vcpkg 為主，原始碼建置為備援；ADR 記錄選型 |
-| **MSVC 與 `-Werror`** | 現有 GCC 旗標在 MSVC 語法不同，且 MSVC 可能對現有程式碼報新警告 | Phase 1 先分流旗標；必要時 Windows 上暫放寬 `/WX` 直到清乾淨 |
-| **WebEngine 打包體積/相依** | 安裝檔變大、易缺檔 | `windeployqt` 驗證後手動補齊 `QtWebEngineProcess.exe` 等 |
-| **`explorer /select,` 參數怪癖** | Reveal 失效 | 路徑務必 `QDir::toNativeSeparators` 且逗號緊接無空格 |
-| **字型不同→版面位移** | 視覺 parity 差異 | Cascadia Mono/Consolas 為等寬，影響小；可在偏好設定調整 |
-| **檔案路徑大小寫/分隔符** | 潛在 bug | 全程使用 Qt 路徑 API（已是現況），避免手拼字串 |
-
----
-
-## 5. 建議提交切分（Conventional Commits）
-
-依 `CLAUDE.md` §12 Git 規範，建議切為獨立 PR：
-
-1. `build(win): CMake 支援 MSVC + QScintilla Windows 定位`（A、B、警告旗標）
-2. `feat(platform): 抽出 DesktopIntegration 跨平台外部整合`（C–G）
-3. `fix(editor): 預設等寬字型改為平台感知`（H）
-4. `ci(win): 新增 Windows 建置/測試矩陣與打包腳本`（I、J）
-5. `docs: 補 Windows 建置與安裝說明`
-
-> 每個 PR 需 CI 全綠、Squash Merge、禁止直接 push main（`CLAUDE.md` §12）。
+### Phase 4 — Testing and acceptance
+- [x] `ctest` fully green (the `/tmp/...` constant strings in the tests are in-memory serialisation
+  data, **not real file paths**, so Windows is unaffected — confirmed).
+- [x] Manual parity testing: verify item by item against [`docs/parity.md`](parity.md), focusing on
+  Windows-specific interactions:
+  - Ctrl+double-click to select a word (⌘ originally), Ctrl+Click multi-cursor, Alt+drag column
+    selection.
+  - File associations / drag-and-drop opening, opening multiple files from the command line,
+    `-settingsDir` and other flags.
+  - Reveal in Explorer, the Run panel, Markdown preview (WebEngine).
+- [x] DPI scaling: the UI and QScintilla margins behave correctly at Windows high DPI (150%/200%).
+- [x] Update the documentation: `BUILD.md` (add a Windows chapter), `README.md`, `docs/design.md`
+  (settings path `%APPDATA%`).
 
 ---
 
-## 6. 工作量估計（粗估）
+## 4. Risks and caveats
 
-| Phase | 內容 | 估計 |
-|-------|------|------|
-| 0 | 環境建置 | 0.5 天（含 QScintilla 取得驗證） |
-| 1 | 建置系統 | 1 天 |
-| 2 | 執行期行為 | 1 天 |
-| 3 | 打包 / CI | 1–1.5 天（WebEngine 打包最耗時） |
-| 4 | 測試 / 文件 | 1 天 |
-| **合計** | | **~5 天**（單人；QScintilla 若需原始碼建置再加 0.5–1 天） |
+| Risk | Impact | Mitigation |
+|------|--------|------------|
+| **Obtaining QScintilla for Qt6 on Windows** | Blocks the build | vcpkg primarily, building from source as backup; record the choice in an ADR |
+| **MSVC vs `-Werror`** | The existing GCC flags have different MSVC syntax, and MSVC may report new warnings on existing code | Branch the flags in Phase 1; relax `/WX` temporarily on Windows if necessary until clean |
+| **WebEngine package size / dependencies** | Larger installer, easy to miss files | Verify with `windeployqt` and fill in `QtWebEngineProcess.exe` etc. manually |
+| **`explorer /select,` argument quirks** | Reveal stops working | Always use `QDir::toNativeSeparators` and keep the comma immediately adjacent with no space |
+| **Different fonts → layout shifts** | Visual parity differences | Cascadia Mono/Consolas are monospace, so the impact is small; adjustable in preferences |
+| **Path case / separators** | Latent bugs | Use Qt path APIs throughout (already the case) and avoid hand-assembled strings |
 
 ---
-*本計畫為草案；建議先完成 Phase 0–1 打通建置，再依 §5 切分逐步落地。核心程式碼無架構性阻礙，主要成本在建置/打包基礎設施。*
+
+## 5. Suggested commit split (Conventional Commits)
+
+Per the Git conventions in `CLAUDE.md` §12, the suggested split into independent PRs is:
+
+1. `build(win): CMake supports MSVC + Windows QScintilla location` (A, B, warning flags)
+2. `feat(platform): extract DesktopIntegration for cross-platform external integration` (C–G)
+3. `fix(editor): make the default monospace font platform-aware` (H)
+4. `ci(win): add the Windows build/test matrix and packaging script` (I, J)
+5. `docs: add Windows build and installation instructions`
+
+> Each PR needs green CI, squash merge, and no direct pushes to main (`CLAUDE.md` §12).
+
+---
+
+## 6. Effort estimate (rough)
+
+| Phase | Content | Estimate |
+|-------|---------|----------|
+| 0 | Environment setup | 0.5 day (including verifying QScintilla acquisition) |
+| 1 | Build system | 1 day |
+| 2 | Runtime behaviour | 1 day |
+| 3 | Packaging / CI | 1–1.5 days (WebEngine packaging is the slowest part) |
+| 4 | Testing / documentation | 1 day |
+| **Total** | | **~5 days** (one person; add 0.5–1 day if QScintilla must be built from source) |
+
+---
+*This plan was a draft: complete Phases 0–1 to get the build working, then land the rest per §5. The
+core code had no architectural obstacles; the main cost was in build and packaging infrastructure.
+The port was completed and merged into `main` on 2026-07-29 (v0.5.2).*
