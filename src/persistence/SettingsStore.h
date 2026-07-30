@@ -174,7 +174,9 @@ struct Settings {
     bool docSwitcherEnabled = true;      // 啟用文件切換器（Ctrl+Tab 清單）
     bool docPeekerEnabled = true;        // 切換時預覽文件內容
     FileStatusAutoDetectMode fileStatusAutoDetect = FileStatusAutoDetectMode::Enabled;
-    bool autoUpdater = false;            // macOS 上僅儲存使用者偏好，不執行實際更新檢查
+    // 啟動時自動檢查更新。實際會查詢 GitHub Releases 並在有新版時提示下載
+    // （見 features/update/），失敗與「已是最新」皆靜默，不打擾。
+    bool autoUpdater = false;
     bool enableSound = false;            // 動作提示音（如尋找到底/取代完成）
 };
 
