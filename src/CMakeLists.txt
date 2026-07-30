@@ -34,6 +34,8 @@ set(MACPAD_LIB_SOURCES
     features/cli/CliArgs.h
     features/autocomplete/ApiDatabase.cpp
     features/autocomplete/ApiDatabase.h
+    features/autocomplete/ApiFileStore.cpp
+    features/autocomplete/ApiFileStore.h
     features/backup/BackupService.cpp
     features/backup/BackupService.h
     features/findall/FindAllEngine.cpp

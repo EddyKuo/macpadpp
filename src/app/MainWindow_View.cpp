@@ -319,9 +319,11 @@ void MainWindow::wireEditorSignals(EditorWidget *editor)
         // ApiDatabase 用的是 LexerFactory 語言鍵，與 FunctionListParser 的語言鍵不同源，
         // 故兩者各自取用自己的鍵，不可混用。
         if (const QString langKey = languageKeyForLexer(editor->lexer()); !langKey.isEmpty()) {
-            const QString tip = macpad::features::ApiDatabase::callTipFor(fn, langKey);
-            if (!tip.isEmpty()) {
-                editor->showCallTip(tip);
+            // 外部 API 檔（Notepad++ 相容）可帶多個多載；有多載時以 ▲ n of m ▼ 呈現，
+            // 讓使用者逐一切換，複刻上游行為。
+            const auto tips = macpad::features::ApiDatabase::callTipsFor(fn, langKey);
+            if (!tips.isEmpty()) {
+                editor->showCallTips(tips);
                 return;
             }
         }

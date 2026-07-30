@@ -157,6 +157,21 @@ EditorWidget::EditorWidget(QWidget *parent)
     connect(this, &QsciScintilla::cursorPositionChanged,
             this, &EditorWidget::onCursorPositionChanged);
 
+    // Call tip 多載切換：點擊「▲ n of m ▼」的箭頭時循環切換（1 = 上、2 = 下）。
+    // 複刻 Notepad++ 對多載函式的呈現方式。
+    connect(this, &QsciScintillaBase::SCN_CALLTIPCLICK, this, [this](int direction) {
+        if (m_callTipOverloads.size() < 2 || m_callTipIndex < 0)
+            return;
+        const int n = m_callTipOverloads.size();
+        if (direction == 1)
+            m_callTipIndex = (m_callTipIndex - 1 + n) % n;   // 上：往前，繞回最後一個
+        else if (direction == 2)
+            m_callTipIndex = (m_callTipIndex + 1) % n;       // 下：往後，繞回第一個
+        else
+            return;   // 0 = 點在文字上，不切換
+        renderCallTip();
+    });
+
     // 選取歷史（Notepad++ v8.8.1）：記錄選取/游標變化，供 Undo 逐步回退；
     // 文件一旦被修改就重置——選取歷史只在「上次修改之後」有意義。
     connect(this, &QsciScintilla::selectionChanged, this,
@@ -1032,15 +1047,58 @@ void EditorWidget::showCallTip(const QString &text)
 {
     if (text.isEmpty())
         return;
+    m_callTipOverloads.clear();
+    m_callTipIndex = -1;
     const long pos = SendScintilla(SCI_GETCURRENTPOS);
     // SCI_CALLTIPSHOW 會複製字串，臨時 QByteArray 即可
     const QByteArray bytes = text.toUtf8();
     SendScintilla(SCI_CALLTIPSHOW, static_cast<quintptr>(pos), bytes.constData());
 }
 
+// 複刻 Notepad++ 的多載切換：同時只顯示一個簽名，首行為「▲ n of m ▼」。
+// Scintilla 以 \001 / \002 兩個控制字元代表可點擊的上/下箭頭，點擊後發出
+// SCN_CALLTIPCLICK（1 = 上、2 = 下），據此循環切換。
+void EditorWidget::showCallTips(const QStringList &overloads)
+{
+    QStringList list;
+    for (const QString &s : overloads)
+        if (!s.isEmpty())
+            list << s;
+
+    if (list.isEmpty())
+        return;
+    if (list.size() == 1) {
+        showCallTip(list.first());   // 單一簽名不加箭頭，外觀與原本一致
+        return;
+    }
+
+    m_callTipOverloads = list;
+    m_callTipIndex = 0;
+    renderCallTip();
+}
+
+void EditorWidget::renderCallTip()
+{
+    if (m_callTipIndex < 0 || m_callTipIndex >= m_callTipOverloads.size())
+        return;
+
+    // \001 = 上箭頭、\002 = 下箭頭（Scintilla call tip 的內建可點擊標記）
+    const QString header = QStringLiteral("\001 %1 of %2 \002\n")
+                               .arg(m_callTipIndex + 1)
+                               .arg(m_callTipOverloads.size());
+    const QString body = header + m_callTipOverloads.at(m_callTipIndex);
+
+    const long pos = SendScintilla(SCI_GETCURRENTPOS);
+    const QByteArray bytes = body.toUtf8();
+    SendScintilla(SCI_CALLTIPSHOW, static_cast<quintptr>(pos), bytes.constData());
+}
+
 void EditorWidget::cancelCallTip()
 {
     SendScintilla(SCI_CALLTIPCANCEL);
+    // 一併清掉多載狀態，避免下次點擊箭頭時對著已關閉的提示切換
+    m_callTipOverloads.clear();
+    m_callTipIndex = -1;
 }
 
 void EditorWidget::triggerCallTip()

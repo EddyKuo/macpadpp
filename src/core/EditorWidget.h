@@ -171,7 +171,13 @@ public:
 
     // === Call tip（函式參數提示）===
     void showCallTip(const QString &text);   // 於游標處顯示 call tip
+    // 多載版本：複刻 Notepad++ 的多載切換——同時只顯示一個簽名，並在首行加上
+    // 「▲ n of m ▼」箭頭，點擊箭頭可循環切換（Scintilla 的 SCN_CALLTIPCLICK）。
+    // 只有一個簽名時不加箭頭，外觀與單一簽名版本相同。
+    void showCallTips(const QStringList &overloads);
     void cancelCallTip();
+    // 目前顯示的是第幾個多載（0-based）；未顯示多載時為 -1。供測試與上層查詢。
+    int currentCallTipOverload() const { return m_callTipIndex; }
     // 強制對游標前識別字發出 callTipRequested（不需鍵入 '(' 觸發），供上層綁定快捷鍵手動觸發
     void triggerCallTip();
 
@@ -433,6 +439,11 @@ private:
     int  m_caretWidth = 1;           // 插入點寬度（像素）
     bool m_wordCompletion = true;    // 字詞自動完成開關
     bool m_callTips = true;          // call tip 開關
+    // 多載切換狀態（Notepad++ 的 ▲ n of m ▼）：目前顯示中的多載清單與索引
+    QStringList m_callTipOverloads;
+    int m_callTipIndex = -1;
+    // 依 m_callTipIndex 重新繪製 call tip（含箭頭列）
+    void renderCallTip();
     bool m_columnSelectionToMultiEdit = false;  // 欄位選取轉多重編輯偏好開關
 
     // === Undo/Redo 選取歷史（Notepad++ v8.8.1）===

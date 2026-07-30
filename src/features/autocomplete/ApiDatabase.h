@@ -16,7 +16,12 @@ public:
     static QStringList entriesFor(const QString &langKey);
 
     // 依詞彙與語言代碼回傳呼叫提示（函式簽名/用法說明）；未知則回傳空字串。
+    // 多載函式回傳以換行分隔的全部簽名（相容既有呼叫端）。
     static QString callTipFor(const QString &word, const QString &langKey);
+
+    // 同上，但逐一回傳各多載的簽名，供 UI 以「▲ n of m ▼」切換顯示（複刻 Notepad++）。
+    // 資料來源優先序：使用者的外部 API 檔（ApiFileStore）→ 內建 call tip 表。
+    static QStringList callTipsFor(const QString &word, const QString &langKey);
 
     // 依路徑片段（可能包含目錄部分）回傳檔案系統路徑自動完成候選清單。
     // fragment 的目錄部分決定搜尋目錄，檔名部分作為前綴過濾。

@@ -6,6 +6,7 @@
 #include <QPair>
 #include <QSet>
 
+#include "features/autocomplete/ApiFileStore.h"
 #include "features/langs/BuiltinLanguages.h"
 
 namespace macpad::features {
@@ -164,14 +165,30 @@ const QHash<QPair<QString, QString>, QString> &callTipTable()
 
 QStringList ApiDatabase::entriesFor(const QString &langKey)
 {
-    if (langKey == QLatin1String("cpp")) return cppEntries();
-    if (langKey == QLatin1String("python")) return pythonEntries();
-    if (langKey == QLatin1String("javascript")) return javascriptEntries();
-    if (langKey == QLatin1String("css")) return cssEntries();
-    if (langKey == QLatin1String("html")) return htmlEntries();
-    if (langKey == QLatin1String("sql")) return sqlEntries();
-    if (langKey == QLatin1String("bash")) return bashEntries();
-    if (langKey == QLatin1String("json")) return jsonEntries();
+    // 使用者提供的外部 API 檔（Notepad++ 相容格式）優先併入，讓自動完成可自行擴充。
+    // 檔案不存在時為空，行為與加入此功能之前完全相同。
+    QStringList external;
+    for (const ApiEntry &e : ApiFileStore::entriesFor(langKey))
+        if (!e.name.isEmpty())
+            external << e.name;
+
+    auto merge = [&external](QStringList builtin) {
+        if (external.isEmpty())
+            return builtin;
+        builtin += external;
+        builtin.removeDuplicates();
+        builtin.sort(Qt::CaseInsensitive);
+        return builtin;
+    };
+
+    if (langKey == QLatin1String("cpp")) return merge(cppEntries());
+    if (langKey == QLatin1String("python")) return merge(pythonEntries());
+    if (langKey == QLatin1String("javascript")) return merge(javascriptEntries());
+    if (langKey == QLatin1String("css")) return merge(cssEntries());
+    if (langKey == QLatin1String("html")) return merge(htmlEntries());
+    if (langKey == QLatin1String("sql")) return merge(sqlEntries());
+    if (langKey == QLatin1String("bash")) return merge(bashEntries());
+    if (langKey == QLatin1String("json")) return merge(jsonEntries());
 
     // 內建語言表（Go / Rust / Swift / PowerShell…）：直接以該語言的關鍵字群組作為
     // 自動完成字典，使新增語言不必逐一手寫 *Entries()。已由上面手寫清單覆蓋的語言
@@ -184,15 +201,34 @@ QStringList ApiDatabase::entriesFor(const QString &langKey)
                 out << kw;
         out.removeDuplicates();
         out.sort(Qt::CaseInsensitive);
-        return out;
+        return merge(out);
     }
 
+    // 沒有內建清單的語言：仍可完全靠使用者的外部 API 檔提供自動完成
+    if (!external.isEmpty()) {
+        external.removeDuplicates();
+        external.sort(Qt::CaseInsensitive);
+        return external;
+    }
     return {};
+}
+
+QStringList ApiDatabase::callTipsFor(const QString &word, const QString &langKey)
+{
+    // 外部 API 檔優先：使用者明確提供的簽名應勝過內建表
+    for (const ApiEntry &e : ApiFileStore::entriesFor(langKey)) {
+        if (e.name != word || e.overloads.isEmpty())
+            continue;
+        return e.overloads;
+    }
+    const QString builtin = callTipTable().value({langKey, word});
+    return builtin.isEmpty() ? QStringList() : QStringList{builtin};
 }
 
 QString ApiDatabase::callTipFor(const QString &word, const QString &langKey)
 {
-    return callTipTable().value({langKey, word});
+    // 多載以換行分隔一次全數呈現（Scintilla 的 call tip 支援多行）
+    return callTipsFor(word, langKey).join(QLatin1Char('\n'));
 }
 
 QStringList ApiDatabase::completePath(const QString &fragment)
