@@ -1287,7 +1287,10 @@ Sprint 5–7 新增的 UI 字串均已透過 `lupdate` → 翻譯 → `lrelease`
 | Windows… 文件管理 | `ui/WindowsListDialog` | 可排序的文件清單（`SortableItem` 覆寫 `operator<`，依 role 值而非顯示字串排序），含 Activate / Save / Close / Sort Tabs。 |
 | RTF 匯出 | `features/export/RtfExporter` | 比照 `HtmlExporter`，走訪 `SCI_GETSTYLEAT` 樣式區段並建出 `\colortbl`。 |
 | 記憶自訂色的取色器 | `ui/ColorPicker` | 持久化自訂色；所有 `QColorDialog::getColor` 呼叫點改走此處。 |
-| 更新檢查 | `features/update/UpdateChecker` | 以 8 秒中止計時器查詢 GitHub Releases API；`compareVersions` 為純數值比較。刻意不自我下載覆寫。 |
+| 更新檢查 | `features/update/UpdateChecker` | 以 8 秒中止計時器查詢 GitHub Releases API；`compareVersions` 為純數值比較。`pickAssetForPlatform` 挑出符合本平台的發佈檔。 |
+| 更新下載 | `features/update/UpdateDownloader` | 串流寫入下載資料夾（發佈檔約 150 MB，不整包進記憶體），含進度、取消，以及位元組數完整性檢查（不符即刪除殘檔）。以 `NewOnly` 開檔，檔名衝突絕不截斷既有檔案。 |
+| API 簽名檔 | `features/autocomplete/ApiFileStore` | 解析 Notepad++ 的 `plugins/APIs/<lang>.xml` 結構（`KeyWord`/`Overload`/`Param`），放在設定目錄的 `apis/<lang>.xml`，可直接沿用上游檔案。併入 `ApiDatabase`；多載透過 `SCN_CALLTIPCLICK` 切換。 |
+| 檔案關聯 | `platform/FileAssociation` | Windows 每使用者關聯（`HKCU\Software\Classes`），保留並還原原本的擁有者，且在無人引用時移除 ProgID。macOS 明確回報不支援，而非靜默無效。 |
 
 ### 20.2 關鍵設計決策
 - **重用 UDL 引擎，而非寫 95 個 lexer**：把每種語言表達為資料（關鍵字、註解符號、運算子、折疊標記）
@@ -1306,7 +1309,22 @@ Sprint 5–7 新增的 UI 字串均已透過 `lupdate` → 翻譯 → `lrelease`
 - **檢查更新但不自我覆寫**：檢查器會查詢、比對並引導至下載頁。靜默下載並取代自身二進位刻意不做——
   那需要簽章與更新伺服器基礎建設，且讓一個離線編輯器在使用者未察覺時改寫自身，風險與收益不成比例。
 
-### 20.3 完成後狀態
+### 20.3 UDL 掃描器改為遞迴
+
+加入 nesting 後，lexer 的平坦掃描迴圈變成 `scanToken()` / `scanRegion()` 一對：
+區塊自行標記開頭與結尾，若 nesting 遮罩非 0 就對中間內容遞迴。由此衍生三個約束，
+每一項都是 code review 抓出的真缺陷而非假想情境，值得記下：
+
+- **深度必須設限**。區塊可以合法地巢狀包含自己（可巢狀的區塊註解），而 `styleText()`
+  每次按鍵都從第 0 位元組重掃，因此一串未閉合的開頭標記會在每次編輯時，每個標記各佔一層
+  C++ 堆疊。深度上限 64，超過即退回逐位元組上色。
+- **結尾標記必須先於跳脫字元判定**。兩者相同時（SQL 以連續兩個引號跳脫引號的慣例），
+  先比對跳脫就永遠關不掉區塊，會把文件其餘部分整段吃掉。
+- **上游的位元配置與我們不同**。Notepad++ 的 `nesting` 屬性用的是它自己的
+  `SCE_USER_MASK_NESTING_*` 位元，分隔符樣式編號從 16 起算。這些常數必須照上游標頭逐一抄對，
+  且守護它們的測試要用寫死的上游數值——用自家常數做往返測試，兩邊一起錯也照樣會過。
+
+### 20.4 完成後狀態
 `-Wall -Wextra -Werror`（MSVC 為 `/W4 /WX`）零警告，CTest **47/47** 通過
 （新增 5 個套件：`test_builtinlangs`、`test_functionlist_langs`、`test_pintab`、
 `test_multirowtabbar`、`test_updatechecker`）。順道修掉兩個既有的不一致：File ▸ Print… 先前是裸的

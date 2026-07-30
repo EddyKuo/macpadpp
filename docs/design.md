@@ -1487,7 +1487,10 @@ incorrectly marked as vanished (they were still in use); the false positive was 
 | Windows… document manager | `ui/WindowsListDialog` | A sortable document list (`SortableItem` overrides `operator<` to sort by a role value rather than the display string) with Activate / Save / Close / Sort Tabs. |
 | RTF export | `features/export/RtfExporter` | Mirrors `HtmlExporter`, walking `SCI_GETSTYLEAT` runs to build a `\colortbl`. |
 | Colour picker with memory | `ui/ColorPicker` | Persists custom colours; all `QColorDialog::getColor` call sites route through it. |
-| Update checking | `features/update/UpdateChecker` | Queries the GitHub Releases API with an 8 s abort timer; `compareVersions` is a pure numeric comparison. Deliberately does not self-download or overwrite. |
+| Update checking | `features/update/UpdateChecker` | Queries the GitHub Releases API with an 8 s abort timer; `compareVersions` is a pure numeric comparison. `pickAssetForPlatform` selects the asset matching the running platform. |
+| Update download | `features/update/UpdateDownloader` | Streams the release asset to the Downloads folder (the artifacts are ~150 MB, so nothing is buffered whole), with progress, cancellation, and a byte-count integrity check that deletes the partial file on mismatch. Opens with `NewOnly` so a name collision can never truncate an existing file. |
+| API signature files | `features/autocomplete/ApiFileStore` | Parses Notepad++'s `plugins/APIs/<lang>.xml` schema (`KeyWord`/`Overload`/`Param`) from `apis/<lang>.xml` in the config directory, so upstream's API files work as-is. Merged into `ApiDatabase`; overloads cycle in the call tip via `SCN_CALLTIPCLICK`. |
+| File association | `platform/FileAssociation` | Per-user Windows registry associations under `HKCU\Software\Classes`, preserving and restoring the previous owner and removing the ProgID once nothing references it. Reports unsupported on macOS rather than silently no-opping. |
 
 ### 20.2 Key design decisions
 - **Reusing the UDL engine rather than writing 95 lexers**: language coverage went from 33 to 128 by
@@ -1511,7 +1514,26 @@ incorrectly marked as vanished (they were still in use); the false positive was 
   would need signing and update-server infrastructure, and an offline editor rewriting itself unnoticed
   is a poor risk/benefit trade.
 
-### 20.3 State on completion
+### 20.3 The UDL scanner became recursive
+
+Adding nesting turned the lexer's flat scan loop into a `scanToken()` / `scanRegion()` pair: a region
+styles its open and close tokens itself and, if its nesting mask is non-zero, recurses for the content
+between them. Three constraints fell out of that and are worth stating, because each was a real defect
+caught in review rather than a hypothetical:
+
+- **Depth must be bounded.** A region may legitimately nest inside itself (nestable block comments),
+  and `styleText()` rescans from byte 0 on every keystroke, so an unclosed run of open tokens would put
+  one C++ stack frame per token on every edit. Depth is capped at 64, beyond which the scanner falls
+  back to flat styling.
+- **The close token must be tested before the escape token.** When they are equal — the SQL convention
+  of doubling a quote to escape it — checking escape first means the region never closes and swallows
+  the rest of the document.
+- **The upstream bit layout is not ours.** Notepad++'s `nesting` attribute uses its own
+  `SCE_USER_MASK_NESTING_*` bits, and its delimiter style IDs start at 16. Those constants must be
+  transcribed from the upstream header, and the test that guards them has to use literal upstream
+  values — a round-trip test through our own constants passes even when both sides are wrong.
+
+### 20.4 State on completion
 Build with zero warnings under `-Wall -Wextra -Werror` (`/W4 /WX` on MSVC), CTest **47/47** passing
 (5 new suites: `test_builtinlangs`, `test_functionlist_langs`, `test_pintab`, `test_multirowtabbar`,
 `test_updatechecker`). Two pre-existing inconsistencies were fixed while in the area: File ▸ Print… was
