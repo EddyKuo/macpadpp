@@ -51,6 +51,27 @@ set(MACPAD_TESTS
     test_updatechecker
     test_apifilestore
     test_fileassociation
+    # GUI 層測試：對話框、面板與 MainWindow 命令處理。
+    # 這些檔案原本行覆蓋率為 0%——核心邏輯測得很紮實，缺口全在 UI 層。
+    test_findreplacedialog
+    test_udleditordialog
+    test_styledialogs
+    test_workspacedocks
+    test_resultdocks
+    test_miscdialogs
+    test_outputpipeline
+    test_mainwindow_actions
+    # 第二批：MainWindow 各分部與剩餘缺口。這些檔的未覆蓋部分多半是
+    # 「沒人按過那顆選單項」而非邏輯未實作，故以驅動實際命令的方式補齊。
+    test_mainwindow_menus
+    test_mainwindow_view
+    test_mainwindow_file
+    test_mainwindow_prefs
+    test_mainwindow_core
+    test_editorwidget_gaps
+    test_panels_gaps
+    test_uiwidgets_gaps
+    test_smallgaps
 )
 
 foreach(t ${MACPAD_TESTS})
