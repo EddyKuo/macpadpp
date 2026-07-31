@@ -77,6 +77,36 @@ jobs:
           echo "$sizes" | grep -qx '16x16'   || { echo ".ico 缺 16x16";   exit 1; }
           echo "$sizes" | grep -qx '256x256' || { echo ".ico 缺 256x256"; exit 1; }
 
+  coverage:
+    name: Coverage（行覆蓋率門檻）
+    runs-on: macos-14
+    timeout-minutes: 60
+    # 與兩個建置 job 一樣維持手動觸發：它需要自己的 instrumented 建置，
+    # 成本與一次完整建置相當，不適合每次 push 都跑。
+    if: github.event_name == 'workflow_dispatch'
+    env:
+      # 門檻刻意設在目前數字（94%）之下留一點餘裕：目的是擋住「大幅倒退」，
+      # 而不是讓任何一次無關的重構因為零點幾個百分點就變紅。
+      MIN_LINE_COVERAGE: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安裝相依（Homebrew）
+        run: brew install cmake qt qscintilla2
+
+      # scripts/coverage.sh 自行負責 configure、建置、逐一執行測試、
+      # 合併 profraw 並產出報告；未達 MIN_LINE_COVERAGE 即以非零結束碼失敗。
+      - name: 量測覆蓋率並檢查門檻
+        run: bash scripts/coverage.sh coverage.txt
+
+      # 失敗時報告本身是最有用的產物——直接看得到是哪些檔案掉下去。
+      - name: 上傳覆蓋率報告
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.txt
+
   build-test:
     name: Build & Test (macOS arm64)
     runs-on: macos-14

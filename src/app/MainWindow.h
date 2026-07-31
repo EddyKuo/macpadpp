@@ -252,9 +252,7 @@ private:
     void updateDocMapRange();   // 以作用中編輯器可視範圍更新 Document Map 色帶（FR-029）
     void watchPath(const QString &path);
     macpad::ui::EditorPane *currentPane() const;
-    macpad::ui::EditorPane *paneAt(int index) const;
     macpad::core::EditorWidget *currentEditor() const;
-    macpad::core::EditorWidget *editorAt(int index) const;
     macpad::core::EditorWidget *addEditorTab();
     // 未命名分頁的最小可用序號（複刻 Notepad++「new N」）：掃描兩檢視現有 untitled 分頁，回傳最小未用正整數
     int nextUntitledNumber() const;
@@ -277,7 +275,6 @@ private:
     void forEachEditor(const std::function<void(macpad::core::EditorWidget *)> &fn) const;
     // 若分頁有未存變更，詢問存/不存/取消；回傳 false 表示使用者取消（FR-001 AC2）
     bool maybeSave(macpad::core::EditorWidget *editor);
-    int indexOfPath(const QString &absPath) const;
 
     QTabWidget *m_tabs = nullptr;
     QTabWidget *m_tabs2 = nullptr;      // 第二檢視（Dual-View）；預設隱藏，移動/複製文件過去才顯示
