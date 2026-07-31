@@ -434,11 +434,10 @@ private slots:
     // 因此 volatile 移動過之後按 Replace，不該取代目前這個（非正式命中的）選取。
     // 這正是原始碼 remember=false 參數要保護的不變式。
     //
-    // 這裡刻意用增量搜尋（打字）而非 findNext 來建立「正式命中」，因為 findNext 會
-    // 寫入搜尋歷史；而 pushHistory 對已存在的項目是「先移除再插回」，移除的瞬間
-    // combo 會清空 lineEdit 並再填回，於是又觸發一次 textChanged → incrementalFind，
-    // 把最近命中記錄重新指到別處。用打字建立命中可以避開這條干擾路徑，
-    // 讓本測試只驗 volatile 這一件事。
+    // 這裡用增量搜尋（打字）而非 findNext 來建立「正式命中」，單純是為了讓本測試
+    // 只驗 volatile 這一件事，不牽扯搜尋歷史。
+    // （pushHistory 曾因「先移除再插回」而在中途清空 lineEdit、觸發 incrementalFind
+    //   把命中記錄指到別處；該問題已修，見 findNextTwiceDoesNotSkipAMatch。）
     void volatileFindDoesNotArmReplace()
     {
         EditorWidget editor;
@@ -459,6 +458,35 @@ private slots:
         call(&dlg, "replaceOne");
         // 目前選取不是「最近一次正式命中」，故不得取代
         QCOMPARE(editor.text(), QStringLiteral("x1 x2 x3"));
+    }
+
+    // 迴歸測試：連按兩次 Find Next 不可多跳一個匹配。
+    //
+    // findNext 結束時會把搜尋詞收進歷史。第二次按下時該詞已存在，pushHistory 走的是
+    // 「先 removeItem 再 insertItem」——移除的瞬間 combo 變空，連帶清掉 lineEdit，
+    // 插回時又填了回來。這一來一往發出的 textChanged 連到 incrementalFind，於是在
+    // 使用者毫無察覺的情況下又搜尋了一次、把選取移到別處。
+    // 症狀：文件裡三個 x，連按兩次 Find Next 不會停在第二個而是第三個（或更後面）。
+    void findNextTwiceDoesNotSkipAMatch()
+    {
+        EditorWidget editor;
+        editor.setText(QStringLiteral("x1 x2 x3"));   // x 位於 0、3、6
+        FindReplaceDialog dlg;
+        dlg.setEditor(&editor);
+
+        editor.setCursorPosition(0, 0);
+        setFind(&dlg, QStringLiteral("x"));   // 增量搜尋先命中第 0 個
+        QCOMPARE(editor.selectedText(), QStringLiteral("x"));
+
+        int lf = -1, idx = -1, lt = -1, it = -1;
+
+        call(&dlg, "findNext");               // 第一次：此時歷史尚無此詞，不觸發移除
+        editor.getSelection(&lf, &idx, &lt, &it);
+        QCOMPARE(idx, 3);
+
+        call(&dlg, "findNext");               // 第二次：詞已在歷史中，正是出問題的路徑
+        editor.getSelection(&lf, &idx, &lt, &it);
+        QCOMPARE(idx, 6);
     }
 
     // Volatile 版本連搜尋歷史都不留——這是它與 findNext 最直接可觀察的差異，
@@ -1050,7 +1078,9 @@ private slots:
         const QString emoji = QString(QChar::highSurrogate(0x1F600))
                             + QString(QChar::lowSurrogate(0x1F600));
         EditorWidget editor;
-        editor.setText(QStringLiteral("..") + emoji);
+        // emoji 後面必須還有內容：若把它擺在行尾，越界的索引會被 Scintilla 夾限成
+        // 行長，剛好等於正確答案，這個測試就分辨不出對錯了。
+        editor.setText(QStringLiteral("..") + emoji + QStringLiteral(".."));
         FindReplaceDialog dlg;
         dlg.setEditor(&editor);
         cpLoEdit(&dlg)->setText(QStringLiteral("0x1F600"));
@@ -1058,9 +1088,42 @@ private slots:
 
         editor.setCursorPosition(0, 0);
         call(&dlg, "findCodepointRange");
-        // 註：選取的欄位索引在 QScintilla 是位元組偏移，而掃描用的是 QString 字元索引，
-        // 非 ASCII 內容下兩者不一致，故此處只斷言「有找到」，不斷言選取範圍。
         QVERIFY2(status(&dlg).startsWith(QStringLiteral("找到碼點範圍")), qPrintable(status(&dlg)));
+
+        // 選取範圍必須正確：QScintilla 的欄位索引是「Unicode 字元」數，而掃描用的是
+        // QString 的 UTF-16 code unit 索引。emoji 在 QString 佔兩格、在 Scintilla 只
+        // 算一格，故正確的選取是字元 [2,3)；直接把 QString 的 len=2 交出去會變成
+        // [2,4)，多吃掉後面一個字元。
+        int lf = -1, idx = -1, lt = -1, it = -1;
+        editor.getSelection(&lf, &idx, &lt, &it);
+        QCOMPARE(idx, 2);
+        QCOMPARE(it, 3);
+        QCOMPARE(editor.selectedText(), emoji);
+    }
+
+    // 起始游標位置同樣是 Unicode 字元索引。若不換算就拿去索引 QString，
+    // 只要游標前方出現過 BMP 外字元，掃描起點就會整體偏移。
+    void codepointRangeConvertsCursorCharIndex()
+    {
+        const QString emoji = QString(QChar::highSurrogate(0x1F600))
+                            + QString(QChar::lowSurrogate(0x1F600));
+        EditorWidget editor;
+        // 😀中文😀：字元索引 0/1/2/3，但 QString 索引 0/2/3/4——前方那個 emoji 造成偏差
+        editor.setText(emoji + QStringLiteral("中文") + emoji);
+        FindReplaceDialog dlg;
+        dlg.setEditor(&editor);
+        cpLoEdit(&dlg)->setText(QStringLiteral("0x1F600"));
+        cpHiEdit(&dlg)->setText(QStringLiteral("0x1F600"));
+
+        editor.setCursorPosition(0, 3);   // 字元索引 3 ＝ 第二個 emoji 之前
+        call(&dlg, "findCodepointRange");
+        QVERIFY2(status(&dlg).startsWith(QStringLiteral("找到碼點範圍")), qPrintable(status(&dlg)));
+
+        int lf = -1, idx = -1, lt = -1, it = -1;
+        editor.getSelection(&lf, &idx, &lt, &it);
+        QCOMPARE(idx, 3);
+        QCOMPARE(it, 4);
+        QCOMPARE(editor.selectedText(), emoji);
     }
 
     // ── Extended（跳脫序列）────────────────────────────────────────────────
