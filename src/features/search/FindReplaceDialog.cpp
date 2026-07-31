@@ -12,6 +12,7 @@
 #include <QPushButton>
 #include <QRegularExpression>
 #include <QSettings>
+#include <QSignalBlocker>   // pushHistory 期間擋下 lineEdit 訊號；明確引入
 #include <QSlider>
 
 using macpad::core::EditorWidget;
@@ -20,6 +21,13 @@ using macpad::persistence::SettingsStore;
 namespace {
 // QSettings 群組名稱，統一存放本對話框的搜尋選項勾選狀態
 constexpr auto kSettingsGroup = "FindReplaceDialog";
+
+// line[i] 起是否為一組完整的代理對（BMP 外字元在 QString 裡佔兩個 UTF-16 code unit）
+bool isSurrogatePairAt(const QString &line, int i)
+{
+    return i + 1 < line.size() && line.at(i).isHighSurrogate()
+           && line.at(i + 1).isLowSurrogate();
+}
 }  // namespace
 
 namespace macpad::features {
@@ -157,6 +165,22 @@ void FindReplaceDialog::pushHistory(QComboBox *combo, const QString &text)
 {
     if (!combo || text.isEmpty())
         return;
+
+    // 整段擋掉 lineEdit 的訊號：removeItem 把該項移除時會一併清空 lineEdit，
+    // 插回後又填了回來。這一來一往會發出 textChanged，連到 incrementalFind，
+    // 於是「移動選取 + 重新武裝 rememberMatch」在使用者毫無察覺下發生——
+    // 症狀是同一個搜尋詞按第二次 Find Next 時會先多跳一個匹配才開始搜尋。
+    // 這裡進出的文字完全相同，中間的空字串狀態本來就不該被任何人看見。
+    // combo 自身也一起擋：removeItem/insertItem/setCurrentIndex 還會發出
+    // currentIndexChanged / currentTextChanged。目前沒有人接這些訊號，但只擋
+    // lineEdit 等於把防護綁在「現在剛好只連了哪一條」上——日後有人接了 combo
+    // 的訊號就會重蹈覆轍。兩個一起擋，防護才是對著成因而非症狀。
+    // （combo 非可編輯時 lineEdit() 為 null，QSignalBlocker 對 null 是 no-op。
+    //   blockSignals 只擋「由該物件送出」的訊號，不影響它自己的 slot 被呼叫，
+    //   故 combo 內部更新 lineEdit 文字的路徑不受影響——已由本檔測試涵蓋。）
+    const QSignalBlocker blockCombo(combo);
+    const QSignalBlocker blockEdit(combo->lineEdit());
+
     const int existing = combo->findText(text);
     if (existing >= 0)
         combo->removeItem(existing);
@@ -371,10 +395,35 @@ void FindReplaceDialog::findCodepointRange()
         return;
     }
 
-    int curLine = 0, curIndex = 0;
-    m_editor->getCursorPosition(&curLine, &curIndex);
+    int curLine = 0, curChar = 0;
+    m_editor->getCursorPosition(&curLine, &curChar);
     const int totalLines = m_editor->lines();
     const bool wrap = m_wrap->isChecked();
+
+    // QScintilla 的欄位索引是「Unicode 字元」數（positionFromLineIndex 逐次呼叫
+    // SCI_POSITIONRELATIVE），而底下的掃描走的是 QString 的 UTF-16 code unit 索引。
+    // BMP 字元兩者相同，但 BMP 外字元（emoji）在 QString 佔兩格、在 Scintilla 只算
+    // 一格——行內只要出現過一個 emoji，其後所有位置就會整體偏移。故進出 Scintilla
+    // 的邊界一律顯式換算。
+    const auto u16ToCharIndex = [](const QString &line, int u16) {
+        int chars = 0, i = 0;
+        while (i < u16 && i < line.size()) {
+            i += isSurrogatePairAt(line, i) ? 2 : 1;
+            ++chars;
+        }
+        return chars;
+    };
+    const auto charToU16Index = [](const QString &line, int chars) {
+        int i = 0, n = 0;
+        while (n < chars && i < line.size()) {
+            i += isSurrogatePairAt(line, i) ? 2 : 1;
+            ++n;
+        }
+        return i;
+    };
+
+    // 游標位置是字元索引，換成起始行的 QString 索引後才能拿來掃描
+    const int curIndex = charToU16Index(m_editor->text(curLine), curChar);
 
     // 由 [startLine,startIndex] 掃描至 endLineExclusive（不含）之前，找到第一個碼點落在 [lo,hi] 的字元；
     // 找到即 setSelection 並回傳 true。處理代理對（surrogate pair）以支援 BMP 外碼點。
@@ -386,13 +435,13 @@ void FindReplaceDialog::findCodepointRange()
                 const QChar c = lineText.at(i);
                 uint cp = c.unicode();
                 int len = 1;
-                if (c.isHighSurrogate() && i + 1 < lineText.size()
-                    && lineText.at(i + 1).isLowSurrogate()) {
+                if (isSurrogatePairAt(lineText, i)) {
                     cp = QChar::surrogateToUcs4(c, lineText.at(i + 1));
                     len = 2;
                 }
                 if (cp >= lo && cp <= hi) {
-                    m_editor->setSelection(line, i, line, i + len);
+                    m_editor->setSelection(line, u16ToCharIndex(lineText, i),
+                                           line, u16ToCharIndex(lineText, i + len));
                     m_editor->ensureLineVisible(line);
                     return true;
                 }
