@@ -441,11 +441,8 @@ private slots:
     void callTipOverloadArrowCycling()
     {
         EditorWidget e;
-        // QsciScintilla 內建的 handleCallTipClick 只認得「由它自己的 callTip() API 建立」
-        // 的提示（依賴內部 shift 表）；EditorWidget 走的是原生 SCI_CALLTIPSHOW，
-        // 兩者狀態不共用。此處斷開內建 slot，單獨驗證 EditorWidget 自己的箭頭切換邏輯。
-        QObject::disconnect(&e, SIGNAL(SCN_CALLTIPCLICK(int)), &e, SLOT(handleCallTipClick(int)));
-
+        // 註：這裡不需要斷開 QsciScintilla 內建的 handleCallTipClick——EditorWidget
+        // 的建構子已經斷開它了（見下方 callTipClickDoesNotCrashWithoutOverloads）。
         e.setText(QStringLiteral("f"));
         e.setCursorPosition(0, 1);
         e.showCallTips({QStringLiteral("f(int)"), QStringLiteral("f(double)"),
@@ -468,6 +465,58 @@ private slots:
         QCOMPARE(e.currentCallTipOverload(), -1);
         emit e.SCN_CALLTIPCLICK(2);
         QCOMPARE(e.currentCallTipOverload(), -1);
+    }
+
+    // 迴歸測試：點擊 call tip 不得讓程式當掉。
+    //
+    // QsciScintilla 在建構時就無條件把 SCN_CALLTIPCLICK 連到自己的
+    // handleCallTipClick，而那個 slot 依賴「由 QScintilla 自己的 callTip() API
+    // 建立」的內部狀態。EditorWidget 走的是原生 SCI_CALLTIPSHOW，那份狀態從未
+    // 被建立——使用者只要點一下我們顯示的 call tip 就會 EXC_BAD_ACCESS。
+    // 最容易踩到的是單一簽名的提示（沒有箭頭，但 Scintilla 對提示視窗內的任何
+    // 點擊都會送出這個訊號，direction=0）。
+    //
+    // 建構子已改為關掉 QScintilla 那一套並斷開其 slot，讓 call tip 只有一個擁有者。
+    // 本測試若崩潰即代表該防護被移除——注意它是「不崩潰」就算通過，
+    // 因此崩潰會直接讓整個測試程序死掉，而不是報告一則失敗。
+    void callTipClickDoesNotCrashWithoutOverloads()
+    {
+        // 完全沒顯示過提示
+        {
+            EditorWidget e;
+            emit e.SCN_CALLTIPCLICK(0);
+            emit e.SCN_CALLTIPCLICK(1);
+            emit e.SCN_CALLTIPCLICK(2);
+        }
+        // 單一簽名（無多載箭頭）——實測中就是這個情境穩定崩潰
+        {
+            EditorWidget e;
+            e.setText(QStringLiteral("foo("));
+            e.setCursorPosition(0, 4);
+            e.showCallTip(QStringLiteral("foo(int)"));
+            emit e.SCN_CALLTIPCLICK(0);
+            emit e.SCN_CALLTIPCLICK(1);
+            emit e.SCN_CALLTIPCLICK(2);
+            QCOMPARE(e.currentCallTipOverload(), -1);   // 單一簽名不參與多載切換
+        }
+        // 多載顯示後又關閉
+        {
+            EditorWidget e;
+            e.showCallTips({QStringLiteral("a"), QStringLiteral("b")});
+            e.cancelCallTip();
+            for (int i = 0; i < 50; ++i) {
+                emit e.SCN_CALLTIPCLICK(1);
+                emit e.SCN_CALLTIPCLICK(2);
+            }
+        }
+        QVERIFY(true);   // 走到這裡就代表沒崩潰
+    }
+
+    // QScintilla 自己那套 call tip 必須維持關閉，否則兩套機制會搶同一個提示視窗
+    void nativeCallTipsAreDisabled()
+    {
+        EditorWidget e;
+        QCOMPARE(e.callTipsStyle(), QsciScintilla::CallTipsNone);
     }
 
     // ── 選取歷史 Undo / Redo（Notepad++ v8.8.1 / v8.8.9）────────────────

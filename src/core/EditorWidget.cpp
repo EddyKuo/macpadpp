@@ -157,6 +157,26 @@ EditorWidget::EditorWidget(QWidget *parent)
     connect(this, &QsciScintilla::cursorPositionChanged,
             this, &EditorWidget::onCursorPositionChanged);
 
+    // Call tip 的唯一擁有者是本類別：我們以原生 SCI_CALLTIPSHOW 自行顯示與換頁
+    // （showCallTip / showCallTips / renderCallTip），才能做出 Notepad++ 那種
+    // 「▲ n of m ▼」的多載切換。QScintilla 另有一套自己的 call tip 機制，預設
+    // 是開著的（callTipsStyle 預設 CallTipsNoContext），於是兩套會搶同一個提示視窗。
+    //
+    // 這不只是重複，而是會當掉：QsciScintilla 在建構時就無條件把 SCN_CALLTIPCLICK
+    // 連到自己的 handleCallTipClick，該 slot 依賴它自己那份從未被我們建立的內部
+    // 狀態，使用者只要點一下我們顯示的 call tip 就會 EXC_BAD_ACCESS。
+    // （實測：顯示單一簽名的提示後送出 SCN_CALLTIPCLICK，穩定崩在
+    //   libqscintilla2_qt6 的 QsciScintilla::handleCallTipClick 內。）
+    //
+    // 故明確關掉它那一套，並斷開它的 slot，讓 call tip 只有一個擁有者。
+    // 注意接收端與方法都要傳 nullptr（＝斷開這個訊號的「所有」連線）。
+    // 指名 SLOT(handleCallTipClick(int)) 的寫法在這裡無效：QScintilla 是以函式指標
+    // 語法建立該連線的，而 PMF 連線無法用 SIGNAL/SLOT 字串比對到——disconnect 會
+    // 安靜地回傳 false，看起來有做事其實沒有。萬用字元形式則不受連線語法影響。
+    // 本行必須在下面 connect 我們自己的 lambda 之前，否則會把自己也一併斷掉。
+    setCallTipsStyle(QsciScintilla::CallTipsNone);
+    disconnect(this, SIGNAL(SCN_CALLTIPCLICK(int)), nullptr, nullptr);
+
     // Call tip 多載切換：點擊「▲ n of m ▼」的箭頭時循環切換（1 = 上、2 = 下）。
     // 複刻 Notepad++ 對多載函式的呈現方式。
     connect(this, &QsciScintillaBase::SCN_CALLTIPCLICK, this, [this](int direction) {
