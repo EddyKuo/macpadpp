@@ -45,3 +45,24 @@ for t in "${TESTS[@]}"; do OBJS+=(-object "$t"); done
 
 echo "報告：$REPORT"
 tail -3 "$REPORT"
+
+# llvm-cov report 的欄位順序：
+#   Filename Regions MissedRegions Cover Functions MissedFunctions Executed
+#   Lines MissedLines Cover Branches MissedBranches Cover
+# 故第 10 欄才是「行覆蓋率」——第 4 欄是 region、第 7 欄是 function，很容易看錯。
+read -r LINE_COV LINES_MISSED <<<"$(awk '$1=="TOTAL" {gsub("%","",$10); print $10, $9}' "$REPORT")"
+echo "行覆蓋率：${LINE_COV}%（未覆蓋 ${LINES_MISSED} 行）"
+
+# 有設門檻才檢查：沒設時本腳本純粹是報告工具，不改變結束碼。
+if [ -n "${MIN_LINE_COVERAGE:-}" ]; then
+    # bash 無浮點運算，用 awk 比較
+    if awk -v c="$LINE_COV" -v m="$MIN_LINE_COVERAGE" 'BEGIN { exit !(c < m) }'; then
+        echo "❌ 行覆蓋率 ${LINE_COV}% 低於門檻 ${MIN_LINE_COVERAGE}%" >&2
+        echo "   覆蓋率最低的檔案：" >&2
+        awk 'NR>2 && NF>=10 && $1!~/^-/ && $1!="TOTAL" {c=$10; gsub("%","",c);
+             if (c+0 < 90) printf "     %-46s %s（未覆蓋 %s 行）\n", $1, $10, $9}' \
+            "$REPORT" | sort -k2 -n | head -12 >&2
+        exit 1
+    fi
+    echo "✅ 行覆蓋率 ${LINE_COV}% ≥ 門檻 ${MIN_LINE_COVERAGE}%"
+fi

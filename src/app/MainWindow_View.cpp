@@ -150,12 +150,6 @@ EditorPane *MainWindow::currentPane() const
 }
 
 
-EditorPane *MainWindow::paneAt(int index) const
-{
-    return paneIn(currentTabWidget(), index);
-}
-
-
 EditorPane *MainWindow::paneIn(QTabWidget *w, int index) const
 {
     return w ? qobject_cast<EditorPane *>(w->widget(index)) : nullptr;
@@ -165,13 +159,6 @@ EditorPane *MainWindow::paneIn(QTabWidget *w, int index) const
 EditorWidget *MainWindow::currentEditor() const
 {
     EditorPane *pane = currentPane();
-    return pane ? pane->primary() : nullptr;
-}
-
-
-EditorWidget *MainWindow::editorAt(int index) const
-{
-    EditorPane *pane = paneAt(index);
     return pane ? pane->primary() : nullptr;
 }
 

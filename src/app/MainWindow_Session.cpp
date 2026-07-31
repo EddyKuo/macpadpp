@@ -356,20 +356,6 @@ void MainWindow::rebuildRecentMenu()
 }
 
 
-int MainWindow::indexOfPath(const QString &absPath) const
-{
-    if (absPath.isEmpty())
-        return -1;
-    QTabWidget *w = currentTabWidget();
-    for (int i = 0; i < w->count(); ++i) {
-        EditorWidget *e = editorIn(w, i);
-        if (e && e->filePath() == absPath)
-            return i;
-    }
-    return -1;
-}
-
-
 // 兩個檢視中尋找已開啟的檔案並聚焦（含切換作用中檢視）；回傳是否命中。
 bool MainWindow::focusExistingPath(const QString &absPath)
 {
