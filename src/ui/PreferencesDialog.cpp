@@ -511,6 +511,20 @@ QWidget *PreferencesDialog::buildTabBarPage()
         new QCheckBox(tr("未命名分頁以內容首行作為分頁名"), page);
     m_tabBarUntitledNameFromFirstLine->setChecked(current.tabBarUntitledNameFromFirstLine);
 
+    // 分頁很多時的處理（單列模式）：夾住單一分頁寬度 → 放不下就由捲動鈕/滾輪左右移動
+    m_tabBarMaxTabWidth = new QSpinBox(page);
+    m_tabBarMaxTabWidth->setRange(0, 1000);
+    m_tabBarMaxTabWidth->setSuffix(tr(" px"));
+    m_tabBarMaxTabWidth->setSpecialValueText(tr("不限制"));
+    m_tabBarMaxTabWidth->setValue(current.tabBarMaxTabWidth);
+
+    m_tabBarWheelScroll = new QCheckBox(tr("在分頁列上滾動滾輪即左右移動分頁"), page);
+    m_tabBarWheelScroll->setChecked(current.tabBarWheelScroll);
+
+    m_tabBarShowListButton =
+        new QCheckBox(tr("分頁放不下時，於分頁列右端顯示分頁清單按鈕"), page);
+    m_tabBarShowListButton->setChecked(current.tabBarShowListButton);
+
     auto *form = new QFormLayout(page);
     form->addRow(m_tabBarMultiLine);
     form->addRow(m_tabBarVertical);
@@ -518,6 +532,9 @@ QWidget *PreferencesDialog::buildTabBarPage()
     form->addRow(m_tabBarDoubleClickCloses);
     form->addRow(tr("分頁標籤長度上限："), m_tabBarLabelMaxLength);
     form->addRow(m_tabBarUntitledNameFromFirstLine);
+    form->addRow(tr("單一分頁寬度上限："), m_tabBarMaxTabWidth);
+    form->addRow(m_tabBarWheelScroll);
+    form->addRow(m_tabBarShowListButton);
     return page;
 }
 
@@ -821,6 +838,9 @@ Settings PreferencesDialog::result() const
     s.tabBarDoubleClickCloses = m_tabBarDoubleClickCloses->isChecked();
     s.tabBarLabelMaxLength = m_tabBarLabelMaxLength->value();
     s.tabBarUntitledNameFromFirstLine = m_tabBarUntitledNameFromFirstLine->isChecked();
+    s.tabBarMaxTabWidth = m_tabBarMaxTabWidth->value();
+    s.tabBarWheelScroll = m_tabBarWheelScroll->isChecked();
+    s.tabBarShowListButton = m_tabBarShowListButton->isChecked();
 
     s.edgeMode = EdgeMode(m_edgeMode->currentIndex());
     s.foldMarginStyle = FoldMarginStyle(m_foldMarginStyle->currentIndex());

@@ -137,6 +137,9 @@ private:
 
     // Tab Bar
     QCheckBox *m_tabBarMultiLine = nullptr;
+    QSpinBox *m_tabBarMaxTabWidth = nullptr;
+    QCheckBox *m_tabBarWheelScroll = nullptr;
+    QCheckBox *m_tabBarShowListButton = nullptr;
     QCheckBox *m_tabBarVertical = nullptr;
     QCheckBox *m_tabBarShowCloseButton = nullptr;
     QCheckBox *m_tabBarDoubleClickCloses = nullptr;

@@ -267,6 +267,8 @@ private:
     void wireTabWidget(QTabWidget *w);                  // 為某檢視接上關閉/右鍵/切換等訊號
     // 分頁列座標 → 分頁索引（多列模式下不可用 QTabBar::tabAt，見實作說明）
     int tabIndexAtPos(QTabWidget *w, const QPoint &pos) const;
+    void rebuildTabListMenu(QTabWidget *w, QMenu *menu);   // 展開分頁清單選單時重建內容
+    void updateTabListButton(QTabWidget *w);               // 依偏好＋是否放不下決定按鈕顯示
     void wireEditorSignals(macpad::core::EditorWidget *editor);  // 編輯器→狀態列/標題連線（供分頁與 clone 共用）
     void closeTabIn(QTabWidget *w, int index);          // 關閉指定檢視的分頁（closeTab 的底層）
     void updateSecondViewVisibility();                  // 第二檢視空了就隱藏、有內容就顯示
@@ -280,6 +282,7 @@ private:
     QTabWidget *m_tabs2 = nullptr;      // 第二檢視（Dual-View）；預設隱藏，移動/複製文件過去才顯示
     QSplitter *m_viewSplit = nullptr;   // 兩檢視並排的中央容器
     QTabWidget *m_activeTabs = nullptr; // 作用中檢視（currentTabWidget 依此回傳）
+    bool m_tabListButtonEnabled = true; // 偏好：分頁放不下時顯示分頁清單按鈕（快取，避免每次 resize 讀設定檔）
     // 狀態列六格（複刻 Notepad++）：文件類型 / 長度·行數 / 游標·選取 / EOL / 編碼 / INS·OVR
     QLabel *m_stDoc = nullptr;
     QLabel *m_stLenLines = nullptr;

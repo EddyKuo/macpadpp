@@ -34,6 +34,7 @@
 #include <QStatusBar>
 #include <QTabBar>
 #include <QTabWidget>
+#include <QToolButton>
 #include <QTemporaryDir>
 #include <QTimer>
 #include <QUrl>
@@ -507,6 +508,66 @@ private slots:
         emit tabs->tabBar()->tabBarDoubleClicked(-1);
         QCOMPARE(tabs->count(), 1);
     }
+
+    // 分頁清單按鈕：分頁塞不下時才出現，選單列出所有分頁且點了會跳過去；
+    // 偏好關掉時不論塞不塞得下都不得出現。
+    void tabListButtonAppearsWhenTabsOverflow()
+    {
+        auto s = macpad::persistence::SettingsStore::load();
+        s.tabBarShowListButton = true;
+        s.tabBarMaxTabWidth = 200;
+        QVERIFY(macpad::persistence::SettingsStore::save(s));
+
+        MainWindow w(nullptr, false);
+        w.resize(1200, 700);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+
+        QTabWidget *tabs = viewsOf(w).main;
+        auto *btn = qobject_cast<QToolButton *>(tabs->cornerWidget(Qt::TopRightCorner));
+        QVERIFY2(btn, "分頁清單按鈕未安裝於分頁列右端");
+        QVERIFY2(!btn->isVisible(), "只有一個分頁時不該出現分頁清單按鈕");
+
+        // 開到分頁一定塞不下為止
+        QAction *newDoc = findMenuAction(w, QStringLiteral("New"));
+        for (int i = 0; i < 30; ++i)
+            newDoc->trigger();
+        QTRY_VERIFY2(btn->isVisible(), "分頁塞不下時未出現分頁清單按鈕");
+
+        // 選單每個分頁一項，點選即跳到該分頁
+        QMenu *menu = btn->menu();
+        QVERIFY(menu);
+        emit menu->aboutToShow();
+        QCOMPARE(menu->actions().size(), tabs->count());
+        menu->actions().at(3)->trigger();
+        QCOMPARE(tabs->currentIndex(), 3);
+    }
+
+
+    // 偏好關閉時，即使分頁多到塞不下也不得出現分頁清單按鈕
+    void tabListButtonHiddenWhenPreferenceOff()
+    {
+        auto s = macpad::persistence::SettingsStore::load();
+        s.tabBarShowListButton = false;
+        QVERIFY(macpad::persistence::SettingsStore::save(s));
+
+        MainWindow w(nullptr, false);
+        w.resize(1200, 700);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+
+        QTabWidget *tabs = viewsOf(w).main;
+        auto *btn = qobject_cast<QToolButton *>(tabs->cornerWidget(Qt::TopRightCorner));
+        QVERIFY(btn);
+        QAction *newDoc = findMenuAction(w, QStringLiteral("New"));
+        for (int i = 0; i < 30; ++i)
+            newDoc->trigger();
+        QVERIFY2(!btn->isVisible(), "偏好關閉時仍出現分頁清單按鈕");
+
+        s.tabBarShowListButton = true;   // 還原，避免影響後續測試
+        QVERIFY(macpad::persistence::SettingsStore::save(s));
+    }
+
 
     // 切換分頁要連動狀態列與 Monitoring 勾選（Monitoring 是逐檔狀態，不是全域開關）
     void switchingTabUpdatesStatusBar()

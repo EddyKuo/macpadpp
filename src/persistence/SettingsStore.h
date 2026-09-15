@@ -128,6 +128,12 @@ struct Settings {
     int tabBarLabelMaxLength = 0;
     // 未命名分頁以內容首行作為分頁名（Notepad++ v8.8.2）
     bool tabBarUntitledNameFromFirstLine = false;
+    // 單一分頁寬度上限（px）：避免長檔名把整條分頁列吃光；0 = 不限制
+    int tabBarMaxTabWidth = 200;
+    // 在分頁列上滾動滾輪即左右移動分頁（切換到前/後一個分頁並捲入可視範圍）
+    bool tabBarWheelScroll = true;
+    // 分頁放不下時，於分頁列右端顯示「分頁清單」下拉按鈕
+    bool tabBarShowListButton = true;
 
     // === Editing 行為補完（對齊 Notepad++ v8.8.1 / v8.9.3 / v8.9.5 / v8.7）===
     bool undoSelectionHistory = false;      // Undo/Redo 納入選取歷史（v8.8.1）

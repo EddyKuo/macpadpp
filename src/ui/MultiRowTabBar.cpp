@@ -5,6 +5,7 @@
 #include <QResizeEvent>
 #include <QStyleOptionTab>
 #include <QStylePainter>
+#include <QWheelEvent>
 
 namespace macpad::ui {
 
@@ -13,7 +14,13 @@ constexpr int kHPadding = 4;   // 分頁之間的水平間距
 constexpr int kVPadding = 2;   // 列與列之間的垂直間距
 }  // namespace
 
-MultiRowTabBar::MultiRowTabBar(QWidget *parent) : QTabBar(parent) {}
+MultiRowTabBar::MultiRowTabBar(QWidget *parent) : QTabBar(parent)
+{
+    // macOS 的樣式 hint（SH_TabBar_PreferNoArrows）預設不給捲動箭頭，QTabBar 於是改成把
+    // 分頁一路擠窄，分頁一多每個標籤都變成「a_r…」而認不出是哪個檔案。這裡明確要求捲動鈕：
+    // 放不下就左右捲動（滾輪同樣可捲），而不是全部擠成一團。多列模式會再關掉它。
+    setUsesScrollButtons(true);
+}
 
 void MultiRowTabBar::setMultiRow(bool on)
 {
@@ -25,16 +32,64 @@ void MultiRowTabBar::setMultiRow(bool on)
     // 多列模式下的拖曳換位由本類別自行處理；交給基底類別會用到它自己那套
     // 單列座標，結果會亂跳。
     setMovable(!on);
-    relayout();
+    refreshLayoutState();
     updateGeometry();
     update();
+}
+
+void MultiRowTabBar::setMaxTabWidth(int px)
+{
+    const int v = qMax(0, px);
+    if (m_maxTabWidth == v)
+        return;
+    m_maxTabWidth = v;
+    // QTabBar 的版面（QTabBarPrivate::layoutTabs）只在插入/移除/resize/字型變更等時機重算，
+    // 沒有公開的「重新排版」入口；setElideMode 是少數無條件觸發 refresh() 的 setter，
+    // 這裡以同值呼叫強迫單列版面重新套用新的 tabSizeHint。
+    setElideMode(elideMode());
+    refreshLayoutState();
+    updateGeometry();
+    update();
+}
+
+bool MultiRowTabBar::isVerticalShape() const
+{
+    switch (shape()) {
+    case QTabBar::RoundedWest:
+    case QTabBar::RoundedEast:
+    case QTabBar::TriangularWest:
+    case QTabBar::TriangularEast:
+        return true;
+    default:
+        return false;
+    }
+}
+
+// 寬度上限只對水平分頁列有意義；垂直排列時 tabSizeHint 的 width 是分頁列厚度，
+// 夾它只會把整條分頁列壓扁。
+QSize MultiRowTabBar::tabSizeHint(int index) const
+{
+    QSize s = QTabBar::tabSizeHint(index);
+    if (m_maxTabWidth > 0 && !isVerticalShape() && s.width() > m_maxTabWidth)
+        s.setWidth(m_maxTabWidth);
+    return s;
+}
+
+// QTabBar 的版面會先把分頁從 tabSizeHint 一路壓到 minimumTabSizeHint，壓到不能再壓才
+// 出現捲動鈕——預設的最小值極窄，分頁一多每個標籤都變成「a_r…」而認不出是哪個檔案。
+// 設了寬度上限時就把最小值提高到上限，讓分頁維持可讀寬度，放不下的改用捲動鈕/滾輪/分頁清單。
+QSize MultiRowTabBar::minimumTabSizeHint(int index) const
+{
+    if (m_maxTabWidth <= 0 || isVerticalShape())
+        return QTabBar::minimumTabSizeHint(index);
+    return tabSizeHint(index);
 }
 
 int MultiRowTabBar::rowHeight() const
 {
     int h = 0;
     for (int i = 0; i < count(); ++i)
-        h = qMax(h, QTabBar::tabSizeHint(i).height());
+        h = qMax(h, tabSizeHint(i).height());
     return h > 0 ? h : fontMetrics().height() + 8;
 }
 
@@ -51,7 +106,7 @@ void MultiRowTabBar::relayout()
     int row = 0;
     m_rects.resize(count());
     for (int i = 0; i < count(); ++i) {
-        int w = QTabBar::tabSizeHint(i).width();
+        int w = tabSizeHint(i).width();
         w = qMin(w, avail);                       // 單一分頁比整列還寬時就佔滿整列
         if (x > 0 && x + w > avail) {             // 放不下 → 換行（x>0 確保每列至少一個）
             ++row;
@@ -77,6 +132,43 @@ void MultiRowTabBar::relayout()
             btn->move(bx, by);
         }
     }
+}
+
+void MultiRowTabBar::refreshLayoutState()
+{
+    relayout();
+    updateOverflow();
+}
+
+// 放不下的判定：多列模式看是否真的排成兩列以上；單列模式把所有分頁的理想尺寸加起來
+// 跟分頁列比，超過即代表 QTabBar 會啟用捲動鈕（使用者需要「左右移動」的時機）。
+bool MultiRowTabBar::computeOverflow() const
+{
+    if (count() == 0)
+        return false;
+    if (m_multiRow)
+        return m_rows > 1;
+    int total = 0;
+    const bool vertical = isVerticalShape();
+    for (int i = 0; i < count(); ++i) {
+        const QSize s = tabSizeHint(i);
+        total += vertical ? s.height() : s.width();
+    }
+    return total > (vertical ? height() : width());
+}
+
+bool MultiRowTabBar::isOverflowing() const
+{
+    return computeOverflow();
+}
+
+void MultiRowTabBar::updateOverflow()
+{
+    const bool of = computeOverflow();
+    if (of == m_overflowing)
+        return;
+    m_overflowing = of;
+    emit overflowChanged(of);
 }
 
 QSize MultiRowTabBar::sizeHint() const
@@ -118,10 +210,12 @@ void MultiRowTabBar::paintEvent(QPaintEvent *event)
 void MultiRowTabBar::resizeEvent(QResizeEvent *event)
 {
     QTabBar::resizeEvent(event);
-    if (!m_multiRow)
+    if (!m_multiRow) {
+        updateOverflow();   // 單列模式：視窗變窄/變寬會改變「放不放得下」
         return;
+    }
     const int before = m_rows;
-    relayout();
+    refreshLayoutState();
     if (m_rows != before)
         updateGeometry();   // 列數改變會改變高度，必須讓上層重新配置
     update();
@@ -131,8 +225,10 @@ void MultiRowTabBar::tabInserted(int index)
 {
     QTabBar::tabInserted(index);
     if (m_multiRow) {
-        relayout();
+        refreshLayoutState();
         updateGeometry();
+    } else {
+        updateOverflow();
     }
 }
 
@@ -140,8 +236,10 @@ void MultiRowTabBar::tabRemoved(int index)
 {
     QTabBar::tabRemoved(index);
     if (m_multiRow) {
-        relayout();
+        refreshLayoutState();
         updateGeometry();
+    } else {
+        updateOverflow();
     }
 }
 
@@ -149,9 +247,11 @@ void MultiRowTabBar::tabLayoutChange()
 {
     QTabBar::tabLayoutChange();
     if (m_multiRow) {
-        relayout();
+        refreshLayoutState();
         updateGeometry();
         update();
+    } else {
+        updateOverflow();
     }
 }
 
@@ -215,6 +315,42 @@ void MultiRowTabBar::mouseDoubleClickEvent(QMouseEvent *event)
         return;
     }
     emit tabBarDoubleClicked(tabIndexAt(event->position().toPoint()));
+    event->accept();
+}
+
+void MultiRowTabBar::stepCurrentTab(int delta)
+{
+    if (count() < 2)
+        return;
+    const int target = qBound(0, currentIndex() + delta, count() - 1);
+    if (target != currentIndex())
+        setCurrentIndex(target);   // QTabBar 會自動把新的目前分頁捲進可視範圍
+}
+
+// 在分頁列上滾動滾輪 = 左右移動分頁。垂直滾動與水平滾動（觸控板橫掃）都吃，
+// 並累積到一個完整刻度（120）才換一頁，否則觸控板會一次跳過好幾個分頁。
+void MultiRowTabBar::wheelEvent(QWheelEvent *event)
+{
+    if (!m_wheelScroll || count() < 2) {
+        QTabBar::wheelEvent(event);
+        return;
+    }
+    const QPoint d = event->angleDelta();
+    const int delta = (qAbs(d.x()) > qAbs(d.y())) ? d.x() : d.y();
+    if (delta == 0) {
+        event->ignore();
+        return;
+    }
+    constexpr int kStep = 120;   // 一個標準滾輪刻度
+    m_wheelAccum += delta;
+    while (m_wheelAccum >= kStep) {
+        m_wheelAccum -= kStep;
+        stepCurrentTab(-1);      // 向上/向左 → 前一個分頁
+    }
+    while (m_wheelAccum <= -kStep) {
+        m_wheelAccum += kStep;
+        stepCurrentTab(1);
+    }
     event->accept();
 }
 

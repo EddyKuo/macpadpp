@@ -1502,6 +1502,18 @@ incorrectly marked as vanished (they were still in use); the false positive was 
   `MultiRowTabBar` overrides `paintEvent`/`resizeEvent`/`tabLayoutChange` and the mouse handlers, and
   repositions close buttons in `relayout()` (the base class stacks them all on row 1). `tabAt`/`tabRect`
   are non-virtual, so callers use `tabIndexAt` instead.
+- **"Too many tabs" (single-row mode)**: the premise is that macOS's style hint
+  (`SH_TabBar_PreferNoArrows`) withholds scroll arrows, so `QTabBar` squeezes tabs all the way down to
+  `minimumTabSizeHint` and every label becomes "a_r…". The constructor therefore forces
+  `setUsesScrollButtons(true)`, and when a width cap is set `minimumTabSizeHint` is raised to that cap,
+  so tabs keep a readable width and what does not fit scrolls instead. On top of that: (1) `MultiRowTabBar::tabSizeHint` clamps a
+  single tab's width (preference `tabBarMaxTabWidth`, default 200px) so one long filename can no longer
+  eat the whole bar; (2) the wheel over the tab bar moves left/right between tabs
+  (`tabBarWheelScroll`, accumulating a full 120 per step so a trackpad does not skip several tabs);
+  (3) `MultiRowTabBar::overflowChanged` tells `MainWindow` to show a "tab list" drop-down in the bar's
+  `cornerWidget`, listing every tab in that view (`tabBarShowListButton`). `QTabBar` exposes no public
+  re-layout entry point, so `setMaxTabWidth` calls `setElideMode` with its current value to force
+  `refresh()`.
 - **FormFeed page breaks via the public `printRange` overload**: `QsciPrinter::printRange(sci, painter,
   from, to)` allows printing several segments onto one `QPainter`, so `printWithFormFeeds` scans for
   `\f`, prints each segment, and calls `newPage()` between them, with `m_pageOffset`/`m_pagesInSegment`
