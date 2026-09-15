@@ -320,6 +320,12 @@ Settings SettingsStore::load()
     s.tabBarUntitledNameFromFirstLine =
         o.value(QStringLiteral("tab_bar_untitled_name_from_first_line"))
             .toBool(s.tabBarUntitledNameFromFirstLine);
+    s.tabBarMaxTabWidth =
+        o.value(QStringLiteral("tab_bar_max_tab_width")).toInt(s.tabBarMaxTabWidth);
+    s.tabBarWheelScroll =
+        o.value(QStringLiteral("tab_bar_wheel_scroll")).toBool(s.tabBarWheelScroll);
+    s.tabBarShowListButton =
+        o.value(QStringLiteral("tab_bar_show_list_button")).toBool(s.tabBarShowListButton);
     s.undoSelectionHistory =
         o.value(QStringLiteral("undo_selection_history")).toBool(s.undoSelectionHistory);
     s.selectionDragDrop =
@@ -477,6 +483,9 @@ bool SettingsStore::save(const Settings &s)
     o.insert(QStringLiteral("tab_bar_label_max_length"), s.tabBarLabelMaxLength);
     o.insert(QStringLiteral("tab_bar_untitled_name_from_first_line"),
              s.tabBarUntitledNameFromFirstLine);
+    o.insert(QStringLiteral("tab_bar_max_tab_width"), s.tabBarMaxTabWidth);
+    o.insert(QStringLiteral("tab_bar_wheel_scroll"), s.tabBarWheelScroll);
+    o.insert(QStringLiteral("tab_bar_show_list_button"), s.tabBarShowListButton);
     o.insert(QStringLiteral("undo_selection_history"), s.undoSelectionHistory);
     o.insert(QStringLiteral("selection_drag_drop"), s.selectionDragDrop);
     o.insert(QStringLiteral("sync_zoom_between_views"), s.syncZoomBetweenViews);

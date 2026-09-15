@@ -258,6 +258,9 @@ static Settings makeDistinctiveSettings()
     s.tabBarDoubleClickCloses = true;
     s.tabBarLabelMaxLength = 42;
     s.tabBarUntitledNameFromFirstLine = true;
+    s.tabBarMaxTabWidth = 150;
+    s.tabBarWheelScroll = false;
+    s.tabBarShowListButton = false;
 
     s.edgeMode = EdgeMode::Background;
     s.foldMarginStyle = FoldMarginStyle::Circle;
@@ -430,6 +433,9 @@ private slots:
         QCOMPARE(out.tabBarDoubleClickCloses, in.tabBarDoubleClickCloses);
         QCOMPARE(out.tabBarLabelMaxLength, in.tabBarLabelMaxLength);
         QCOMPARE(out.tabBarUntitledNameFromFirstLine, in.tabBarUntitledNameFromFirstLine);
+        QCOMPARE(out.tabBarMaxTabWidth, in.tabBarMaxTabWidth);
+        QCOMPARE(out.tabBarWheelScroll, in.tabBarWheelScroll);
+        QCOMPARE(out.tabBarShowListButton, in.tabBarShowListButton);
 
         QCOMPARE(out.edgeMode, in.edgeMode);
         QCOMPARE(out.foldMarginStyle, in.foldMarginStyle);

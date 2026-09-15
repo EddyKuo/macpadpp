@@ -1300,6 +1300,15 @@ Sprint 5–7 新增的 UI 字串均已透過 `lupdate` → 翻譯 → `lrelease`
   `QTabBar` 只是沒有多列**開關**。`MultiRowTabBar` 覆寫 `paintEvent`/`resizeEvent`/`tabLayoutChange`
   與滑鼠處理，並在 `relayout()` 中重新定位關閉鈕（基底類別會把它們全疊在第 1 列）。
   `tabAt`/`tabRect` 非虛擬，故呼叫端改用 `tabIndexAt`。
+- **分頁太多時的處理（單列模式）**：前提是 macOS 樣式 hint（`SH_TabBar_PreferNoArrows`）
+  預設不給捲動箭頭，`QTabBar` 於是把分頁一路壓到 `minimumTabSizeHint` 才罷休——分頁一多
+  每個標籤都變成「a_r…」。故建構子強制 `setUsesScrollButtons(true)`，並在設了寬度上限時
+  把 `minimumTabSizeHint` 提高到上限，讓分頁維持可讀寬度、放不下就捲動。在此之上有三層：① `MultiRowTabBar::tabSizeHint` 夾住單一分頁寬度
+  （偏好 `tabBarMaxTabWidth`，預設 200px），長檔名不再吃掉整條分頁列；② 分頁列上滾動滾輪即
+  左右移動分頁（`tabBarWheelScroll`，累積滿 120 才換一頁，避免觸控板一次跳好幾頁）；
+  ③ `MultiRowTabBar::overflowChanged` 通知 `MainWindow`，在分頁列右端（`cornerWidget`）
+  顯示「分頁清單」下拉按鈕，一次列出該檢視所有分頁（`tabBarShowListButton`）。
+  `QTabBar` 沒有公開的重新排版入口，故 `setMaxTabWidth` 以同值呼叫 `setElideMode` 觸發 `refresh()`。
 - **FormFeed 分頁靠公開的 `printRange` 多載**：`QsciPrinter::printRange(sci, painter, from, to)`
   允許在同一個 `QPainter` 上印出多個區段，因此 `printWithFormFeeds` 掃出 `\f`、逐段列印，
   段間手動 `newPage()`，並以 `m_pageOffset`/`m_pagesInSegment` 維持 `$(CURRENT_PAGE)` 連續。

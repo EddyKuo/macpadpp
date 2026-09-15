@@ -243,10 +243,17 @@ void MainWindow::applyWindowPrefs(const macpad::persistence::Settings &s)
         w->setTabsClosable(s.tabBarShowCloseButton);
         // 多列換行由 MultiRowTabBar 真正實作（先前只能以停用捲動鈕近似）。
         // 垂直排列時分頁本來就是縱向堆疊，多列無意義，故僅在水平時啟用。
-        if (auto *bar = qobject_cast<macpad::ui::MultiRowTabBar *>(w->tabBar()))
+        if (auto *bar = qobject_cast<macpad::ui::MultiRowTabBar *>(w->tabBar())) {
             bar->setMultiRow(s.tabBarMultiLine && !s.tabBarVertical);
-        else
+            // 單列模式：夾住單一分頁寬度，長檔名才不會吃掉整條分頁列；放不下的部分
+            // 由 QTabBar 的左右捲動鈕捲動，滾輪亦可直接左右移動。
+            bar->setMaxTabWidth(s.tabBarMaxTabWidth);
+            bar->setWheelScrollEnabled(s.tabBarWheelScroll);
+        } else {
             w->tabBar()->setUsesScrollButtons(!s.tabBarMultiLine);
+        }
+        m_tabListButtonEnabled = s.tabBarShowListButton;
+        updateTabListButton(w);
     }
     // 最近檔案選單依偏好（max/full-path/submenu）重建
     rebuildRecentMenu();
@@ -292,8 +299,10 @@ void MainWindow::applyCliWindowOptions(bool alwaysOnTop, const QString &titleAdd
 void MainWindow::setTabBarVisible(bool visible)
 {
     for (QTabWidget *w : {m_tabs, m_tabs2}) {
-        if (w)
-            w->tabBar()->setVisible(visible);
+        if (!w)
+            continue;
+        w->tabBar()->setVisible(visible);
+        updateTabListButton(w);   // 分頁列收起來時，分頁清單按鈕也要跟著收
     }
 }
 

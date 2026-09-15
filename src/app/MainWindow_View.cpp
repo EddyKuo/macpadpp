@@ -37,6 +37,7 @@
 #include "ui/ColorPicker.h"
 #include "ui/WindowsListDialog.h"
 #include <QTabBar>
+#include <QToolButton>
 #include "ui/DocumentListDock.h"
 #include "ui/Panels.h"
 #include "ui/CharacterPanel.h"
@@ -52,6 +53,7 @@
 #include <QJsonObject>
 #include <QProcess>
 #include <QTabBar>
+#include <QToolButton>
 #include <QUrl>
 #include "ui/WorkspaceDock.h"
 #include "ui/PreferencesDialog.h"
@@ -209,6 +211,48 @@ int MainWindow::tabIndexAtPos(QTabWidget *w, const QPoint &pos) const
 }
 
 
+// 「分頁清單」按鈕：分頁多到放不下時，出現在分頁列右端，一次列出該檢視所有分頁，
+// 點選即跳過去——不必左右捲動一格一格找。
+void MainWindow::rebuildTabListMenu(QTabWidget *w, QMenu *menu)
+{
+    menu->clear();
+    if (!w)
+        return;
+    for (int i = 0; i < w->count(); ++i) {
+        // 分頁文字中的 & 在選單裡會被當成助憶鍵，必須跳脫
+        QString label = w->tabText(i);
+        label.replace(QLatin1Char('&'), QLatin1String("&&"));
+        QAction *act = menu->addAction(label);
+        act->setCheckable(true);
+        act->setChecked(i == w->currentIndex());
+        act->setToolTip(w->tabToolTip(i));
+        connect(act, &QAction::triggered, this, [this, w, i] {
+            if (i >= w->count())
+                return;
+            setActiveTabWidget(w);
+            w->setCurrentIndex(i);
+        });
+    }
+}
+
+
+// 依「偏好開關 × 分頁列可見 × 分頁放不下」決定分頁清單按鈕的顯示與否
+void MainWindow::updateTabListButton(QTabWidget *w)
+{
+    if (!w)
+        return;
+    auto *btn = qobject_cast<QToolButton *>(w->cornerWidget(Qt::TopRightCorner));
+    if (!btn)
+        return;
+    bool overflowing = false;
+    if (auto *bar = qobject_cast<macpad::ui::MultiRowTabBar *>(w->tabBar()))
+        overflowing = bar->isOverflowing();
+    // 用 isHidden() 而非 isVisible()：後者在視窗尚未 show 出來之前一律為 false，
+    // 會讓「開啟工作階段時就已經塞不下」的情況錯過顯示時機。
+    btn->setVisible(m_tabListButtonEnabled && !w->tabBar()->isHidden() && overflowing);
+}
+
+
 // 為某個檢視容器接上「關閉/右鍵選單/切換分頁」訊號（兩個檢視共用同一套行為）
 void MainWindow::wireTabWidget(QTabWidget *w)
 {
@@ -218,6 +262,24 @@ void MainWindow::wireTabWidget(QTabWidget *w)
 
     connect(w, &QTabWidget::tabCloseRequested, this,
             [this, w](int idx) { closeTabIn(w, idx); });
+
+    // 分頁清單按鈕（預設隱藏，放不下時才出現；選單於展開當下才建，才拿得到最新分頁）
+    auto *listBtn = new QToolButton(w);
+    listBtn->setObjectName(QStringLiteral("tabListButton"));
+    listBtn->setText(QStringLiteral("\u25be"));
+    listBtn->setToolTip(tr("分頁清單（列出此檢視的所有分頁）"));
+    listBtn->setAutoRaise(true);
+    listBtn->setPopupMode(QToolButton::InstantPopup);
+    auto *listMenu = new QMenu(listBtn);
+    listBtn->setMenu(listMenu);
+    connect(listMenu, &QMenu::aboutToShow, this,
+            [this, w, listMenu] { rebuildTabListMenu(w, listMenu); });
+    w->setCornerWidget(listBtn, Qt::TopRightCorner);
+    listBtn->hide();
+    if (auto *bar = qobject_cast<macpad::ui::MultiRowTabBar *>(w->tabBar())) {
+        connect(bar, &macpad::ui::MultiRowTabBar::overflowChanged, this,
+                [this, w](bool) { updateTabListButton(w); });
+    }
 
     // 分頁右鍵選單：標色 / 唯讀鎖定（FR-001）＋ Dual-View 的移動/複製
     w->tabBar()->setContextMenuPolicy(Qt::CustomContextMenu);
