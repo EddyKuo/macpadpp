@@ -23,7 +23,9 @@ jobs:
   build:
     name: Build arm64
     runs-on: macos-14      # Apple Silicon
-    timeout-minutes: 60
+    # 打包已不再建置測試（見 CMakeLists.txt 的 MACPAD_BUILD_TESTS），時間大幅下降；
+    # 這裡仍留出餘裕，避免 runner 忙碌時又卡在上限被取消（v0.7.1 即因此被 cancel）。
+    timeout-minutes: 90
     outputs:
       version: ${{ steps.ver.outputs.version }}
     steps:

@@ -76,6 +76,10 @@ scripts/package_macos.sh 0.6.0 arm64      # architecture suffix in the DMG filen
 # produces: dist/macpad++-0.6.0[-arm64].dmg (macdeployqt bundles the Qt frameworks)
 ```
 
+The packaging scripts configure with `-DMACPAD_BUILD_TESTS=OFF`: a DMG only needs the app, while the
+60+ test executables each link `macpad_lib` and Qt and take roughly three quarters of the whole job on
+a CI macOS runner. Ordinary development and testing keep the default `ON` — nothing to pass.
+
 > Unsigned distribution: on first launch users must right-click → Open, or run
 > `xattr -dr com.apple.quarantine /Applications/macpad++.app`.
 

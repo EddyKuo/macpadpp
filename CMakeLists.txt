@@ -85,5 +85,12 @@ message(STATUS "QScintilla library: ${QSCINTILLA_LIBRARY}")
 add_subdirectory(src)
 
 # --- 測試 ---------------------------------------------------------------
-enable_testing()
-add_subdirectory(tests)
+# 打包（package_macos.sh / package_windows.ps1）只需要 app 本體。測試可執行檔有 60+ 個，
+# 每個都要各自連結 macpad_lib 與 Qt——在 CI 的 macOS runner 上光建置測試就佔掉整個 job
+# 約 3/4 的時間，Release job 因此撞上 60 分鐘上限被取消。故打包時以 -DMACPAD_BUILD_TESTS=OFF
+# 略過；開發與 CI 測試維持預設 ON。
+option(MACPAD_BUILD_TESTS "Build unit tests" ON)
+if(MACPAD_BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
