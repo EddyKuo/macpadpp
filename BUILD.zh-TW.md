@@ -74,6 +74,10 @@ scripts/package_macos.sh 0.6.0 arm64      # DMG 檔名帶架構後綴
 # 產出：dist/macpad++-0.6.0[-arm64].dmg（macdeployqt 同梱 Qt framework）
 ```
 
+打包腳本會以 `-DMACPAD_BUILD_TESTS=OFF` 設定建置：DMG 只需要 app 本體，而 60+ 個測試
+可執行檔各自連結 `macpad_lib` 與 Qt，在 CI 的 macOS runner 上會佔掉整個 job 約 3/4 的
+時間。一般開發與測試維持預設 `ON`，不需要特別指定。
+
 > 未簽名散佈：使用者初次開啟需右鍵→開啟，或
 > `xattr -dr com.apple.quarantine /Applications/macpad++.app`。
 

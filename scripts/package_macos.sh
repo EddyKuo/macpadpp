@@ -27,6 +27,7 @@ DMG_NAME="macpad++-${VERSION}${ARCH:+-$ARCH}"
 echo "==> 設定並建置 Release (${ARCH})"
 cmake -S . -B "$BUILD_DIR" \
   -DCMAKE_BUILD_TYPE=Release \
+  -DMACPAD_BUILD_TESTS=OFF \
   -DCMAKE_PREFIX_PATH="$QT_PREFIX"
 cmake --build "$BUILD_DIR" -j
 

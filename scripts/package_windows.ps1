@@ -38,7 +38,7 @@ $dist = "dist"
 $stage = Join-Path $dist "macpad++"
 
 Write-Host "==> 設定並建置 Release ($Arch)"
-cmake -S . -B $buildDir -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$QtPrefix"
+cmake -S . -B $buildDir -G Ninja -DCMAKE_BUILD_TYPE=Release -DMACPAD_BUILD_TESTS=OFF -DCMAKE_PREFIX_PATH="$QtPrefix"
 if ($LASTEXITCODE) { throw "cmake configure 失敗" }
 cmake --build $buildDir -j
 if ($LASTEXITCODE) { throw "cmake build 失敗" }
