@@ -65,18 +65,66 @@ for missing in libwebp.7.dylib libsharpyuv.0.dylib libwebpdemux.2.dylib libwebpm
   fi
 done
 
+echo "==> 修正 QtWebEngineProcess helper（Markdown 預覽依賴它，macdeployqt 不處理）"
+# QtWebEngine 的每個網頁都跑在獨立的 helper 程序裡，其位置是巢狀在 framework 內的另一個 .app：
+#   Contents/Frameworks/QtWebEngineCore.framework/Versions/A/Helpers/QtWebEngineProcess.app
+# macdeployqt 完全不碰它，造成兩個問題（v0.7.0 起的發佈版 Markdown 預覽都受影響）：
+#  1. helper 本身的 Qt 依賴仍是 Homebrew 絕對路徑 → 沒裝 Homebrew Qt 的電腦直接載入失敗。
+#     改寫為 @rpath/…；helper 自帶的 rpath「@loader_path/../../../../../../../」剛好指回
+#     主程式的 Contents/Frameworks，不必另加。
+#  2. macdeployqt 把各 Qt framework 之間的依賴改成 @executable_path/../Frameworks/…，
+#     在 helper 程序裡 @executable_path 是 helper 自己的 MacOS/，會找不到（例：QtWebChannel）。
+#     在 helper 的 Contents/ 放一個指回主程式 Frameworks/ 的相對 symlink，兩種程序就解析到同一處。
+find "$FRAMEWORKS" -path '*/Helpers/*.app' -type d -prune | while read -r HELPER_APP; do
+  HELPER_NAME="$(basename "$HELPER_APP" .app)"
+  HELPER_BIN="$HELPER_APP/Contents/MacOS/$HELPER_NAME"
+  [ -f "$HELPER_BIN" ] || continue
+  echo "   $HELPER_NAME"
+  otool -L "$HELPER_BIN" | tail -n +2 | awk '{print $1}' \
+    | { grep -E '^(/opt/homebrew|/usr/local)/' || true; } | while read -r DEP; do
+      FW_REL="$(echo "$DEP" | grep -oE '[^/]+\.framework/.*$' || true)"
+      if [ -z "$FW_REL" ]; then
+        echo "!! $HELPER_NAME 依賴非 framework 的外部函式庫：$DEP" >&2; exit 1
+      fi
+      if [ ! -e "$FRAMEWORKS/$FW_REL" ]; then
+        echo "!! $HELPER_NAME 需要的 $FW_REL 未同梱進 bundle" >&2; exit 1
+      fi
+      install_name_tool -change "$DEP" "@rpath/$FW_REL" "$HELPER_BIN"
+    done
+  # 從 helper 的 Contents/ 往上六層即主程式的 Contents/Frameworks：
+  # Contents → QtWebEngineProcess.app → Helpers → A → Versions → QtWebEngineCore.framework → Frameworks
+  ln -sfn "../../../../../.." "$HELPER_APP/Contents/Frameworks"
+  [ -e "$HELPER_APP/Contents/Frameworks/QtCore.framework" ] \
+    || { echo "!! helper 的 Frameworks symlink 沒有指到主程式的 Frameworks/" >&2; exit 1; }
+done
+
+# macdeployqt 會留下某些 dylib 自身 install id 的 Homebrew 路徑（例 libbrotlicommon），改為 @rpath。
+for LIB in "$FRAMEWORKS"/*.dylib; do
+  ID="$(otool -D "$LIB" | tail -n +2)"
+  case "$ID" in /opt/homebrew/*|/usr/local/*) install_name_tool -id "@rpath/$(basename "$LIB")" "$LIB" ;; esac
+done
+
 echo "==> 對整個 bundle 進行 ad-hoc 重新簽名（修復 macdeployqt 改寫 install_name 後失效的簽名）"
 # 未購買 Developer ID：以 ad-hoc（-）簽名，讓 bundle 具備有效簽名，避免「App 已損毀」。
 # 使用者仍需移除 quarantine 屬性（見 README）。
 codesign --force --deep --sign - --timestamp=none "$APP"
 codesign --verify --deep --strict "$APP" && echo "   ad-hoc 簽名驗證通過" || echo "   （簽名驗證有警告，未簽名散佈可接受）"
 
-echo "==> 驗證沒有殘留的 Homebrew 絕對路徑依賴"
-if otool -L "$APP/Contents/MacOS/macpad++" | grep -E '/opt/homebrew|/usr/local/Cellar' ; then
-  echo "!! 警告：仍有指向 Homebrew 的依賴，該機以外可能無法執行" >&2
-else
-  echo "   OK：無外部絕對路徑依賴"
+echo "==> 驗證整個 bundle（含巢狀 helper）沒有殘留的 Homebrew 絕對路徑依賴"
+# 先前只檢查主程式且只警告，巢狀 helper 的問題因此從 v0.7.0 一路漏到發佈版。
+# 改為掃描 bundle 內每個 Mach-O，有殘留就讓打包失敗。
+LEAKS="$(find "$APP" -type f \( -perm -u+x -o -name '*.dylib' \) -print0 \
+  | while IFS= read -r -d '' F; do
+      file -b "$F" | grep -q 'Mach-O' || continue
+      otool -L "$F" | tail -n +2 | awk '{print $1}' \
+        | { grep -E '^(/opt/homebrew|/usr/local)/' || true; } | sed "s|^|${F#$APP/}: |"
+    done)"
+if [ -n "$LEAKS" ]; then
+  echo "!! 仍有指向 Homebrew 的依賴，該機以外無法執行：" >&2
+  echo "$LEAKS" >&2
+  exit 1
 fi
+echo "   OK：無外部絕對路徑依賴"
 
 echo "==> 產生 DMG：$DIST/$DMG_NAME.dmg"
 rm -rf "$DIST"; mkdir -p "$DIST"
